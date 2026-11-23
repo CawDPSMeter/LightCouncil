@@ -30,11 +30,6 @@ LC:RegisterLocale("frFR", {
     [" <Name> <Wert>"] = " <nom> <valeur>",
     ["Gespeichert:"] = "Enregistré :",
     [" Spieler für diese Woche als anwesend erfasst."] = " joueurs enregistrés comme présents cette semaine.",
-    ["Kein Text eingefügt."] = "Aucun texte collé.",
-    ["Keine Reservierungen erkannt. Auf softres.it auf „CSV“ klicken, „Copy to Clipboard“ und hier einfügen (inkl. Kopfzeile)."] = "Aucune réservation reconnue. Sur softres.it, cliquez sur « CSV », puis « Copy to Clipboard » et collez ici (ligne d'en-tête comprise).",
-    ["Keine Prio-Einträge erkannt. Format: ItemID: Name1 > Name2 > Name3"] = "Aucune priorité reconnue. Format : ItemID: Nom1 > Nom2 > Nom3",
-    [" Prio-Einträge importiert."] = " priorités importées.",
-    [" Council-Items gesetzt."] = " objets du conseil définis.",
     ["Kein Item erkannt. Item-ID eintippen oder ein Item mit Shift-Klick einfügen."] = "Aucun objet reconnu. Tapez un ID d'objet ou insérez un objet par Maj-clic.",
     ["1 Council-Item hinzugefügt."] = "1 objet du conseil ajouté.",
     [" Council-Items hinzugefügt."] = " objets du conseil ajoutés.",
@@ -653,4 +648,5 @@ LC:RegisterLocale("frFR", {
     ["JSON-Datei beim Ausloggen: aus."] = "Fichier JSON à la déconnexion : désactivé.",
     ["JSON (alle Daten)"] = "JSON (tout)",
     ["Alle Daten – für eine Website"] = "Toutes les données – pour un site web",
+    ["Vom Council (%s) eingetragen: %s (vorher: %s)"] = "Saisi par le conseil (%s) : %s (avant : %s)",
 })

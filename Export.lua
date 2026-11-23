@@ -47,7 +47,7 @@ local function EncodeValue(v, out, depth)
         if v ~= v or v == math.huge or v == -math.huge then
             out[#out + 1] = "null"
         elseif v % 1 == 0 and math.abs(v) < 2 ^ 53 then
-            out[#out + 1] = string.format("%d", v)
+            out[#out + 1] = string.format("%.0f", v)   -- nicht %d: unter Windows nur 32 Bit
         else
             out[#out + 1] = string.format("%.14g", v)
         end
@@ -103,6 +103,16 @@ local function ItemName(id)
     local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
     local name = id and getInfo(id)
     return name
+end
+
+-- WoW-Steuercodes entfernen (Farben, Item-Links, Texturen) – eine Website bekommt reinen Text
+local function Plain(text)
+    if type(text) ~= "string" then return text end
+    text = text:gsub("||", "\1")
+        :gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+        :gsub("|H.-|h(.-)|h", "%1"):gsub("|T.-|t", ""):gsub("|A.-|a", "")
+        :gsub("|n", " "):gsub("\1", "|")
+    return text
 end
 
 local function HowKey(e)
@@ -207,7 +217,7 @@ local function BuildReserves(db)
         for _, p in pairs(r.players or {}) do
             local entry = { name = p.name, items = IdList(p.items), locked = (p.rev or 0) > 0, time = p.time }
             if p.pending then
-                entry.pending = { items = IdList(p.pending.items), reason = p.pending.reason, time = p.pending.time }
+                entry.pending = { items = IdList(p.pending.items), reason = Plain(p.pending.reason), time = p.pending.time }
             end
             players[#players + 1] = entry
         end
@@ -250,12 +260,12 @@ local function BuildLog(db)
             if type(e.votes) == "table" then
                 votes = Arr()
                 for _, v in ipairs(e.votes) do
-                    if type(v) == "table" then votes[#votes + 1] = { decision = v.decision, reason = v.reason } end
+                    if type(v) == "table" then votes[#votes + 1] = { decision = v.decision, reason = Plain(v.reason) } end
                 end
             end
             list[#list + 1] = {
                 time = e.time, week = e.week, kind = e.kind or "loot", council = e.council and true or nil,
-                itemID = e.itemID, item = ItemName(e.itemID), result = e.result, votes = votes,
+                itemID = e.itemID, item = ItemName(e.itemID), result = Plain(e.result), votes = votes,
             }
         end
     end

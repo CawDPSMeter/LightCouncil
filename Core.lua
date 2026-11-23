@@ -126,12 +126,12 @@ function LC:PlayerName()
 end
 
 -- Zwei Namen gelten als gleich, wenn sie identisch sind oder einer nur der Vorname des anderen ist
--- (SoftRes-Listen enthalten oft nur den Vornamen).
+-- (der Council kann für Spieler ohne Addon auch nur den Vornamen eintragen).
 function LC:NamesMatch(a, b)
     local ka, kb = self:NameKey(a), self:NameKey(b)
     if not ka or not kb then return false end
     if ka == kb then return true end
-    -- softres.it kennt noch keine Nachnamen: "ShockBrown" soll "Shock Brown" finden
+    -- Ohne Leerzeichen eingetippt: "ShockBrown" soll "Shock Brown" finden
     if ka:gsub(" ", "") == kb:gsub(" ", "") then return true end
     if not ka:find(" ") and kb:find(" ") then return kb:match("^(%S+)") == ka end
     if not kb:find(" ") and ka:find(" ") then return ka:match("^(%S+)") == kb end
@@ -343,17 +343,6 @@ function LC:MigrateCouncilNames()
     local merged = {}
     for i = 1, #list, 2 do merged[#merged + 1] = list[i] .. " " .. list[i + 1] end
     self.db.config.council = merged
-end
-
--- Council-Namen aus Text lesen: getrennt durch Komma, Semikolon oder Zeilenumbruch
--- (Leerzeichen gehören in Forever zum Namen: "Vorname Nachname")
-function LC:ParseNameList(text)
-    local list = {}
-    for n in (text or ""):gmatch("[^,;\n]+") do
-        n = strtrim(n):gsub("%s+", " ")
-        if n ~= "" then list[#list + 1] = n end
-    end
-    return list
 end
 
 -- Ansage im Raidchat (oder lokal, wenn nicht in Gruppe / Testmodus)

@@ -30,11 +30,6 @@ LC:RegisterLocale("ruRU", {
     [" <Name> <Wert>"] = " <имя> <значение>",
     ["Gespeichert:"] = "Сохранено:",
     [" Spieler für diese Woche als anwesend erfasst."] = " игроков отмечено присутствующими на этой неделе.",
-    ["Kein Text eingefügt."] = "Текст не вставлен.",
-    ["Keine Reservierungen erkannt. Auf softres.it auf „CSV“ klicken, „Copy to Clipboard“ und hier einfügen (inkl. Kopfzeile)."] = "Резервы не распознаны. На softres.it нажмите «CSV», затем «Copy to Clipboard» и вставьте сюда (вместе со строкой заголовка).",
-    ["Keine Prio-Einträge erkannt. Format: ItemID: Name1 > Name2 > Name3"] = "Приоритеты не распознаны. Формат: ItemID: Имя1 > Имя2 > Имя3",
-    [" Prio-Einträge importiert."] = " приоритетов импортировано.",
-    [" Council-Items gesetzt."] = " предметов совета задано.",
     ["Kein Item erkannt. Item-ID eintippen oder ein Item mit Shift-Klick einfügen."] = "Предмет не распознан. Введите ID предмета или вставьте предмет через Shift+клик.",
     ["1 Council-Item hinzugefügt."] = "Добавлен 1 предмет совета.",
     [" Council-Items hinzugefügt."] = " предметов совета добавлено.",
@@ -653,4 +648,5 @@ LC:RegisterLocale("ruRU", {
     ["JSON-Datei beim Ausloggen: aus."] = "JSON-файл при выходе: выкл.",
     ["JSON (alle Daten)"] = "JSON (всё)",
     ["Alle Daten – für eine Website"] = "Все данные – для сайта",
+    ["Vom Council (%s) eingetragen: %s (vorher: %s)"] = "Внесено советом (%s): %s (ранее: %s)",
 })

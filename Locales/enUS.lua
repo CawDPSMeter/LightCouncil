@@ -30,11 +30,6 @@ LC:RegisterLocale("enUS", {
     [" <Name> <Wert>"] = " <name> <value>",
     ["Gespeichert:"] = "Saved:",
     [" Spieler für diese Woche als anwesend erfasst."] = " players marked present for this week.",
-    ["Kein Text eingefügt."] = "No text pasted.",
-    ["Keine Reservierungen erkannt. Auf softres.it auf „CSV“ klicken, „Copy to Clipboard“ und hier einfügen (inkl. Kopfzeile)."] = "No reservations found. On softres.it click “CSV”, then “Copy to Clipboard” and paste it here (including the header line).",
-    ["Keine Prio-Einträge erkannt. Format: ItemID: Name1 > Name2 > Name3"] = "No priority entries found. Format: ItemID: Name1 > Name2 > Name3",
-    [" Prio-Einträge importiert."] = " priority entries imported.",
-    [" Council-Items gesetzt."] = " council items set.",
     ["Kein Item erkannt. Item-ID eintippen oder ein Item mit Shift-Klick einfügen."] = "No item found. Type an item ID or shift-click an item.",
     ["1 Council-Item hinzugefügt."] = "1 council item added.",
     [" Council-Items hinzugefügt."] = " council items added.",
@@ -653,4 +648,5 @@ LC:RegisterLocale("enUS", {
     ["JSON-Datei beim Ausloggen: aus."] = "JSON file on logout: off.",
     ["JSON (alle Daten)"] = "JSON (all data)",
     ["Alle Daten – für eine Website"] = "All data – for a website",
+    ["Vom Council (%s) eingetragen: %s (vorher: %s)"] = "Entered by the council (%s): %s (before: %s)",
 })

@@ -242,10 +242,6 @@ function LC:GetLootDB()
     return self.lootCache.all
 end
 
-function LC:GetRaidLootDB()
-    return self:GetLootDB()
-end
-
 -- Raid, in dem ich gerade bin (Eintrag aus der Loot-Datenbank) oder nil
 function LC:GetCurrentRaid()
     local name, instanceType = GetInstanceInfo()

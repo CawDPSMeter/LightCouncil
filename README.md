@@ -207,6 +207,8 @@ Contents (`schema: 1`, times as Unix timestamps): `history`, `historyDeleted`, `
 
 Parse, engagement and the log are only included when a council member exports; votes never contain voter names.
 
+**For website developers:** names, set names, raid names and reasons are typed in by players. Always escape them (HTML) before displaying them, and only accept uploads from people you trust.
+
 ---
 
 ## Security and fairness

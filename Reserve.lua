@@ -280,7 +280,7 @@ function LC:CouncilSetReservation(raid, name, items)
     self:ResSend("YA", raid, tostring(R.epoch), p.name, tostring(p.rev), ItemsString(items))
     self:AddLog({
         kind = "reserve", itemID = items[1], link = L["Reservierung "] .. p.name,
-        result = string.format("Vom Council (%s) eingetragen: %s (vorher: %s)", self:PlayerName(), self:ItemListText(items), self:ItemListText(old)),
+        result = L("Vom Council (%s) eingetragen: %s (vorher: %s)", self:PlayerName(), self:ItemListText(items), self:ItemListText(old)),
     })
     Changed()
     return true, L["Reservierung für "] .. p.name .. L[" eingetragen."]

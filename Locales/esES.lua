@@ -30,11 +30,6 @@ LC:RegisterLocale("esES", {
     [" <Name> <Wert>"] = " <nombre> <valor>",
     ["Gespeichert:"] = "Guardado:",
     [" Spieler für diese Woche als anwesend erfasst."] = " jugadores registrados como presentes esta semana.",
-    ["Kein Text eingefügt."] = "No se ha pegado ningún texto.",
-    ["Keine Reservierungen erkannt. Auf softres.it auf „CSV“ klicken, „Copy to Clipboard“ und hier einfügen (inkl. Kopfzeile)."] = "No se han reconocido reservas. En softres.it pulsa «CSV», luego «Copy to Clipboard» y pégalo aquí (incluida la línea de cabecera).",
-    ["Keine Prio-Einträge erkannt. Format: ItemID: Name1 > Name2 > Name3"] = "No se han reconocido prioridades. Formato: ItemID: Nombre1 > Nombre2 > Nombre3",
-    [" Prio-Einträge importiert."] = " prioridades importadas.",
-    [" Council-Items gesetzt."] = " objetos del consejo definidos.",
     ["Kein Item erkannt. Item-ID eintippen oder ein Item mit Shift-Klick einfügen."] = "No se ha reconocido ningún objeto. Escribe un ID de objeto o inserta un objeto con Mayús-clic.",
     ["1 Council-Item hinzugefügt."] = "1 objeto del consejo añadido.",
     [" Council-Items hinzugefügt."] = " objetos del consejo añadidos.",
@@ -653,4 +648,5 @@ LC:RegisterLocale("esES", {
     ["JSON-Datei beim Ausloggen: aus."] = "Archivo JSON al cerrar sesión: desactivado.",
     ["JSON (alle Daten)"] = "JSON (todo)",
     ["Alle Daten – für eine Website"] = "Todos los datos – para una web",
+    ["Vom Council (%s) eingetragen: %s (vorher: %s)"] = "Introducido por el consejo (%s): %s (antes: %s)",
 })
