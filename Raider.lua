@@ -219,8 +219,10 @@ function LC:OnRaidComm(cmd, p, sender)
         if not sameWinner then it.winRoll, it.winOS = nil, nil end
         if p[5] == "1" then it.winOS = true end
         if R.activeIdx == idx then R.activeIdx = nil end
-        -- Historie: die Leitung trägt selbst ein (auch Tests kommen nur lokal an und werden so übersprungen)
-        if not self:IsMe(sender) then
+        -- Historie: die Leitung trägt selbst ein (auch Tests kommen nur lokal an und werden so übersprungen).
+        -- Nur vom Council oder vom Plündermeister übernehmen, nicht von jedem Raid-Assistenten.
+        local sm = self:FindByName(self:GetGroupMembers(), sender)
+        if not self:IsMe(sender) and (self:IsTrustedCouncil(sender) or (sm and sm.isML)) then
             self:AddHistory({
                 id = lid .. "#" .. idx, itemID = it.itemID, winner = it.winner, roll = it.winRoll,
                 council = it.council or nil, offspec = it.winOS,

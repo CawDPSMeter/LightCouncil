@@ -2,7 +2,7 @@
 ## Title: |cffb48cffLight Council|r
 ## OptionalDeps: AtlasLootClassic, NaowhForever, NaowhForever_DungeonJournal
 ## Notes: Light Council: Reservierungen im Addon und Lootverteilung mit 3- oder 5-köpfigem Council für wichtige Items. Raider würfeln per Knopfdruck. /lc
-## Version: 0.12.0
+## Version: 0.13.0
 ## Author: Gilde
 ## SavedVariables: LightCouncilDB
 ## IconTexture: Interface\AddOns\LightCouncil\Media\Logo64
@@ -17,6 +17,7 @@ LootDB.lua
 Raider.lua
 Reserve.lua
 History.lua
+Attendance.lua
 UI_Vote.lua
 UI_Raider.lua
 UI_Prio.lua

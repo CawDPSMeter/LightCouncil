@@ -94,6 +94,56 @@ function LC:IsTrustedCouncil(name)
     return false
 end
 
+-- Wer eine ERSTE Council-Liste schicken darf (solange noch keine bekannt ist):
+-- Raidleiter, Gildenmeister oder Offiziere (Gildenrang 0 oder 1). Sonst könnte jeder
+-- Gildenkollege zuerst eine falsche Liste schicken und der echte Council käme nicht mehr durch.
+function LC:IsTrustedFirstSource(sender)
+    local m = self:FindByName(self:GetGroupMembers(), sender)
+    if m and (m.rank or 0) >= 2 then return true end
+    if IsInGuild() and GetGuildRosterInfo and GetNumGuildMembers then
+        local key = self:NameKey(sender)
+        local fallback
+        for i = 1, (GetNumGuildMembers() or 0) do
+            local name, _, rankIndex = GetGuildRosterInfo(i)
+            if name then
+                if self:NameKey(name) == key then return (rankIndex or 99) <= 1 end
+                if fallback == nil and self:NamesMatch(name, sender) then fallback = (rankIndex or 99) <= 1 end
+            end
+        end
+        if fallback then return true end
+    end
+    return false
+end
+
+-- Alternative für Gilden, in denen der Council nicht aus Offizieren besteht:
+-- Zwei verschiedene Council-Mitglieder, die selbst auf der Liste stehen, schicken dieselbe Liste.
+local firstSeen = {}   -- [Liste] = { [Absender] = true }
+function LC:FirstListConfirmed(list, sender)
+    local inList = false
+    for _, n in ipairs(list) do
+        if self:NamesMatch(n, sender) then inList = true break end
+    end
+    if not inList then return false end
+    local keys = {}
+    for i, n in ipairs(list) do keys[i] = self:NameKey(n) or "" end
+    table.sort(keys)
+    local sig = table.concat(keys, ";")
+    firstSeen[sig] = firstSeen[sig] or {}
+    firstSeen[sig][self:NameKey(sender)] = true
+    local n = 0
+    for _ in pairs(firstSeen[sig]) do n = n + 1 end
+    return n >= 2
+end
+
+-- Gespeicherte Council-Liste vergessen und neu vom Council anfragen (/lc councilreset)
+function LC:ResetKnownCouncil()
+    self.db.knownCouncil = {}
+    self.db.knownRaidDays, self.db.knownReminderRaid = nil, nil
+    if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() elseif GuildRoster then GuildRoster() end
+    self:RequestResSync(true)
+    self:RefreshUI()
+end
+
 function LC:AmICouncil()
     return self:IsCouncilMember(self:PlayerName())
 end
@@ -305,8 +355,15 @@ function LC:ResHandle(cmd, p, sender)
     if cmd == "YL" then
         local list = {}
         for n in (p[2] or ""):gmatch("[^;]+") do list[#list + 1] = n end
-        -- Erste Liste übernehmen, danach nur Änderungen vom bekannten Council
-        if #list > 0 and (#self:GetTrustedCouncil() == 0 or self:IsTrustedCouncil(sender)) then
+        -- Erste Liste nur von Raidleitung/Gildenleitung, danach nur Änderungen vom bekannten Council
+        local trusted
+        if #self:GetTrustedCouncil() == 0 then
+            trusted = self:IsTrustedFirstSource(sender) or self:FirstListConfirmed(list, sender)
+            if not trusted and C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
+        else
+            trusted = self:IsTrustedCouncil(sender)
+        end
+        if #list > 0 and trusted then
             self.db.knownCouncil = list
             self.db.knownMax = tonumber(p[3]) or self.db.knownMax
             -- Raidtage und Raid für die Erinnerung (ältere Versionen schicken das nicht mit)

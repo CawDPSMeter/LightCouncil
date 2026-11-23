@@ -283,13 +283,18 @@ function LC:RecordAttendance(force)
     end
     local week = self:CurrentWeek()
     self.db.attendance[week] = self.db.attendance[week] or {}
-    local n = 0
+    local n, added = 0, {}
     for key, m in pairs(self:GetGroupMembers()) do
         if m.online then
-            if not self.db.attendance[week][key] then n = n + 1 end
+            if not self.db.attendance[week][key] then
+                n = n + 1
+                added[#added + 1] = m.name
+            end
             self.db.attendance[week][key] = m.name
         end
     end
+    -- Neu erfasste Spieler mit dem restlichen Council abgleichen (Attendance.lua)
+    if n > 0 and self.ShareAttendance then self:ShareAttendance(week, added) end
     return n
 end
 

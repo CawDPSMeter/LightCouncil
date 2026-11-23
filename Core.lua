@@ -2,7 +2,7 @@
 local ADDON, LC = ...
 _G.LightCouncil = LC
 
-LC.version = "0.12.0"
+LC.version = "0.13.0"
 LC.prefix = "LCouncil"
 LC.COLOR = "|cffb48cff"
 
@@ -178,10 +178,28 @@ function LC:JoinNames(list, lastSep)
     return table.concat(list, ", ", 1, n - 1) .. lastSep .. list[n]
 end
 
+-- Kürzt auf höchstens maxBytes Bytes, ohne ein Umlaut-/UTF-8-Zeichen in der Mitte zu zerschneiden
+function LC:Utf8Cut(text, maxBytes)
+    if #text <= maxBytes then return text end
+    text = text:sub(1, maxBytes)
+    local k = 0   -- Folgebytes (10xxxxxx) am Ende
+    while k < 3 and k < #text do
+        local b = text:byte(#text - k)
+        if b < 0x80 or b >= 0xC0 then break end
+        k = k + 1
+    end
+    local lead = text:byte(#text - k)
+    if lead and lead >= 0xC0 then
+        local need = (lead >= 0xF0 and 4) or (lead >= 0xE0 and 3) or 2
+        if k + 1 < need then text = text:sub(1, #text - k - 1) end
+    end
+    return text
+end
+
 function LC:CleanText(text, maxLen)
     text = tostring(text or ""):gsub("[~;:|\n\r]", " ")
     text = strtrim(text)
-    if maxLen and #text > maxLen then text = text:sub(1, maxLen) end
+    if maxLen and #text > maxLen then text = self:Utf8Cut(text, maxLen) end
     return text
 end
 
@@ -418,6 +436,7 @@ local function ShowHelp()
     print("  /lc abbruch – laufende Abstimmung/Würfelrunde abbrechen")
     print("  /lc minimap – Minimap-Button ein-/ausblenden")
     print("  /lc loot – Loot-Fenster für Raider öffnen/schließen")
+    print("  /lc councilreset – gespeicherte Council-Liste vergessen und neu anfragen")
 end
 
 SLASH_LIGHTCOUNCIL1 = "/lc"
@@ -431,6 +450,9 @@ SlashCmdList["LIGHTCOUNCIL"] = function(input)
         LC:ToggleMainFrame()
     elseif cmd == "help" or cmd == "hilfe" then
         ShowHelp()
+    elseif cmd == "councilreset" then
+        LC:ResetKnownCouncil()
+        LC:Print("Gespeicherte Council-Liste gelöscht. Sie wird neu angenommen, sobald Raidleitung, Gildenleitung oder zwei Council-Mitglieder sie schicken.")
     elseif cmd == "test" then
         LC:StartTest(rest)
     elseif cmd == "ci" or cmd == "council" then
@@ -456,6 +478,7 @@ SlashCmdList["LIGHTCOUNCIL"] = function(input)
     elseif cmd == "anw" then
         local n = LC:RecordAttendance(true)
         LC:Print(n .. " Spieler für diese Woche als anwesend erfasst.")
+        LC:RequestAttendanceSync(true)
         LC:RefreshUI()
     elseif cmd == "log" then
         LC:PrintLog(10)

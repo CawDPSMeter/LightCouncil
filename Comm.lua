@@ -52,7 +52,7 @@ function LC:Send(msg, channel, target)
         C_Timer.After(0.05, function() LC:OnComm(msg, me, "WHISPER") end)
         return
     end
-    if #msg > 250 then msg = msg:sub(1, 250) end
+    if #msg > 250 then msg = self:Utf8Cut(msg, 250) end
     table.insert(sendQueue, { msg = msg, channel = channel, target = target })
     Pump()
     if #sendQueue > 0 and not ticker then
@@ -62,7 +62,7 @@ end
 
 -- Nachrangig senden (große Datenmengen, z. B. Historie-Abgleich)
 function LC:SendLow(msg, channel, target)
-    if #msg > 250 then msg = msg:sub(1, 250) end
+    if #msg > 250 then msg = self:Utf8Cut(msg, 250) end
     table.insert(lowQueue, { msg = msg, channel = channel, target = target })
     Pump()
     if (#sendQueue > 0 or #lowQueue > 0) and not ticker then
@@ -79,14 +79,56 @@ function LC:SendTo(target, ...)
     self:Send(strjoin(SEP, ...), "WHISPER", target)
 end
 
--- Parse/Engagement an andere Addon-Nutzer (Leitung + Council) verteilen
+-- Online-Empfänger für vertrauliche Daten: Council-Mitglieder und Raidleiter.
+-- Liefert die Namen so, wie der Server sie zum Flüstern braucht (aus Raid- bzw. Gildenliste).
+function LC:GetPrivateTargets()
+    local targets, seen = {}, {}
+    local council = self:GetCouncilList()
+    local function Wanted(...)
+        for i = 1, select("#", ...) do
+            local n = select(i, ...)
+            if n then
+                for _, c in ipairs(council) do
+                    if self:NamesMatch(c, n) then return true end
+                end
+            end
+        end
+        return false
+    end
+    local function Add(target)
+        local key = self:NameKey(target)
+        if key and not seen[key] and not self:IsMe(target) then
+            seen[key] = true
+            targets[#targets + 1] = target
+        end
+    end
+    if IsInRaid() then
+        for i = 1, GetNumGroupMembers() do
+            local rosterName, rank, _, _, _, _, _, online = GetRaidRosterInfo(i)
+            if rosterName and online then
+                local full = self.isForever and self:UnitFullName("raid" .. i) or nil
+                if rank == 2 or Wanted(rosterName, full) then
+                    Add(rosterName)
+                    if full then seen[self:NameKey(full)] = true end
+                end
+            end
+        end
+    end
+    if IsInGuild() and GetGuildRosterInfo and GetNumGuildMembers then
+        for i = 1, (GetNumGuildMembers() or 0) do
+            local gName, _, _, _, _, _, _, _, online = GetGuildRosterInfo(i)
+            if gName and online and not seen[self:NameKey(gName)] and Wanted(gName) then Add(gName) end
+        end
+    end
+    return targets
+end
+
+-- Parse/Engagement nur per Flüstern an Council und Raidleiter (nicht mehr an Raid oder Gilde,
+-- sonst könnte jeder mit einem kleinen Skript die Bewertungen mitlesen)
 function LC:BroadcastData(kind, name, value)
-    local channel
-    if IsInRaid() then channel = "RAID"
-    elseif IsInGroup() then channel = "PARTY"
-    elseif IsInGuild() then channel = "GUILD" end
-    if channel then
-        self:Send(strjoin(SEP, "D", kind, name, tostring(value)), channel)
+    local msg = strjoin(SEP, "D", kind, name, tostring(value))
+    for _, target in ipairs(self:GetPrivateTargets()) do
+        self:Send(msg, "WHISPER", target)
     end
 end
 
