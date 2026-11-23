@@ -451,6 +451,8 @@ function LC:AddHistory(e, quiet)
     if not e or not e.itemID or not e.winner or e.winner == "" then return false end
     local h = self.db.history
     if e.id then
+        -- Gelöschte Einträge nicht über den Abgleich wiederbeleben
+        if self.db.historyDeleted and self.db.historyDeleted[e.id] then return false end
         for i = #h, 1, -1 do
             if h[i].id == e.id then return false end
         end
@@ -510,12 +512,32 @@ function LC:AddLootTooltip(tooltip, name, max)
     end
 end
 
-function LC:DeleteHistory(entry)
+-- Löscht einen Eintrag. Mit Kennung wird das Löschen gemerkt und (als Council) an alle weitergegeben,
+-- sonst käme der Eintrag beim nächsten Abgleich zurück.
+function LC:DeleteHistory(entry, fromSync)
     local h = self.db.history
     for i = #h, 1, -1 do
         if h[i] == entry then table.remove(h, i) break end
     end
+    if entry and entry.id then
+        self.db.historyDeleted = self.db.historyDeleted or {}
+        self.db.historyDeleted[entry.id] = time()
+        if not fromSync and self.ShareHistoryDelete then self:ShareHistoryDelete({ entry.id }) end
+    end
     self:RefreshUI()
+end
+
+-- Löschen per Kennung (vom Abgleich); merkt sich die Kennung auch, wenn der Eintrag hier fehlt
+function LC:DeleteHistoryById(id)
+    if not id or id == "" then return false end
+    self.db.historyDeleted = self.db.historyDeleted or {}
+    local isNew = not self.db.historyDeleted[id]
+    self.db.historyDeleted[id] = self.db.historyDeleted[id] or time()
+    local h = self.db.history
+    for i = #h, 1, -1 do
+        if h[i].id == id then table.remove(h, i) return true end
+    end
+    return isNew
 end
 
 -- Gefilterte Historie, neueste zuerst. filter = Text (Spieler, Item oder Raid)

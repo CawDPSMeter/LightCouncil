@@ -4,6 +4,7 @@
 --   HQ~seit                 alle -> Gilde/Raid: bitte Einträge ab Zeitpunkt "seit" schicken
 --   HE~eintrag;eintrag;…    Council -> Anfragender (Whisper) bzw. Gilde (neu vergebenes Item)
 --     eintrag = id^itemID^gewinner^zeit^raid^wurf^flags   (flags: c = Council-Item, r = reserviert, o = Off Spec)
+--   HD~id;id;…              Council -> Gilde/Anfragender: diese Einträge wurden gelöscht
 --
 -- Nur Einträge von Council-Mitgliedern werden übernommen, damit niemand die Historie fälschen kann.
 -- Der Abgleich läuft nachrangig: während Abstimmungen und Würfelrunden wird nichts davon gesendet.
@@ -11,7 +12,26 @@ local _, LC = ...
 local L = LC.L
 
 local SEP = "~"
-local CMDS = { HQ = true, HE = true }
+local CMDS = { HQ = true, HE = true, HD = true }
+local DELETED_KEEP = 180 * 86400  -- gelöschte Kennungen so lange merken
+
+-- Kennungen in Nachrichten unter 240 Zeichen packen
+local function PackIds(ids)
+    local msgs, cur = {}, ""
+    for _, id in ipairs(ids) do
+        id = LC:CleanText(id, 80)
+        if id ~= "" then
+            if cur ~= "" and #cur + #id + 1 > 236 then
+                msgs[#msgs + 1] = cur
+                cur = id
+            else
+                cur = (cur == "") and id or (cur .. ";" .. id)
+            end
+        end
+    end
+    if cur ~= "" then msgs[#msgs + 1] = cur end
+    return msgs
+end
 local LOOKBACK = 21 * 86400   -- verpasste Raids der letzten 3 Wochen vor dem neuesten eigenen Eintrag
 local MAX_SEND = 90           -- höchstens so viele Einträge pro Anfrage
 
@@ -92,10 +112,38 @@ local function Answer(requester, since)
         if e.id then table.insert(list, 1, e) end
         if #list >= MAX_SEND then break end
     end
+    -- Gelöschte Einträge im selben Zeitraum mitschicken (zuerst, damit sie nicht neu angelegt werden)
+    local ids = {}
+    for id, t in pairs(LC.db.historyDeleted or {}) do
+        if t >= since then ids[#ids + 1] = id end
+        if #ids >= MAX_SEND then break end
+    end
+    for _, m in ipairs(PackIds(ids)) do
+        LC:SendLow(strjoin(SEP, "HD", m), "WHISPER", requester)
+    end
     if #list == 0 then return end
     for _, m in ipairs(Pack(list)) do
         LC:SendLow(strjoin(SEP, "HE", m), "WHISPER", requester)
     end
+end
+
+-- Gelöschte Einträge an alle weitergeben (nur Council – nur dessen Löschungen werden übernommen)
+function LC:ShareHistoryDelete(ids)
+    if not ids or #ids == 0 or not self:AmICouncil() then return end
+    local channel = IsInGuild() and "GUILD" or (IsInRaid() and "RAID") or nil
+    if not channel then return end
+    for _, m in ipairs(PackIds(ids)) do
+        self:SendLow(strjoin(SEP, "HD", m), channel)
+    end
+end
+
+local function ReceiveDelete(sender, payload)
+    if not LC:IsTrustedCouncil(sender) then return end
+    local changed = false
+    for id in (payload or ""):gmatch("[^;]+") do
+        if LC:DeleteHistoryById(LC:SafeText(id, 80)) then changed = true end
+    end
+    if changed then LC:RefreshUI() end
 end
 
 -- Neu vergebenes Item an die Gilde (für Council-Mitglieder und Raider, die gerade nicht im Raid sind)
@@ -154,6 +202,8 @@ function LC:OnComm(msg, sender, channel)
         if cmd == "HQ" then
             local since = tonumber(rest) or 0
             C_Timer.After(2 + math.random() * 6, function() Answer(sender, since) end)
+        elseif cmd == "HD" then
+            ReceiveDelete(sender, rest)
         else
             Receive(sender, rest)
         end
@@ -163,5 +213,10 @@ function LC:OnComm(msg, sender, channel)
 end
 
 LC:On("PLAYER_LOGIN", function(self)
+    -- Alte Lösch-Kennungen aufräumen
+    local now = time()
+    for id, t in pairs(self.db.historyDeleted or {}) do
+        if now - (t or 0) > DELETED_KEEP then self.db.historyDeleted[id] = nil end
+    end
     C_Timer.After(20, function() LC:RequestHistorySync(false) end)
 end)

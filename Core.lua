@@ -3,7 +3,11 @@ local ADDON, LC = ...
 local L = LC.L
 _G.LightCouncil = LC
 
-LC.version = "0.14.1"
+-- Versionsnummer nur an einer Stelle pflegen: in der .toc
+do
+    local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+    LC.version = (getMeta and getMeta(ADDON, "Version")) or "0"
+end
 LC.prefix = "LCouncil"
 LC.COLOR = "|cffb48cff"
 
@@ -28,6 +32,7 @@ local DEFAULTS = {
         reminderRaid = "",      -- Raid (Schlüssel), an den erinnert wird; "" = irgendein Raid
         maxReserves = 2,        -- Reservierungen pro Raider und Raid
         lootSource = "auto",    -- Loot-Quelle: auto / atlas / naowh (nur Raids)
+        tooltip = true,         -- Council-Item, Prio und Reservierer im Item-Tooltip anzeigen
         language = "auto",      -- Sprache: auto (Spielclient) / deDE / enUS / frFR / esES / ruRU
     },
     reserves = {},      -- Reservierungen im Addon (siehe Reserve.lua)
@@ -41,6 +46,7 @@ local DEFAULTS = {
     sitouts = {},       -- [week] = { [itemID] = { [key] = "Name" } }
     log = {},           -- Protokoll aller Entscheidungen
     history = {},       -- Loot-Historie: { id, itemID, winner, time, week, raid, roll, council, reserved }
+    historyDeleted = {}, -- [Eintrags-ID] = Zeitpunkt des Löschens (damit der Abgleich nichts zurückholt)
 }
 
 local function ApplyDefaults(target, defaults)
@@ -451,6 +457,8 @@ local function ShowHelp()
     print(L["  /lc loot – Loot-Fenster für Raider öffnen/schließen"])
     print(L["  /lc councilreset – gespeicherte Council-Liste vergessen und neu anfragen"])
     print(L["  /lc lang <auto|de|en|fr|es|ru> – Sprache wechseln"])
+    print(L["  /lc check – zeigt, wer im Raid Light Council in welcher Version hat"])
+    print(L["  /lc tooltip – Infos im Item-Tooltip ein-/ausschalten"])
 end
 
 SLASH_LIGHTCOUNCIL1 = "/lc"
@@ -476,6 +484,11 @@ SlashCmdList["LIGHTCOUNCIL"] = function(input)
             LC.db.config.language = found
             LC:Print(L["Sprache gespeichert. Mit /reload wird sie übernommen."])
         end
+    elseif cmd == "check" or cmd == "version" then
+        LC:CheckRaidVersions()
+    elseif cmd == "tooltip" then
+        LC.db.config.tooltip = not LC.db.config.tooltip
+        LC:Print(LC.db.config.tooltip and L["Item-Tooltips: an."] or L["Item-Tooltips: aus."])
     elseif cmd == "councilreset" then
         LC:ResetKnownCouncil()
         LC:Print(L["Gespeicherte Council-Liste gelöscht. Sie wird neu angenommen, sobald Raidleitung, Gildenleitung oder zwei Council-Mitglieder sie schicken."])
