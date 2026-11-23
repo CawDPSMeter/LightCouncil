@@ -19,6 +19,7 @@ No link to a website, no spreadsheet, no best-in-slot list that someone has to m
 - [Who does what?](#who-does-what)
 - [Installation and setup](#installation-and-setup)
 - [Commands](#commands)
+- [JSON export](#json-export)
 - [Security and fairness](#security-and-fairness)
 - [FAQ](#faq)
 
@@ -184,11 +185,27 @@ The language follows your game client; switch it with `/lc lang en` (or `de`, `f
 | `/lc check` | Who in the raid has the addon, and which version? |
 | `/lc lang <auto\|de\|en\|fr\|es\|ru>` | Change the language |
 | `/lc tooltip` | Turn item tooltip info on/off |
+| `/lc json` | Export all data as JSON (for a website or your own analysis) |
+| `/lc json auto` | Turn the JSON file on logout on/off |
 | `/lc anw` | Record attendance now |
 | `/lc log` | Recent decisions in chat |
 | `/lc abbruch` | Cancel the running vote or roll |
 | `/lc councilreset` | Forget the stored council list and request it again |
 | `/lc help` | All commands |
+
+---
+
+## JSON export
+
+WoW addons cannot connect to the internet, so Light Council writes its data to a file instead. Everything can be exported as JSON, ready for a guild website, a Discord bot or your own spreadsheet:
+
+- **In-game:** `/lc json` or *Loot history → Export → JSON (all data)* – the text is selected, Ctrl+C copies it.
+- **As a file:** on logout or `/reload` the addon writes the same JSON to
+  `WTF\Account\<account>\SavedVariables\LightCouncil.lua` as `LightCouncilExport.json`. An upload tool can pick it up from there. Turn it off with `/lc json auto`.
+
+Contents (`schema: 1`, times as Unix timestamps): `history`, `historyDeleted`, `attendance`, `sitouts`, `players` (wins), `councilItems`, `prio`, `reserves`, `gearSets`, `council`, `settings` and the decision `log`. Since the council syncs among itself, one council member's export is enough.
+
+Parse, engagement and the log are only included when a council member exports; votes never contain voter names.
 
 ---
 

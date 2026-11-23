@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.17.0
+- New: **JSON export** of all data – loot history, attendance, sit-outs, players and their wins, council items, priorities, reservations, gear sets and the decision log. Open it with `/lc json` or under Loot history → Export → “JSON (all data)”.
+- On logout or `/reload` the JSON is also written to the SavedVariables (`LightCouncilExport.json`), ready for a future website or upload tool. Turn it off with `/lc json auto`.
+- Privacy: parse, engagement and the log are only included in a council member's export; votes are exported without voter names; test runs are left out.
+
 ## 0.16.1
 - Fairness: an item counts as owned in a gear set if the loot history shows the player received it (nobody can look needier by reporting false data).
 - Other players' sets show when they were last updated; sets older than 14 days are marked “(old)” in the council window.

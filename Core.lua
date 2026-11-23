@@ -35,6 +35,7 @@ local DEFAULTS = {
         setReserve = false,     -- Raider dürfen aus ihrem Gear-Set reservieren (Council-Einstellung)
         tooltip = true,         -- Council-Item, Prio und Reservierer im Item-Tooltip anzeigen
         language = "auto",      -- Sprache: auto (Spielclient) / deDE / enUS / frFR / esES / ruRU
+        jsonOnLogout = true,    -- JSON-Export beim Ausloggen in die SavedVariables schreiben (LightCouncilExport)
     },
     reserves = {},      -- Reservierungen im Addon (siehe Reserve.lua)
     knownCouncil = {},  -- vom Council übermittelte Council-Liste (für Raider ohne eigene Einstellung)
@@ -462,6 +463,8 @@ local function ShowHelp()
     print(L["  /lc lang <auto|de|en|fr|es|ru> – Sprache wechseln"])
     print(L["  /lc check – zeigt, wer im Raid Light Council in welcher Version hat"])
     print(L["  /lc tooltip – Infos im Item-Tooltip ein-/ausschalten"])
+    print(L["  /lc json – alle Daten als JSON exportieren (für eine Website)"])
+    print(L["  /lc json auto – JSON-Datei beim Ausloggen ein-/ausschalten"])
 end
 
 SLASH_LIGHTCOUNCIL1 = "/lc"
@@ -492,6 +495,13 @@ SlashCmdList["LIGHTCOUNCIL"] = function(input)
     elseif cmd == "tooltip" then
         LC.db.config.tooltip = not LC.db.config.tooltip
         LC:Print(LC.db.config.tooltip and L["Item-Tooltips: an."] or L["Item-Tooltips: aus."])
+    elseif cmd == "json" then
+        if (rest or ""):lower() == "auto" then
+            LC.db.config.jsonOnLogout = (LC.db.config.jsonOnLogout == false)
+            LC:Print(LC.db.config.jsonOnLogout and L["JSON-Datei beim Ausloggen: an."] or L["JSON-Datei beim Ausloggen: aus."])
+        else
+            LC:ShowHistoryExport(nil, "json")
+        end
     elseif cmd == "councilreset" then
         LC:ResetKnownCouncil()
         LC:Print(L["Gespeicherte Council-Liste gelöscht. Sie wird neu angenommen, sobald Raidleitung, Gildenleitung oder zwei Council-Mitglieder sie schicken."])

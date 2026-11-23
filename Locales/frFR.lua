@@ -647,4 +647,10 @@ LC:RegisterLocale("frFR", {
     ["Dein Set #%d"] = "Votre set n°%d",
     [" (alt)"] = " (ancien)",
     ["Stand: %s"] = "État : %s",
+    ["  /lc json – alle Daten als JSON exportieren (für eine Website)"] = "  /lc json – exporter toutes les données en JSON (pour un site web)",
+    ["  /lc json auto – JSON-Datei beim Ausloggen ein-/ausschalten"] = "  /lc json auto – activer/désactiver le fichier JSON à la déconnexion",
+    ["JSON-Datei beim Ausloggen: an."] = "Fichier JSON à la déconnexion : activé.",
+    ["JSON-Datei beim Ausloggen: aus."] = "Fichier JSON à la déconnexion : désactivé.",
+    ["JSON (alle Daten)"] = "JSON (tout)",
+    ["Alle Daten – für eine Website"] = "Toutes les données – pour un site web",
 })

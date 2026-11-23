@@ -196,7 +196,12 @@ end
 
 -- Export-Fenster: Text markiert, Strg+C kopiert
 local exportFrame
-function LC:ShowHistoryExport(list)
+-- list = angezeigte Einträge (nil = ganze Historie), format = "csv" / "discord" / "json" (optional)
+function LC:ShowHistoryExport(list, format)
+    if not list then
+        list = {}
+        for i = #self.db.history, 1, -1 do list[#list + 1] = self.db.history[i] end
+    end
     if not exportFrame then
         local f = T:Window("LightCouncilExportFrame", 680, 480, L["Loot-Historie exportieren"], L["Strg+C kopiert den markierten Text"])
         f:SetFrameStrata("DIALOG")
@@ -204,13 +209,14 @@ function LC:ShowHistoryExport(list)
         f.seg = Segmented(f, {
             { key = "csv", label = L["Tabelle (Excel / Sheets)"], width = 220 },
             { key = "discord", label = L["Discord"], width = 110 },
+            { key = "json", label = L["JSON (alle Daten)"], width = 150 },
         }, function(key)
             f.format = key
             LC:ShowHistoryExport(f.list)
         end)
         f.seg.first:SetPoint("TOPLEFT", 16, -50)
         f.hint = T:Text(f, 11, C.muted, "LEFT")
-        f.hint:SetPoint("LEFT", f.seg.buttons.discord, "RIGHT", 14, 0)
+        f.hint:SetPoint("LEFT", f.seg.buttons.json, "RIGHT", 14, 0)
         f.hint:SetPoint("RIGHT", f, "RIGHT", -16, 0)
         f.hint:SetWordWrap(false)
         local box, eb = T:MultiLine(f)
@@ -223,10 +229,17 @@ function LC:ShowHistoryExport(list)
     end
     local f = exportFrame
     f.list = list
+    if format then f.format = format end
     f.seg:Set(f.format)
-    f.hint:SetText(#list .. ((#list == 1) and L[" Eintrag"] or L[" Einträge"])
-        .. ((f.format == "csv") and L["  ·  In eine leere Tabelle einfügen (Trennzeichen: Semikolon)"] or L["  ·  Direkt in Discord einfügen"]))
-    f.edit:SetText(#list > 0 and self:HistoryExportText(list, f.format) or L["Keine Einträge."])
+    if f.format == "json" then
+        -- Unabhängig von der angezeigten Liste: alle Daten (Historie, Anwesenheit, Reservierungen, Sets …)
+        f.hint:SetText(L["Alle Daten – für eine Website"])
+        f.edit:SetText(self:ExportJSON())
+    else
+        f.hint:SetText(#list .. ((#list == 1) and L[" Eintrag"] or L[" Einträge"])
+            .. ((f.format == "csv") and L["  ·  In eine leere Tabelle einfügen (Trennzeichen: Semikolon)"] or L["  ·  Direkt in Discord einfügen"]))
+        f.edit:SetText(#list > 0 and self:HistoryExportText(list, f.format) or L["Keine Einträge."])
+    end
     f:Show()
     f.edit:SetFocus()
     f.edit:HighlightText()

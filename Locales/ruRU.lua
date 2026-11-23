@@ -647,4 +647,10 @@ LC:RegisterLocale("ruRU", {
     ["Dein Set #%d"] = "Ваш набор №%d",
     [" (alt)"] = " (устар.)",
     ["Stand: %s"] = "Состояние: %s",
+    ["  /lc json – alle Daten als JSON exportieren (für eine Website)"] = "  /lc json – экспорт всех данных в JSON (для сайта)",
+    ["  /lc json auto – JSON-Datei beim Ausloggen ein-/ausschalten"] = "  /lc json auto – вкл./выкл. JSON-файл при выходе",
+    ["JSON-Datei beim Ausloggen: an."] = "JSON-файл при выходе: вкл.",
+    ["JSON-Datei beim Ausloggen: aus."] = "JSON-файл при выходе: выкл.",
+    ["JSON (alle Daten)"] = "JSON (всё)",
+    ["Alle Daten – für eine Website"] = "Все данные – для сайта",
 })
