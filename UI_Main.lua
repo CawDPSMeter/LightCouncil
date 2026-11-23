@@ -1,6 +1,7 @@
 -- Light Council – Hauptfenster
 -- Seiten: Start (Checkliste), Loot, Council-Items, Import, Spieler, Protokoll, Einstellungen
 local _, LC = ...
+local L = LC.L
 local T = LC.T
 local C = T.C
 local H = T.HEX
@@ -66,8 +67,8 @@ local function SetupStatus()
     local size = LC:GetCouncilSize()
     local list = LC:GetCouncilList()
     nCouncil = #list
-    s.council = { ok = nCouncil == size, text = (nCouncil == 0) and "Noch niemand eingetragen"
-        or (nCouncil .. " von " .. size .. " eingetragen: " .. table.concat(list, ", ")) }
+    s.council = { ok = nCouncil == size, text = (nCouncil == 0) and L["Noch niemand eingetragen"]
+        or (nCouncil .. L[" von "] .. size .. L[" eingetragen: "] .. table.concat(list, ", ")) }
     -- Reservierungen im Addon: wie viele Spieler haben (bestätigt) reserviert?
     local players, pending = 0, 0
     for _, R in pairs(db.reserves or {}) do
@@ -77,17 +78,17 @@ local function SetupStatus()
         end
     end
     s.softres = { ok = players > 0, pending = pending,
-        text = (players > 0) and (players .. " Reservierungen bestätigt" .. ((pending > 0) and (" · " .. pending .. " Änderungsantrag/-anträge offen") or ""))
-            or "Noch keine Reservierungen – Raider reservieren unter „Meine Reservierung“" }
+        text = (players > 0) and (players .. L[" Reservierungen bestätigt"] .. ((pending > 0) and (" · " .. pending .. L[" Änderungsantrag/-anträge offen"]) or ""))
+            or L["Noch keine Reservierungen – Raider reservieren unter „Meine Reservierung“"] }
     local ci = 0
     for _ in pairs(db.councilItems) do ci = ci + 1 end
-    s.items = { ok = ci > 0, text = (ci > 0) and (ci .. " Items markiert") or "Noch keine Items markiert" }
+    s.items = { ok = ci > 0, text = (ci > 0) and (ci .. L[" Items markiert"]) or L["Noch keine Items markiert"] }
     if LC:IsMasterLooter() then
-        s.ml = { ok = true, text = "Du bist Plündermeister – alles bereit." }
+        s.ml = { ok = true, text = L["Du bist Plündermeister – alles bereit."] }
     elseif IsInRaid() then
-        s.ml = { ok = false, text = "Im Raid die Plündermethode auf „Plündermeister“ stellen (Rechtsklick auf dein Porträt)." }
+        s.ml = { ok = false, text = L["Im Raid die Plündermethode auf „Plündermeister“ stellen (Rechtsklick auf dein Porträt)."] }
     else
-        s.ml = { ok = false, text = "Wird im Raid geprüft. Plündermethode: Plündermeister." }
+        s.ml = { ok = false, text = L["Wird im Raid geprüft. Plündermethode: Plündermeister."] }
     end
     return s
 end
@@ -118,15 +119,15 @@ local function CreateStartPage(p)
     logo:SetPoint("TOPLEFT", 14, -12)
     local ht = T:Text(hero, 20, C.text, "LEFT", nil, true)
     ht:SetPoint("TOPLEFT", 118, -20)
-    ht:SetText("Willkommen bei Light Council")
+    ht:SetText(L["Willkommen bei Light Council"])
     local hs = T:Text(hero, 12, C.muted)
     hs:SetPoint("TOPLEFT", ht, "BOTTOMLEFT", 0, -8)
     hs:SetWidth(CW - 140)
     hs:SetSpacing(3)
-    hs:SetText("Raider reservieren ihre Items direkt im Addon – einmal gespeichert, ist die Wahl gesperrt und nur mit Freigabe des Councils änderbar. "
-        .. "Bei markierten Council-Items stimmt der Council (3 oder 5 Personen) kurz ab – "
-        .. "die Entscheidung wird per Raidwarnung angesagt. Raider mit dem Addon bekommen ein Loot-Fenster mit Würfel-Knopf, "
-        .. "ohne Addon läuft alles wie gewohnt über den Raidchat.")
+    hs:SetText(L["Raider reservieren ihre Items direkt im Addon – einmal gespeichert, ist die Wahl gesperrt und nur mit Freigabe des Councils änderbar. "]
+        .. L["Bei markierten Council-Items stimmt der Council (3 oder 5 Personen) kurz ab – "]
+        .. L["die Entscheidung wird per Raidwarnung angesagt. Raider mit dem Addon bekommen ein Loot-Fenster mit Würfel-Knopf, "]
+        .. L["ohne Addon läuft alles wie gewohnt über den Raidchat."])
     -- Höhe an den Text anpassen, damit nichts gequetscht wird
     local heroH = math.max(112, 20 + ht:GetStringHeight() + 8 + hs:GetStringHeight() + 22)
     hero:SetHeight(heroH)
@@ -135,7 +136,7 @@ local function CreateStartPage(p)
     local y = heroH + 22
     local lt = T:Text(p, 14, C.text, "LEFT", nil, true)
     lt:SetPoint("TOPLEFT", 0, -y)
-    lt:SetText("Vor dem Raid")
+    lt:SetText(L["Vor dem Raid"])
     y = y + 28
 
     p.steps = {}
@@ -148,7 +149,7 @@ local function CreateStartPage(p)
         row.num:SetWidth(40)
         row.title = T:Text(row, 14, C.text, "LEFT", nil, true)
         row.title:SetPoint("TOPLEFT", 60, -12)
-        row.title:SetText(step.title)
+        row.title:SetText(L[step.title])
         row.sub = T:Text(row, 12, C.muted)
         row.sub:SetPoint("TOPLEFT", row.title, "BOTTOMLEFT", 0, -5)
         row.sub:SetWidth(CW - 220)
@@ -159,7 +160,7 @@ local function CreateStartPage(p)
         row.stripe:SetPoint("BOTTOMLEFT", 1, 1)
         row.stripe:SetWidth(3)
         if step.tab then
-            row.btn = T:Button(row, step.button, 130, 32, "default", function() SelectTab(step.tab) end)
+            row.btn = T:Button(row, L[step.button], 130, 32, "default", function() SelectTab(step.tab) end)
             row.btn:SetPoint("RIGHT", -14, 0)
         end
         row.step = step
@@ -170,13 +171,13 @@ local function CreateStartPage(p)
 
     -- Schnellaktion
     y = y + 14
-    local test = T:Button(p, "Test-Abstimmung starten", 220, 34, "primary", function() LC:StartTest("") end)
+    local test = T:Button(p, L["Test-Abstimmung starten"], 220, 34, "primary", function() LC:StartTest("") end)
     test:SetPoint("TOPLEFT", 0, -y)
-    Tip(test, "Test-Abstimmung", "Spielt den kompletten Ablauf mit Beispiel-Spielern durch: Popup, Abstimmung, Würfeln. Ansagen erscheinen nur in deinem Chat.")
+    Tip(test, L["Test-Abstimmung"], L["Spielt den kompletten Ablauf mit Beispiel-Spielern durch: Popup, Abstimmung, Würfeln. Ansagen erscheinen nur in deinem Chat."])
     local tt = T:Text(p, 12, C.muted)
     tt:SetPoint("LEFT", test, "RIGHT", 14, 0)
     tt:SetWidth(CW - 240)
-    tt:SetText("Probier den Ablauf einmal alleine aus – nichts davon geht in den Raidchat.")
+    tt:SetText(L["Probier den Ablauf einmal alleine aus – nichts davon geht in den Raidchat."])
 end
 
 local function RefreshStart()
@@ -188,11 +189,11 @@ local function RefreshStart()
         if s.ok then
             row.num:SetText(H.good .. "OK|r")
             row.stripe:SetVertexColor(unpack(C.good))
-            if row.btn then row.btn:SetText(row.step.button == "Eintragen" and "Ändern" or "Bearbeiten") end
+            if row.btn then row.btn:SetText(row.step.button == "Eintragen" and L["Ändern"] or L["Bearbeiten"]) end
         else
             row.num:SetText(H.accentLt .. row.index .. "|r")
             row.stripe:SetVertexColor(unpack(C.accent))
-            if row.btn then row.btn:SetText(row.step.button) end
+            if row.btn then row.btn:SetText(L[row.step.button]) end
         end
     end
 end
@@ -205,19 +206,19 @@ local ROW_H = 52
 local LOOT_LW = CW - 380   -- Breite für Itemname und Reservierer
 
 local function CreateLootPage(p)
-    local y = PageHeader(p, "Loot", "Öffnest du als Plündermeister eine Leiche, erscheinen die Items hier. Council-Items starten automatisch.")
+    local y = PageHeader(p, L["Loot"], L["Öffnest du als Plündermeister eine Leiche, erscheinen die Items hier. Council-Items starten automatisch."])
 
     -- Automatisch vergeben: oben rechts neben der Überschrift
-    p.autoAward = T:Check(p, "Automatisch vergeben")
+    p.autoAward = T:Check(p, L["Automatisch vergeben"])
     p.autoAward:SetPoint("TOPRIGHT", -170, -6)
     p.autoAward:SetScript("OnClick", function(self)
         LC.db.config.autoAward = self:GetChecked() and true or false
     end)
     p.autoAward:HookScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:SetText("Automatisch vergeben", 1, 1, 1)
-        GameTooltip:AddLine("Steht der Gewinner fest, bekommt er das Item sofort – ohne Klick auf „An …“. "
-            .. "Klappt nur, solange das Lootfenster offen ist; sonst kommt ein Hinweis im Chat.", nil, nil, nil, true)
+        GameTooltip:SetText(L["Automatisch vergeben"], 1, 1, 1)
+        GameTooltip:AddLine(L["Steht der Gewinner fest, bekommt er das Item sofort – ohne Klick auf „An …“. "]
+            .. L["Klappt nur, solange das Lootfenster offen ist; sonst kommt ein Hinweis im Chat."], nil, nil, nil, true)
         GameTooltip:Show()
     end)
     p.autoAward:HookScript("OnLeave", GameTooltip_Hide)
@@ -245,19 +246,19 @@ local function CreateLootPage(p)
     p.timeBar:SetPoint("BOTTOMRIGHT", -1, 1)
     p.timeBar:SetBackdropBorderColor(0, 0, 0, 0)
 
-    p.btnCancel = T:Button(status, "Abbrechen", 96, 26, "danger", function() LC:CancelAll() end)
+    p.btnCancel = T:Button(status, L["Abbrechen"], 96, 26, "danger", function() LC:CancelAll() end)
     p.btnCancel:SetPoint("RIGHT", -12, 0)
-    Tip(p.btnCancel, "Abbrechen", "Bricht die laufende Abstimmung oder Würfelrunde ab und leert die Warteschlange.")
-    p.btnFinish = T:Button(status, "Würfeln beenden", 130, 26, "default", function() LC:FinishRoll() end)
+    Tip(p.btnCancel, L["Abbrechen"], L["Bricht die laufende Abstimmung oder Würfelrunde ab und leert die Warteschlange."])
+    p.btnFinish = T:Button(status, L["Würfeln beenden"], 130, 26, "default", function() LC:FinishRoll() end)
     p.btnFinish:SetPoint("RIGHT", p.btnCancel, "LEFT", -6, 0)
-    Tip(p.btnFinish, "Würfeln beenden", "Beendet die Würfelrunde sofort und sagt den Gewinner an, statt auf den Ablauf der Zeit zu warten.")
-    p.btnAll = T:Button(status, "Alle starten", 140, 26, "primary", function()
+    Tip(p.btnFinish, L["Würfeln beenden"], L["Beendet die Würfelrunde sofort und sagt den Gewinner an, statt auf den Ablauf der Zeit zu warten."])
+    p.btnAll = T:Button(status, L["Alle starten"], 140, 26, "primary", function()
         for _, e in ipairs(LC.lootItems) do
             if e.status == "offen" and not e.winner and not e.awarded and not e.looted then LC:Enqueue(e) end
         end
     end)
     p.btnAll:SetPoint("RIGHT", p.btnFinish, "LEFT", -6, 0)
-    Tip(p.btnAll, "Alle starten", "Stellt alle offenen Items nacheinander in die Warteschlange: Council-Items gehen an den Council, alle anderen werden direkt ausgewürfelt.")
+    Tip(p.btnAll, L["Alle starten"], L["Stellt alle offenen Items nacheinander in die Warteschlange: Council-Items gehen an den Council, alle anderen werden direkt ausgewürfelt."])
     y = y + 54 + 12
 
     local sf, content = T:Scroll(p)
@@ -275,14 +276,14 @@ local function CreateLootPage(p)
     logo:SetPoint("TOP")
     local et = T:Text(empty, 13, C.text, "CENTER")
     et:SetPoint("TOP", logo, "BOTTOM", 0, -12)
-    et:SetText("Gerade kein Loot")
+    et:SetText(L["Gerade kein Loot"])
     local es = T:Text(empty, 11, C.muted, "CENTER")
     es:SetPoint("TOP", et, "BOTTOM", 0, -6)
     es:SetWidth(CW - 80)
-    es:SetText("Dieses Fenster öffnet sich von selbst, sobald du als Plündermeister eine Leiche öffnest.")
-    local eb1 = T:Button(empty, "Erste Schritte", 130, 26, "default", function() SelectTab("start") end)
+    es:SetText(L["Dieses Fenster öffnet sich von selbst, sobald du als Plündermeister eine Leiche öffnest."])
+    local eb1 = T:Button(empty, L["Erste Schritte"], 130, 26, "default", function() SelectTab("start") end)
     eb1:SetPoint("TOP", es, "BOTTOM", -70, -14)
-    local eb2 = T:Button(empty, "Test-Abstimmung", 130, 26, "primary", function() LC:StartTest("") end)
+    local eb2 = T:Button(empty, L["Test-Abstimmung"], 130, 26, "primary", function() LC:StartTest("") end)
     eb2:SetPoint("LEFT", eb1, "RIGHT", 10, 0)
     p.empty = empty
 
@@ -326,7 +327,7 @@ local function GetLootRow(parent, i)
     r.info:SetWidth(LOOT_LW)
     r.info:SetWordWrap(false)
 
-    r.council = T:Check(r, "Council", 14)
+    r.council = T:Check(r, L["Council"], 14)
     r.council:SetPoint("LEFT", 62 + LOOT_LW, 8)
     r.council:SetScript("OnClick", function(self)
         if r.entry and not r.entry.test then
@@ -336,8 +337,8 @@ local function GetLootRow(parent, i)
     end)
     r.council:HookScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Council-Item", 1, 1, 1)
-        GameTooltip:AddLine("Angehakt: Der Council entscheidet, wer würfeln darf. Gilt dauerhaft für dieses Item.", nil, nil, nil, true)
+        GameTooltip:SetText(L["Council-Item"], 1, 1, 1)
+        GameTooltip:AddLine(L["Angehakt: Der Council entscheidet, wer würfeln darf. Gilt dauerhaft für dieses Item."], nil, nil, nil, true)
         GameTooltip:Show()
     end)
     r.council:HookScript("OnLeave", GameTooltip_Hide)
@@ -346,11 +347,11 @@ local function GetLootRow(parent, i)
     r.state:SetWidth(110)
     r.state:SetWordWrap(false)
 
-    r.btnAward = T:Button(r, "Vergeben", 100, 26, "default", function()
+    r.btnAward = T:Button(r, L["Vergeben"], 100, 26, "default", function()
         if r.entry then LC:AwardLoot(r.entry) end
     end)
     r.btnAward:SetPoint("RIGHT", -8, 0)
-    r.btnAction = T:Button(r, "Council starten", 112, 26, "primary", function()
+    r.btnAction = T:Button(r, L["Council starten"], 112, 26, "primary", function()
         if r.entry then LC:Enqueue(r.entry) end
     end)
     r.btnAction:SetPoint("RIGHT", r.btnAward, "LEFT", -6, 0)
@@ -367,8 +368,8 @@ function LC:UpdateLootStatus()
         local left = math.max(0, a.endsAt - GetTime())
         local names = {}
         for _, v in ipairs(a.voteOrder) do names[#names + 1] = v.name end
-        p.statusTitle:SetText("Council stimmt ab:  " .. a.entry.link)
-        p.statusSub:SetText(string.format("%d von %d Stimmen%s  ·  noch %d Sek.", #a.voteOrder, a.nVoters,
+        p.statusTitle:SetText(L["Council stimmt ab:  "] .. a.entry.link)
+        p.statusSub:SetText(string.format(L["%d von %d Stimmen%s  ·  noch %d Sek."], #a.voteOrder, a.nVoters,
             (#names > 0) and (" (" .. table.concat(names, ", ") .. ")") or "", math.ceil(left)))
         p.timeBar.bar:SetMinMaxValues(0, self.db.config.voteTimeout)
         p.timeBar.bar:SetValue(left)
@@ -389,8 +390,8 @@ function LC:UpdateLootStatus()
             parts[#parts + 1] = (i == 1 and H.accentLt or "") .. list[i].name .. " " .. list[i].roll
                 .. (list[i].os and " OS" or "") .. (i == 1 and "|r" or "")
         end
-        p.statusTitle:SetText("Es wird gewürfelt:  " .. r.entry.link)
-        p.statusSub:SetText(((#parts > 0) and table.concat(parts, "  ·  ") or "Noch keine Würfe") .. "  ·  noch " .. math.ceil(left) .. " Sek.")
+        p.statusTitle:SetText(L["Es wird gewürfelt:  "] .. r.entry.link)
+        p.statusSub:SetText(((#parts > 0) and table.concat(parts, "  ·  ") or L["Noch keine Würfe"]) .. L["  ·  noch "] .. math.ceil(left) .. L[" Sek."])
         p.timeBar.bar:SetMinMaxValues(0, self.db.config.rollTimeout)
         p.timeBar.bar:SetValue(left)
         p.timeBar.bar:SetStatusBarColor(unpack(C.warn))
@@ -399,17 +400,17 @@ function LC:UpdateLootStatus()
     else
         local q = #self.queue
         if q > 0 then
-            p.statusTitle:SetText(q .. " Item(s) warten")
+            p.statusTitle:SetText(q .. L[" Item(s) warten"])
         elseif #self.lootItems > 0 then
-            p.statusTitle:SetText("Bereit – nächstes Item auswählen")
+            p.statusTitle:SetText(L["Bereit – nächstes Item auswählen"])
         else
-            p.statusTitle:SetText("Bereit")
+            p.statusTitle:SetText(L["Bereit"])
         end
         if self:IsMasterLooter() then
-            p.statusSub:SetText(self.db.config.autoAward and "„Alle starten“ – Gewinner bekommen ihr Item automatisch."
-                or "„Alle starten“ → Gewinner steht fest → „An …“ klicken.")
+            p.statusSub:SetText(self.db.config.autoAward and L["„Alle starten“ – Gewinner bekommen ihr Item automatisch."]
+                or L["„Alle starten“ → Gewinner steht fest → „An …“ klicken."])
         else
-            p.statusSub:SetText(H.warn .. "Du bist nicht Plündermeister.|r Loot erscheint nur beim Plündermeister.")
+            p.statusSub:SetText(H.warn .. L["Du bist nicht Plündermeister.|r Loot erscheint nur beim Plündermeister."])
         end
         p.timeBar:Hide()
         p.stripe:SetVertexColor(unpack(C.line))
@@ -421,7 +422,7 @@ function LC:UpdateLootStatus()
         if e.status == "offen" and not e.winner and not e.awarded and not e.looted then open = open + 1 end
     end
     p.btnAll:SetEnabled(open > 0)
-    p.btnAll:SetText(open > 1 and ("Alle starten (" .. open .. ")") or "Alle starten")
+    p.btnAll:SetText(open > 1 and (L["Alle starten ("] .. open .. ")") or L["Alle starten"])
 end
 
 local function RefreshLoot()
@@ -449,43 +450,43 @@ local function RefreshLoot()
             local res = e.test and e.testReservers or LC:GetReservers(e.itemID)
             local names = {}
             for _, x in ipairs(res) do names[#names + 1] = x.name end
-            local info = (#names > 0) and ("Reserviert: " .. table.concat(names, ", ")) or "Keine Reservierung – freies Würfeln"
+            local info = (#names > 0) and (L["Reserviert: "] .. table.concat(names, ", ")) or L["Keine Reservierung – freies Würfeln"]
             local prio = LC:GetPrio(e.itemID)
-            if prio then info = H.accentLt .. "Prio:|r " .. table.concat(prio, " > ") .. "   " .. info end
+            if prio then info = H.accentLt .. L["Prio:|r "] .. table.concat(prio, " > ") .. "   " .. info end
             r.info:SetText(info)
 
             r.council:SetChecked(e.isCouncil)
             r.council:SetEnabled(not e.test and not busy and not e.awarded and e.status ~= "wartet")
 
             local st = e.status or "offen"
-            if e.awarded then st = H.good .. "vergeben|r"
-            elseif e.looted then st = "nicht mehr im Loot"
-            elseif e.winner then st = H.accentLt .. "Gewinner|r"
+            if e.awarded then st = H.good .. L["vergeben|r"]
+            elseif e.looted then st = L["nicht mehr im Loot"]
+            elseif e.winner then st = H.accentLt .. L["Gewinner|r"]
             elseif st == "offen" then st = "" end
-            r.state:SetText(st)
+            r.state:SetText(L[st])
 
             local canStart = not busy and not e.awarded and not e.looted and (e.status == "offen" or e.winner ~= nil)
             if e.winner and not e.awarded then
-                r.btnAction:SetText("Neu starten")
-                r.btnAction.tooltip = "Startet Abstimmung bzw. Würfeln für dieses Item noch einmal."
+                r.btnAction:SetText(L["Neu starten"])
+                r.btnAction.tooltip = L["Startet Abstimmung bzw. Würfeln für dieses Item noch einmal."]
             else
-                r.btnAction:SetText(e.isCouncil and "Council starten" or "Würfeln lassen")
+                r.btnAction:SetText(e.isCouncil and L["Council starten"] or L["Würfeln lassen"])
                 r.btnAction.tooltip = e.isCouncil
-                    and "Der Council bekommt ein Popup und entscheidet, wer würfeln darf. Danach wird automatisch gewürfelt."
-                    or "Sagt im Raid an, wer würfeln darf (die Reservierer), und wertet die Würfe aus."
+                    and L["Der Council bekommt ein Popup und entscheidet, wer würfeln darf. Danach wird automatisch gewürfelt."]
+                    or L["Sagt im Raid an, wer würfeln darf (die Reservierer), und wertet die Würfe aus."]
             end
             r.btnAction.tooltipTitle = r.btnAction:GetText()
             r.btnAction:SetEnabled(canStart)
 
             if e.awarded then
-                r.btnAward:SetText("Vergeben")
+                r.btnAward:SetText(L["Vergeben"])
             elseif e.winner then
-                r.btnAward:SetText("An " .. (e.winner:match("^(%S+)") or e.winner))
+                r.btnAward:SetText(L["An "] .. (e.winner:match("^(%S+)") or e.winner))
             else
-                r.btnAward:SetText("Vergeben")
+                r.btnAward:SetText(L["Vergeben"])
             end
-            r.btnAward.tooltipTitle = "Vergeben"
-            r.btnAward.tooltip = e.winner and ("Gibt das Item per Plündermeister direkt an " .. e.winner .. ".") or "Wird aktiv, sobald ein Gewinner feststeht."
+            r.btnAward.tooltipTitle = L["Vergeben"]
+            r.btnAward.tooltip = e.winner and (L["Gibt das Item per Plündermeister direkt an "] .. e.winner .. ".") or L["Wird aktiv, sobald ein Gewinner feststeht."]
             r.btnAward:SetEnabled(e.winner ~= nil and not e.awarded and not e.looted)
             r:Show()
         elseif lootRows[i] then
@@ -535,13 +536,13 @@ local function ChipBar(parent, maxRows)
     bar:SetSize(CW, 1)
     bar.buttons, bar.page, bar.pages, bar.count = {}, 1, 1, 0
     -- Gut sichtbar: lila gefüllt wie die Hauptknöpfe
-    bar.pager = T:Button(bar, "Mehr", 124, 30, "primary", function()
+    bar.pager = T:Button(bar, L["Mehr"], 124, 30, "primary", function()
         bar.page = bar.page % bar.pages + 1
         bar:Layout()
     end)
     bar.pager:SetPoint("TOPRIGHT", 0, 0)
-    bar.pager.tooltipTitle = "Weitere Einträge"
-    bar.pager.tooltip = "Blättert zur nächsten Seite der Liste."
+    bar.pager.tooltipTitle = L["Weitere Einträge"]
+    bar.pager.tooltip = L["Blättert zur nächsten Seite der Liste."]
 
     function bar:SetItems(labels, selected, onClick)
         self.onClick = onClick
@@ -601,7 +602,7 @@ local function ChipBar(parent, maxRows)
             end
         end
         self.pager:SetShown(self.pages > 1)
-        self.pager:SetText("Mehr  " .. self.page .. "/" .. self.pages .. "  >>")
+        self.pager:SetText(L["Mehr  "] .. self.page .. "/" .. self.pages .. "  >>")
         self:SetHeight(self.count > 0 and (maxRow * 36 + 30) or 1)
     end
     return bar
@@ -612,8 +613,8 @@ local function SourceButton(parent)
     local b = T:Button(parent, "", 200, 30, "default", function() LC:CycleLootSource() end)
     b:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
-        GameTooltip:SetText("Loot-Quelle", 1, 1, 1)
-        GameTooltip:AddLine("Klicken wechselt die Quelle. „Automatisch“ führt alle installierten zusammen.", nil, nil, nil, true)
+        GameTooltip:SetText(L["Loot-Quelle"], 1, 1, 1)
+        GameTooltip:AddLine(L["Klicken wechselt die Quelle. „Automatisch“ führt alle installierten zusammen."], nil, nil, nil, true)
         GameTooltip:AddLine(" ")
         local cur = LC:GetLootSource()
         for _, s in ipairs(LC.LOOT_SOURCES) do
@@ -621,16 +622,16 @@ local function SourceButton(parent)
             local mark = (s.key == cur) and "> " or "   "
             if avail then
                 local c = (s.key == cur) and C.accentLt or C.text
-                GameTooltip:AddLine(mark .. s.label, c[1], c[2], c[3])
+                GameTooltip:AddLine(mark .. L[s.label], c[1], c[2], c[3])
             else
-                GameTooltip:AddLine(mark .. s.label .. "  (nicht installiert)", 0.45, 0.45, 0.48)
+                GameTooltip:AddLine(mark .. L[s.label] .. L["  (nicht installiert)"], 0.45, 0.45, 0.48)
             end
         end
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     function b:Update()
-        self:SetText("Quelle: " .. LC:GetLootSourceLabel(LC:GetLootSource()))
+        self:SetText(L["Quelle: "] .. LC:GetLootSourceLabel(LC:GetLootSource()))
     end
     return b
 end
@@ -649,18 +650,18 @@ local function CreateItemRow(parent, width, withRemove)
     r.sub:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -4)
     r.sub:SetWordWrap(false)
 
-    r.prio = T:Button(r, "Prio festlegen", 120, 30, "default", function() LC:OpenPrioEditor(r.itemID) end)
+    r.prio = T:Button(r, L["Prio festlegen"], 120, 30, "default", function() LC:OpenPrioEditor(r.itemID) end)
     r.prio:SetPoint("RIGHT", -8, 0)
-    r.prio.tooltipTitle = "Prio festlegen"
-    r.prio.tooltip = "Spieler in der gewünschten Reihenfolge anklicken. Die Prio wird im Loot-Fenster angezeigt und beim Würfeln angesagt."
+    r.prio.tooltipTitle = L["Prio festlegen"]
+    r.prio.tooltip = L["Spieler in der gewünschten Reihenfolge anklicken. Die Prio wird im Loot-Fenster angezeigt und beim Würfeln angesagt."]
     if withRemove then
-        r.remove = T:Button(r, "Entfernen", 96, 30, "ghost", function()
+        r.remove = T:Button(r, L["Entfernen"], 96, 30, "ghost", function()
             LC:SetCouncilItem(r.itemID, false)
             LC:RefreshUI()
         end)
         r.remove:SetPoint("RIGHT", r.prio, "LEFT", -6, 0)
     else
-        r.council = T:Check(r, "Council")
+        r.council = T:Check(r, L["Council"])
         r.council:SetPoint("RIGHT", r.prio, "LEFT", -92, 0)
         r.council:SetScript("OnClick", function(self)
             LC:SetCouncilItem(r.itemID, self:GetChecked())
@@ -668,8 +669,8 @@ local function CreateItemRow(parent, width, withRemove)
         end)
         r.council:HookScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
-            GameTooltip:SetText("Council-Item", 1, 1, 1)
-            GameTooltip:AddLine("Angehakt: Bei diesem Item entscheidet der Council, wer würfeln darf.", nil, nil, nil, true)
+            GameTooltip:SetText(L["Council-Item"], 1, 1, 1)
+            GameTooltip:AddLine(L["Angehakt: Bei diesem Item entscheidet der Council, wer würfeln darf."], nil, nil, nil, true)
             GameTooltip:Show()
         end)
         r.council:HookScript("OnLeave", GameTooltip_Hide)
@@ -705,25 +706,25 @@ local function FillItemRow(r, itemID, chance)
     local nRes = #LC:GetReservers(itemID)
     local parts = {}
     if prio and #prio > 0 then
-        parts[#parts + 1] = H.accentLt .. "Prio:|r " .. table.concat(prio, " > ")
+        parts[#parts + 1] = H.accentLt .. L["Prio:|r "] .. table.concat(prio, " > ")
     else
-        parts[#parts + 1] = "Keine Prio"
+        parts[#parts + 1] = L["Keine Prio"]
     end
-    if nRes > 0 then parts[#parts + 1] = nRes .. (nRes == 1 and " Reservierung" or " Reservierungen") end
-    if chance then table.insert(parts, 1, H.good .. chance .. " %|r Drop") end
+    if nRes > 0 then parts[#parts + 1] = nRes .. (nRes == 1 and L[" Reservierung"] or L[" Reservierungen"]) end
+    if chance then table.insert(parts, 1, H.good .. chance .. L[" %|r Drop"]) end
     r.sub:SetText(table.concat(parts, "   ·   "))
-    r.prio:SetText((prio and #prio > 0) and "Prio ändern" or "Prio festlegen")
+    r.prio:SetText((prio and #prio > 0) and L["Prio ändern"] or L["Prio festlegen"])
     if r.council then r.council:SetChecked(LC:IsCouncilItem(itemID)) end
 end
 
 local function CreateItemsPage(p)
-    local y = PageHeader(p, "Raid-Loot", "Council-Items markieren und Prio festlegen – direkt aus AtlasLoot oder Naowh Forever, ohne IDs abzutippen.")
+    local y = PageHeader(p, L["Raid-Loot"], L["Council-Items markieren und Prio festlegen – direkt aus AtlasLoot oder Naowh Forever, ohne IDs abzutippen."])
     p.sourceBtn = SourceButton(p)
     p.sourceBtn:SetPoint("TOPRIGHT", 0, 0)
     p.mode = "browse"
     p.seg = Segmented(p, {
-        { key = "browse", label = "Loot durchsuchen", width = 180 },
-        { key = "marked", label = "Council-Items", width = 170 },
+        { key = "browse", label = L["Loot durchsuchen"], width = 180 },
+        { key = "marked", label = L["Council-Items"], width = 170 },
     }, function(key)
         p.mode = key
         LC:RefreshUI()
@@ -759,7 +760,7 @@ local function CreateItemsPage(p)
     T:Skin(bossCol, C.bgDark)
     local bt = T:Text(bossCol, 12, C.text, "LEFT", nil, true)
     bt:SetPoint("TOPLEFT", 16, -14)
-    bt:SetText("Bosse")
+    bt:SetText(L["Bosse"])
     local bsf, bcontent = T:Scroll(bossCol)
     bsf:SetPoint("TOPLEFT", 0, -40)
     bsf:SetPoint("BOTTOMRIGHT", -12, 8)
@@ -777,13 +778,13 @@ local function CreateItemsPage(p)
     p.itemsEmpty:SetWidth(p.itemsW)
     local ie = T:Text(p.itemsEmpty, 14, C.text, "LEFT", nil, true)
     ie:SetPoint("TOPLEFT", 18, -18)
-    ie:SetText("Loot folgt")
+    ie:SetText(L["Loot folgt"])
     local ies = T:Text(p.itemsEmpty, 12, C.muted)
     ies:SetPoint("TOPLEFT", ie, "BOTTOMLEFT", 0, -8)
     ies:SetWidth(p.itemsW - 36)
     ies:SetSpacing(3)
-    ies:SetText("AtlasLoot hat für diesen Boss noch keine Items eingetragen. Sobald AtlasLoot aktualisiert wird, erscheinen sie hier automatisch.\n"
-        .. "Bis dahin: Unter „Council-Items“ ein gedroppetes Item per Shift-Klick hinzufügen.")
+    ies:SetText(L["AtlasLoot hat für diesen Boss noch keine Items eingetragen. Sobald AtlasLoot aktualisiert wird, erscheinen sie hier automatisch.\n"]
+        .. L["Bis dahin: Unter „Council-Items“ ein gedroppetes Item per Shift-Klick hinzufügen."])
 
     ---------------- Ansicht 2: markierte Council-Items ----------------
     local marked = CreateFrame("Frame", nil, p)
@@ -796,10 +797,10 @@ local function CreateItemsPage(p)
     add:SetWidth(CW)
     local al = T:Text(add, 12, C.text, "LEFT", nil, true)
     al:SetPoint("TOPLEFT", 16, -12)
-    al:SetText("Item manuell hinzufügen")
+    al:SetText(L["Item manuell hinzufügen"])
     p.input = T:Input(add, CW - 170, 30)
     p.input:SetPoint("TOPLEFT", al, "BOTTOMLEFT", 0, -8)
-    p.input:SetPlaceholder("Shift-Klick auf ein Item oder Item-ID eintippen")
+    p.input:SetPlaceholder(L["Shift-Klick auf ein Item oder Item-ID eintippen"])
     AcceptLinks(p.input)
     local function DoAdd()
         local ok, msg = LC:AddCouncilItems(p.input:GetText())
@@ -808,7 +809,7 @@ local function CreateItemsPage(p)
         LC:RefreshUI()
     end
     p.input:SetScript("OnEnterPressed", function(self) DoAdd() self:ClearFocus() end)
-    local addBtn = T:Button(add, "Hinzufügen", 120, 30, "primary", DoAdd)
+    local addBtn = T:Button(add, L["Hinzufügen"], 120, 30, "primary", DoAdd)
     addBtn:SetPoint("LEFT", p.input, "RIGHT", 10, 0)
 
     local msf, mcontent = T:Scroll(marked)
@@ -818,12 +819,12 @@ local function CreateItemsPage(p)
     p.markedEmpty = T:Text(marked, 12, C.muted, "CENTER")
     p.markedEmpty:SetPoint("TOP", msf, "TOP", 0, -30)
     p.markedEmpty:SetWidth(CW - 60)
-    p.markedEmpty:SetText("Noch keine Council-Items.\nIn „Raids durchsuchen“ einfach das Häkchen „Council“ beim Item setzen.")
+    p.markedEmpty:SetText(L["Noch keine Council-Items.\nIn „Raids durchsuchen“ einfach das Häkchen „Council“ beim Item setzen."])
 
-    local clear = T:Button(marked, "Alle entfernen", 140, 32, "danger", function() StaticPopup_Show("LIGHTCOUNCIL_CLEAR_ITEMS") end)
+    local clear = T:Button(marked, L["Alle entfernen"], 140, 32, "danger", function() StaticPopup_Show("LIGHTCOUNCIL_CLEAR_ITEMS") end)
     clear:SetPoint("BOTTOMRIGHT", 0, 0)
     StaticPopupDialogs["LIGHTCOUNCIL_CLEAR_ITEMS"] = {
-        text = "Light Council: Alle Council-Items entfernen?",
+        text = L["Light Council: Alle Council-Items entfernen?"],
         button1 = YES, button2 = NO,
         OnAccept = function()
             for id in pairs(LC.db.councilItems) do LC:SetCouncilItem(id, false) end
@@ -867,7 +868,7 @@ end
 local function RefreshBrowse(p)
     local raids, err = LC:GetLootDB()
     if raids and #raids == 0 then
-        raids, err = nil, "Die gewählte Quelle enthält keine Raids."
+        raids, err = nil, L["Die gewählte Quelle enthält keine Raids."]
     end
     p.dbError:SetShown(raids == nil)
     p.bossCol:SetShown(raids ~= nil)
@@ -876,14 +877,14 @@ local function RefreshBrowse(p)
     if not raids then
         p.itemsEmpty:Hide()
         p.chips:SetItems({}, nil, nil)
-        p.dbError.text:SetText(H.warn .. (err or "Keine Loot-Quelle gefunden.") .. "|r\n\n"
-            .. "Oben rechts unter „Quelle“ eine andere Quelle wählen – oder Council-Items unter „Council-Items“ per Shift-Klick bzw. Item-ID hinzufügen.")
+        p.dbError.text:SetText(H.warn .. (err or L["Keine Loot-Quelle gefunden."]) .. "|r\n\n"
+            .. L["Oben rechts unter „Quelle“ eine andere Quelle wählen – oder Council-Items unter „Council-Items“ per Shift-Klick bzw. Item-ID hinzufügen."])
         return
     end
     p.raidIdx = math.min(p.raidIdx or 1, #raids)
     local labels = {}
     for i, r in ipairs(raids) do
-        labels[i] = r.name .. (((r.itemCount or 0) == 0) and ("  " .. H.muted .. "(Loot folgt)|r") or "")
+        labels[i] = r.name .. (((r.itemCount or 0) == 0) and ("  " .. H.muted .. L["(Loot folgt)|r"]) or "")
     end
     p.chips:SetItems(labels, p.raidIdx, function(i)
         p.raidIdx, p.bossIdx = i, 1
@@ -963,7 +964,7 @@ local function RefreshItems()
     p.sourceBtn:Update()
     local n = 0
     for _ in pairs(LC.db.councilItems) do n = n + 1 end
-    p.seg.buttons.marked:SetText("Council-Items (" .. n .. ")")
+    p.seg.buttons.marked:SetText(L["Council-Items ("] .. n .. ")")
     p.browse:SetShown(p.mode == "browse")
     p.marked:SetShown(p.mode == "marked")
     if p.mode == "browse" then RefreshBrowse(p) else RefreshMarked(p) end
@@ -983,11 +984,11 @@ local function ReserveRaids()
     end
     for key, R in pairs(LC.db.reserves or {}) do
         if not known[key] and next(R.players or {}) then
-            out[#out + 1] = { key = key, name = (key == "custom") and "Raid (ohne Loot-Quelle)" or key, bosses = {}, itemCount = 0 }
+            out[#out + 1] = { key = key, name = (key == "custom") and L["Raid (ohne Loot-Quelle)"] or key, bosses = {}, itemCount = 0 }
             known[key] = true
         end
     end
-    if #out == 0 then out[1] = { key = "custom", name = "Raid (ohne Loot-Quelle)", bosses = {}, itemCount = 0 } end
+    if #out == 0 then out[1] = { key = "custom", name = L["Raid (ohne Loot-Quelle)"], bosses = {}, itemCount = 0 } end
     return out, list ~= nil and #list > 0
 end
 
@@ -1009,7 +1010,7 @@ local function ItemIcons(items, size)
         local icon = LC:ItemIcon(id)
         t[#t + 1] = string.format("|T%s:%d:%d:0:0|t %s", tostring(icon), size or 16, size or 16, LC:ItemLink(id))
     end
-    return (#t > 0) and table.concat(t, "    ") or (H.muted .. "–|r")
+    return (#t > 0) and table.concat(t, "    ") or (H.muted .. L["–|r"])
 end
 
 ------------------------------------------------------------------------
@@ -1018,7 +1019,7 @@ end
 local myBossButtons, myItemRows = {}, {}
 
 local function CreateMyResPage(p)
-    local y, _, desc = PageHeader(p, "Meine Reservierung", "Wähle bis zu " .. LC:MaxReserves() .. " Items pro Raid. Nach dem Speichern ist deine Wahl gesperrt – Änderungen nur mit Freigabe des Councils.")
+    local y, _, desc = PageHeader(p, L["Meine Reservierung"], L["Wähle bis zu "] .. LC:MaxReserves() .. L[" Items pro Raid. Nach dem Speichern ist deine Wahl gesperrt – Änderungen nur mit Freigabe des Councils."])
     p.desc = desc
     p.sel = {}
 
@@ -1059,7 +1060,7 @@ local function CreateMyResPage(p)
     T:Skin(bossCol, C.bgDark)
     local bt = T:Text(bossCol, 12, C.text, "LEFT", nil, true)
     bt:SetPoint("TOPLEFT", 16, -14)
-    bt:SetText("Bosse")
+    bt:SetText(L["Bosse"])
     local bsf, bcontent = T:Scroll(bossCol)
     bsf:SetPoint("TOPLEFT", 0, -40)
     bsf:SetPoint("BOTTOMRIGHT", -12, 8)
@@ -1081,9 +1082,9 @@ local function CreateMyResPage(p)
     p.manualText:SetSpacing(3)
     p.manualInput = T:Input(p.manual, p.itemsW - 170, 30)
     p.manualInput:SetPoint("BOTTOMLEFT", 18, 18)
-    p.manualInput:SetPlaceholder("Shift-Klick auf ein Item oder Item-ID")
+    p.manualInput:SetPlaceholder(L["Shift-Klick auf ein Item oder Item-ID"])
     AcceptLinks(p.manualInput)
-    local addBtn = T:Button(p.manual, "Auswählen", 120, 30, "default", function()
+    local addBtn = T:Button(p.manual, L["Auswählen"], 120, 30, "default", function()
         local raid = p.raid
         if not raid then return end
         local sel = p.sel[raid.key]
@@ -1104,13 +1105,13 @@ local function CreateMyResPage(p)
     p.counter:SetPoint("BOTTOMLEFT", 0, 16)
     p.reason = T:Input(p, CW - 520, 32)
     p.reason:SetPoint("BOTTOMLEFT", 190, 8)
-    p.reason:SetPlaceholder("Begründung für die Änderung (Pflicht)")
+    p.reason:SetPlaceholder(L["Begründung für die Änderung (Pflicht)"])
     p.reason:SetMaxLetters(120)
-    p.clearSel = T:Button(p, "Auswahl leeren", 130, 34, "ghost", function()
+    p.clearSel = T:Button(p, L["Auswahl leeren"], 130, 34, "ghost", function()
         if p.raid then wipe(p.sel[p.raid.key]) end
         LC:RefreshUI()
     end)
-    p.action = T:Button(p, "Reservierung speichern", 190, 34, "primary", function()
+    p.action = T:Button(p, L["Reservierung speichern"], 190, 34, "primary", function()
         local raid = p.raid
         if not raid then return end
         local items = p.sel[raid.key]
@@ -1133,8 +1134,8 @@ local function CreateMyResPage(p)
     p.msg:SetWordWrap(false)
 
     StaticPopupDialogs["LIGHTCOUNCIL_CONFIRM_RESERVE"] = {
-        text = "Light Council: Diese Items reservieren?\n\n%s\n\nDanach ist deine Reservierung gesperrt. Änderungen gehen nur noch mit Freigabe des Councils.",
-        button1 = "Reservieren", button2 = CANCEL,
+        text = L["Light Council: Diese Items reservieren?\n\n%s\n\nDanach ist deine Reservierung gesperrt. Änderungen gehen nur noch mit Freigabe des Councils."],
+        button1 = L["Reservieren"], button2 = CANCEL,
         OnAccept = function(self, data)
             local ok, msg = LC:SubmitReservation(data.raid, data.items)
             pages.myres.msgText = (ok and H.good or H.bad) .. msg .. "|r"
@@ -1189,14 +1190,14 @@ local function GetMyItemRow(p, i)
     r.sub:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -4)
     r.sub:SetWidth(p.itemsW - 210)
     r.sub:SetWordWrap(false)
-    r.check = T:Check(r, "Reservieren")
+    r.check = T:Check(r, L["Reservieren"])
     r.check:SetPoint("RIGHT", -110, 0)
     r.check:SetScript("OnClick", function(self)
         local sel = p.sel[p.raid.key]
         if self:GetChecked() then
             if #sel >= LC:MaxReserves() then
                 self:SetChecked(false)
-                p.msgText = H.warn .. "Du kannst höchstens " .. LC:MaxReserves() .. " Items pro Raid reservieren.|r"
+                p.msgText = H.warn .. L["Du kannst höchstens "] .. LC:MaxReserves() .. L[" Items pro Raid reservieren.|r"]
             else
                 sel[#sel + 1] = r.itemID
             end
@@ -1222,7 +1223,7 @@ end
 local function RefreshMyRes()
     local p = pages.myres
     local max = LC:MaxReserves()
-    p.desc:SetText("Wähle bis zu " .. max .. " Items pro Raid. Nach dem Speichern ist deine Wahl gesperrt – Änderungen nur mit Freigabe des Councils.")
+    p.desc:SetText(L["Wähle bis zu "] .. max .. L[" Items pro Raid. Nach dem Speichern ist deine Wahl gesperrt – Änderungen nur mit Freigabe des Councils."])
 
     p.sourceBtn:Update()
     local raids, hasDB = ReserveRaids()
@@ -1246,7 +1247,7 @@ local function RefreshMyRes()
     for i, r in ipairs(raids) do
         local mine = LC:GetReservation(r.key)
         local tag = ""
-        if mine and #(mine.items or {}) > 0 then tag = "  |TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t" end
+        if mine and #(mine.items or {}) > 0 then tag = L["  |TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t"] end
         labels[i] = r.name .. tag
     end
     p.chipBar:SetItems(labels, p.raidIdx, function(i) p.raidIdx, p.bossIdx = i, 1 LC:RefreshUI() end)
@@ -1264,27 +1265,27 @@ local function RefreshMyRes()
     local selSet = {}
     for _, id in ipairs(sel) do selSet[id] = true end
 
-    p.stTitle:SetText("Deine Reservierung  ·  " .. raid.name)
+    p.stTitle:SetText(L["Deine Reservierung  ·  "] .. raid.name)
     if locked then
-        p.stState:SetText("GESPERRT")
+        p.stState:SetText(L["GESPERRT"])
         p.stState:SetTextColor(unpack(C.good))
         p.stStripe:SetVertexColor(unpack(C.good))
     elseif rec and #(rec.items or {}) > 0 then
-        p.stState:SetText("WARTET AUF BESTÄTIGUNG")
+        p.stState:SetText(L["WARTET AUF BESTÄTIGUNG"])
         p.stState:SetTextColor(unpack(C.warn))
         p.stStripe:SetVertexColor(unpack(C.warn))
     else
-        p.stState:SetText("NOCH NICHTS RESERVIERT")
+        p.stState:SetText(L["NOCH NICHTS RESERVIERT"])
         p.stState:SetTextColor(unpack(C.muted))
         p.stStripe:SetVertexColor(unpack(C.accent))
     end
     p.stItems:SetText(ItemIcons(rec and rec.items, 18))
     if rec and rec.pending then
-        p.stPending:SetText(H.warn .. "Änderung beantragt:|r " .. LC:ItemListText(rec.pending.items) .. H.muted .. "  – wartet auf den Council|r")
+        p.stPending:SetText(H.warn .. L["Änderung beantragt:|r "] .. LC:ItemListText(rec.pending.items) .. H.muted .. L["  – wartet auf den Council|r"])
     elseif locked then
-        p.stPending:SetText("Ändern: andere Items anhaken, Begründung eintragen und „Änderung beantragen“ klicken.")
+        p.stPending:SetText(L["Ändern: andere Items anhaken, Begründung eintragen und „Änderung beantragen“ klicken."])
     else
-        p.stPending:SetText("Items unten anhaken und „Reservierung speichern“ klicken.")
+        p.stPending:SetText(L["Items unten anhaken und „Reservierung speichern“ klicken."])
     end
 
     -- Bosse
@@ -1330,12 +1331,12 @@ local function RefreshMyRes()
             r.icon:SetBackdropBorderColor(qc[1], qc[2], qc[3], 1)
             r.name:SetText(LC:ItemLink(id))
             local n = #LC:GetReservers(id)
-            local sub = (n > 0) and (n .. (n == 1 and " Reservierung" or " Reservierungen")) or "Noch nicht reserviert"
+            local sub = (n > 0) and (n .. (n == 1 and L[" Reservierung"] or L[" Reservierungen"])) or L["Noch nicht reserviert"]
             local chance = LC:GetDropChance(boss, id)
-            if chance then sub = H.good .. chance .. " %|r Drop   ·   " .. sub end
-            if LC:IsCouncilItem(id) then sub = sub .. "   ·   " .. H.accent .. "Council-Item|r" end
+            if chance then sub = H.good .. chance .. L[" %|r Drop   ·   "] .. sub end
+            if LC:IsCouncilItem(id) then sub = sub .. "   ·   " .. H.accent .. L["Council-Item|r"] end
             local prio = LC:GetPrio(id)
-            if prio and #prio > 0 then sub = sub .. "   ·   " .. H.accentLt .. "Prio:|r " .. table.concat(prio, " > ") end
+            if prio and #prio > 0 then sub = sub .. "   ·   " .. H.accentLt .. L["Prio:|r "] .. table.concat(prio, " > ") end
             r.sub:SetText(sub)
             r.check:SetChecked(selSet[id] == true)
             r.check:SetEnabled(selSet[id] == true or not full)
@@ -1350,21 +1351,21 @@ local function RefreshMyRes()
     p.manual:SetShown(not showList)
     if not showList then
         if not hasDB then
-            p.manualText:SetText("Die gewählte Loot-Quelle liefert hier keine Itemliste. Oben rechts unter „Quelle“ wechseln oder AtlasLoot bzw. Naowh Forever installieren.\nAlternativ: Items per Shift-Klick (z. B. aus dem Chat) oder per Item-ID zu deiner Auswahl hinzufügen.")
+            p.manualText:SetText(L["Die gewählte Loot-Quelle liefert hier keine Itemliste. Oben rechts unter „Quelle“ wechseln oder AtlasLoot bzw. Naowh Forever installieren.\nAlternativ: Items per Shift-Klick (z. B. aus dem Chat) oder per Item-ID zu deiner Auswahl hinzufügen."])
         else
-            p.manualText:SetText("Für diese Instanz ist in der Loot-Quelle noch kein Loot eingetragen (Loot folgt).\nFüge Items per Shift-Klick oder Item-ID zu deiner Auswahl hinzu.")
+            p.manualText:SetText(L["Für diese Instanz ist in der Loot-Quelle noch kein Loot eingetragen (Loot folgt).\nFüge Items per Shift-Klick oder Item-ID zu deiner Auswahl hinzu."])
         end
     end
 
     -- Fußleiste
     local changed = not (rec and LC.SameItems(rec.items or {}, sel))
-    p.counter:SetText("Ausgewählt: " .. (full and H.accentLt or "") .. #sel .. " von " .. max .. (full and "|r" or ""))
+    p.counter:SetText(L["Ausgewählt: "] .. (full and H.accentLt or "") .. #sel .. L[" von "] .. max .. (full and "|r" or ""))
     p.reason:SetShown(locked and changed and not (rec and rec.pending))
     if locked then
-        p.action:SetText("Änderung beantragen")
+        p.action:SetText(L["Änderung beantragen"])
         p.action:SetEnabled(changed and #sel > 0 and not rec.pending)
     else
-        p.action:SetText("Reservierung speichern")
+        p.action:SetText(L["Reservierung speichern"])
         p.action:SetEnabled(#sel > 0 and changed)
     end
     p.msg:SetText(p.msgText or "")
@@ -1380,24 +1381,24 @@ local daysFrame
 local function ShowRaidDaysFrame()
     if not daysFrame then
         local FW = CW + 32
-        local f = T:Window("LightCouncilRaidDaysFrame", FW, 330, "Raidtage & Erinnerung",
-            "An Raidtagen werden alle mit Light Council beim Einloggen ans Reservieren erinnert")
+        local f = T:Window("LightCouncilRaidDaysFrame", FW, 330, L["Raidtage & Erinnerung"],
+            L["An Raidtagen werden alle mit Light Council beim Einloggen ans Reservieren erinnert"])
         f:SetFrameStrata("DIALOG")
         f.sel = {}
 
         local l1 = T:Text(f, 13, C.text, "LEFT", nil, true)
         l1:SetPoint("TOPLEFT", 16, -54)
-        l1:SetText("An welchen Tagen raidet ihr?")
+        l1:SetText(L["An welchen Tagen raidet ihr?"])
         f.dayBtns = {}
         local prev
         for _, w in ipairs(LC.WEEKDAYS) do
-            local b = T:Button(f, w.short, 64, 34, "default", function(self)
+            local b = T:Button(f, L[w.short], 64, 34, "default", function(self)
                 f.sel[w.wday] = not f.sel[w.wday] or nil
                 f:Paint()
             end)
             if prev then b:SetPoint("LEFT", prev, "RIGHT", 6, 0) else b:SetPoint("TOPLEFT", 16, -82) end
-            b.tooltipTitle = w.long
-            b.tooltip = "Anklicken zum Ein- oder Ausschalten."
+            b.tooltipTitle = L[w.long]
+            b.tooltip = L["Anklicken zum Ein- oder Ausschalten."]
             b.wday = w.wday
             f.dayBtns[#f.dayBtns + 1] = b
             prev = b
@@ -1405,10 +1406,10 @@ local function ShowRaidDaysFrame()
 
         local l2 = T:Text(f, 13, C.text, "LEFT", nil, true)
         l2:SetPoint("TOPLEFT", 16, -136)
-        l2:SetText("Für welchen Raid sollen sie reservieren?")
+        l2:SetText(L["Für welchen Raid sollen sie reservieren?"])
         local l2d = T:Text(f, 11, C.muted)
         l2d:SetPoint("LEFT", l2, "RIGHT", 10, -1)
-        l2d:SetText("„Jeder Raid“: Erinnerung, solange jemand gar nichts reserviert hat.")
+        l2d:SetText(L["„Jeder Raid“: Erinnerung, solange jemand gar nichts reserviert hat."])
         f.chips = ChipBar(f)
         f.chips:SetPoint("TOPLEFT", 16, -162)
 
@@ -1416,13 +1417,13 @@ local function ShowRaidDaysFrame()
         f.msg:SetPoint("BOTTOMLEFT", 160, 26)
         f.msg:SetWidth(FW - 180)
         f.msg:SetWordWrap(false)
-        local save = T:Button(f, "Speichern", 130, 34, "primary", function()
+        local save = T:Button(f, L["Speichern"], 130, 34, "primary", function()
             local days = {}
             for _, w in ipairs(LC.WEEKDAYS) do
                 if f.sel[w.wday] then days[#days + 1] = w.wday end
             end
             LC:SetRaidDays(days, f.raidKey)
-            f.msg:SetText(H.good .. "Gespeichert und an alle Addon-Nutzer in Gilde/Raid geschickt.|r")
+            f.msg:SetText(H.good .. L["Gespeichert und an alle Addon-Nutzer in Gilde/Raid geschickt.|r"])
         end)
         save:SetPoint("BOTTOMLEFT", 16, 16)
 
@@ -1437,7 +1438,7 @@ local function ShowRaidDaysFrame()
                 end
             end
             local raids = LC:GetLootDB() or {}
-            local labels, keys, selected = { "Jeder Raid" }, { "" }, 1
+            local labels, keys, selected = { L["Jeder Raid"] }, { "" }, 1
             for _, r in ipairs(raids) do
                 labels[#labels + 1] = r.name
                 keys[#keys + 1] = r.key
@@ -1463,7 +1464,7 @@ end
 local reminder
 function LC:ShowRaidDayReminder(raidKey)
     if not reminder then
-        local f = T:Window("LightCouncilReminderFrame", 440, 190, "Heute ist Raidtag!", "Light Council")
+        local f = T:Window("LightCouncilReminderFrame", 440, 190, L["Heute ist Raidtag!"], L["Light Council"])
         f:ClearAllPoints()
         f:SetPoint("TOP", UIParent, "TOP", 0, -180)
         f:SetFrameStrata("DIALOG")
@@ -1475,12 +1476,12 @@ function LC:ShowRaidDayReminder(raidKey)
         f.text:SetPoint("TOPLEFT", 86, -54)
         f.text:SetWidth(440 - 86 - 16)
         f.text:SetSpacing(3)
-        f.go = T:Button(f, "Jetzt reservieren", 160, 32, "primary", function()
+        f.go = T:Button(f, L["Jetzt reservieren"], 160, 32, "primary", function()
             f:Hide()
             LC:OpenReservation(f.raidKey)
         end)
         f.go:SetPoint("BOTTOMRIGHT", -16, 16)
-        local later = T:Button(f, "Später", 100, 32, "ghost", function() f:Hide() end)
+        local later = T:Button(f, L["Später"], 100, 32, "ghost", function() f:Hide() end)
         later:SetPoint("RIGHT", f.go, "LEFT", -8, 0)
         reminder = f
     end
@@ -1493,41 +1494,41 @@ function LC:ShowRaidDayReminder(raidKey)
         end
         raidName = raidName or raidKey
     end
-    f.text:SetText((raidName and ("Du hast für " .. H.accentLt .. raidName .. "|r noch nichts reserviert.")
-        or "Du hast noch keine Items reserviert.")
-        .. "\n" .. H.muted .. "Reservier am besten schon jetzt – im Raid wird dann nur noch eingesammelt.|r")
+    f.text:SetText((raidName and (L["Du hast für "] .. H.accentLt .. raidName .. L["|r noch nichts reserviert."])
+        or L["Du hast noch keine Items reserviert."])
+        .. "\n" .. H.muted .. L["Reservier am besten schon jetzt – im Raid wird dann nur noch eingesammelt.|r"])
     f:Show()
     if SOUNDKIT and SOUNDKIT.READY_CHECK then pcall(PlaySound, SOUNDKIT.READY_CHECK, "Master") end
 end
 
 local function CreateReservesPage(p)
-    local y, ht, hd = PageHeader(p, "Reservierungen", "Alle Reservierungen im Überblick. Der Council bestätigt automatisch, entscheidet über Änderungsanträge und trägt für Spieler ohne Addon ein.")
+    local y, ht, hd = PageHeader(p, L["Reservierungen"], L["Alle Reservierungen im Überblick. Der Council bestätigt automatisch, entscheidet über Änderungsanträge und trägt für Spieler ohne Addon ein."])
     -- Beschreibung schmaler, damit die drei Knöpfe oben rechts nicht überlappen
     hd:SetWidth(CW - 420)
     y = math.ceil(ht:GetStringHeight() + 5 + hd:GetStringHeight() + 16)
 
-    p.btnRound = T:Button(p, "Neue Runde", 130, 30, "danger", function()
+    p.btnRound = T:Button(p, L["Neue Runde"], 130, 30, "danger", function()
         if p.raid then
             local dlg = StaticPopup_Show("LIGHTCOUNCIL_NEW_ROUND", p.raid.name)
             if dlg then dlg.data = p.raid.key end
         end
     end)
     p.btnRound:SetPoint("TOPRIGHT", 0, 0)
-    p.btnRound.tooltipTitle = "Neue Runde"
-    p.btnRound.tooltip = "Löscht alle Reservierungen dieses Raids, z. B. für eine neue Raid-ID. Alle können danach neu reservieren."
-    p.btnSync = T:Button(p, "Abgleichen", 120, 30, "default", function()
+    p.btnRound.tooltipTitle = L["Neue Runde"]
+    p.btnRound.tooltip = L["Löscht alle Reservierungen dieses Raids, z. B. für eine neue Raid-ID. Alle können danach neu reservieren."]
+    p.btnSync = T:Button(p, L["Abgleichen"], 120, 30, "default", function()
         LC:RequestResSync(true)
-        p.msg:SetText("Abgleich angefordert …")
+        p.msg:SetText(L["Abgleich angefordert …"])
     end)
     p.btnSync:SetPoint("RIGHT", p.btnRound, "LEFT", -8, 0)
-    p.btnSync.tooltipTitle = "Abgleichen"
-    p.btnSync.tooltip = "Holt den aktuellen Stand der Reservierungen von den Council-Mitgliedern, die gerade online sind."
-    p.btnDays = T:Button(p, "Raidtage", 140, 30, "default", function() ShowRaidDaysFrame() end)
+    p.btnSync.tooltipTitle = L["Abgleichen"]
+    p.btnSync.tooltip = L["Holt den aktuellen Stand der Reservierungen von den Council-Mitgliedern, die gerade online sind."]
+    p.btnDays = T:Button(p, L["Raidtage"], 140, 30, "default", function() ShowRaidDaysFrame() end)
     p.btnDays:SetPoint("RIGHT", p.btnSync, "LEFT", -8, 0)
-    p.btnDays.tooltipTitle = "Raidtage & Erinnerung"
-    p.btnDays.tooltip = "Lege eure Raidtage fest. An diesen Tagen erinnert das Addon alle beim Einloggen, schon vorab zu reservieren."
+    p.btnDays.tooltipTitle = L["Raidtage & Erinnerung"]
+    p.btnDays.tooltip = L["Lege eure Raidtage fest. An diesen Tagen erinnert das Addon alle beim Einloggen, schon vorab zu reservieren."]
     StaticPopupDialogs["LIGHTCOUNCIL_NEW_ROUND"] = {
-        text = "Light Council: Neue Runde für %s starten?\n\nAlle Reservierungen dieses Raids werden gelöscht.",
+        text = L["Light Council: Neue Runde für %s starten?\n\nAlle Reservierungen dieses Raids werden gelöscht."],
         button1 = YES, button2 = NO,
         OnAccept = function(self, raidKey)
             local ok, msg = LC:NewReserveRound(raidKey)
@@ -1545,14 +1546,14 @@ local function CreateReservesPage(p)
     p.pendCard:SetWidth(CW)
     local pt = T:Text(p.pendCard, 14, C.text, "LEFT", nil, true)
     pt:SetPoint("TOPLEFT", 16, -14)
-    pt:SetText("Offene Änderungsanträge")
+    pt:SetText(L["Offene Änderungsanträge"])
     p.pendInfo = T:Text(p.pendCard, 12, C.muted, "RIGHT")
     p.pendInfo:SetPoint("TOPRIGHT", -16, -15)
 
     -- Tabelle
     p.tableHead = CreateFrame("Frame", nil, p)
     p.tableHead:SetSize(CW, 20)
-    for i, label in ipairs({ "SPIELER", "RESERVIERT", "STATUS" }) do
+    for i, label in ipairs({ L["SPIELER"], L["RESERVIERT"], L["STATUS"] }) do
         local t = T:Text(p.tableHead, 10, C.muted)
         t:SetPoint("LEFT", ({ 10, 220, CW - 240 })[i], 0)
         t:SetText(label)
@@ -1572,19 +1573,19 @@ local function CreateReservesPage(p)
     p.manCard = man
     local mt = T:Text(man, 12, C.text, "LEFT", nil, true)
     mt:SetPoint("TOPLEFT", 16, -12)
-    mt:SetText("Für Spieler eintragen oder ändern (Council)")
+    mt:SetText(L["Für Spieler eintragen oder ändern (Council)"])
     p.msg = T:Text(man, 12, C.muted, "RIGHT")
     p.msg:SetPoint("TOPRIGHT", -16, -13)
     p.msg:SetWidth(CW - 360)
     p.msg:SetWordWrap(false)
     p.manName = T:Input(man, 220, 30)
     p.manName:SetPoint("BOTTOMLEFT", 16, 14)
-    p.manName:SetPlaceholder("Vorname Nachname")
+    p.manName:SetPlaceholder(L["Vorname Nachname"])
     p.manItems = T:Input(man, CW - 400, 30)
     p.manItems:SetPoint("LEFT", p.manName, "RIGHT", 8, 0)
-    p.manItems:SetPlaceholder("Items per Shift-Klick oder IDs – leer = löschen")
+    p.manItems:SetPlaceholder(L["Items per Shift-Klick oder IDs – leer = löschen"])
     AcceptLinks(p.manItems)
-    p.manBtn = T:Button(man, "Eintragen", 130, 30, "primary", function()
+    p.manBtn = T:Button(man, L["Eintragen"], 130, 30, "primary", function()
         local raid = p.raid
         if not raid then return end
         local ids = IdsFromText(p.manItems:GetText())
@@ -1605,12 +1606,12 @@ local function GetPendRow(p, i)
     r.text:SetPoint("LEFT", 12, 0)
     r.text:SetPoint("RIGHT", -250, 0)
     r.text:SetWordWrap(false)
-    r.no = T:Button(r, "Ablehnen", 110, 28, "danger", function()
+    r.no = T:Button(r, L["Ablehnen"], 110, 28, "danger", function()
         local ok, msg = LC:DecideChange(p.raid.key, r.player, false)
         p.msg:SetText((ok and H.good or H.bad) .. msg .. "|r")
     end)
     r.no:SetPoint("RIGHT", -8, 0)
-    r.yes = T:Button(r, "Freigeben", 110, 28, "primary", function()
+    r.yes = T:Button(r, L["Freigeben"], 110, 28, "primary", function()
         local ok, msg = LC:DecideChange(p.raid.key, r.player, true)
         p.msg:SetText((ok and H.good or H.bad) .. msg .. "|r")
     end)
@@ -1638,7 +1639,7 @@ local function GetResRow(p, i)
     r.state:SetPoint("LEFT", CW - 240, 0)
     r.state:SetWidth(140)
     r.state:SetWordWrap(false)
-    r.edit = T:Button(r, "Bearbeiten", 100, 26, "ghost", function()
+    r.edit = T:Button(r, L["Bearbeiten"], 100, 26, "ghost", function()
         p.manName:SetText(r.player)
         local links = {}
         for _, id in ipairs(r.itemIDs or {}) do links[#links + 1] = LC:ItemLink(id) end
@@ -1686,7 +1687,7 @@ local function RefreshReserves()
             r:SetPoint("TOPLEFT", 12, -40 - (i - 1) * 44)
             r.player = rec.name
             r.text:SetText(H.accentLt .. rec.name .. "|r:  " .. LC:ItemListText(rec.items) .. "  →  " .. LC:ItemListText(rec.pending.items)
-                .. "   " .. H.muted .. "„" .. (rec.pending.reason or "") .. "“|r")
+                .. "   " .. H.muted .. "„" .. (rec.pending.reason or "") .. L["“|r"])
             local own = LC:IsMe(rec.name)
             r.yes:SetEnabled(isCouncil and not own)
             r.no:SetEnabled(isCouncil and not own)
@@ -1696,7 +1697,7 @@ local function RefreshReserves()
         end
     end
     p.pendCard:SetHeight(40 + #pend * 44 + 4)
-    p.pendInfo:SetText(isCouncil and (#pend .. " offen") or "nur der Council entscheidet")
+    p.pendInfo:SetText(isCouncil and (#pend .. L[" offen"]) or L["nur der Council entscheidet"])
     p.tableHead:ClearAllPoints()
     if #pend > 0 then
         p.tableHead:SetPoint("TOPLEFT", p.pendCard, "BOTTOMLEFT", 0, -14)
@@ -1713,11 +1714,11 @@ local function RefreshReserves()
             r.name:SetText(rec.name)
             r.items:SetText(ItemIcons(rec.items, 16))
             if rec.pending then
-                r.state:SetText(H.warn .. "Antrag offen|r")
+                r.state:SetText(H.warn .. L["Antrag offen|r"])
             elseif (rec.rev or 0) > 0 then
-                r.state:SetText(H.good .. "gesperrt|r" .. ((rec.rev or 0) > 1 and (H.muted .. "  (" .. (rec.rev - 1) .. "× geändert)|r") or ""))
+                r.state:SetText(H.good .. L["gesperrt|r"] .. ((rec.rev or 0) > 1 and (H.muted .. "  (" .. (rec.rev - 1) .. L["× geändert)|r"]) or ""))
             else
-                r.state:SetText(H.warn .. "wartet|r")
+                r.state:SetText(H.warn .. L["wartet|r"])
             end
             r.edit:SetShown(isCouncil)
             r:Show()
@@ -1727,13 +1728,13 @@ local function RefreshReserves()
     end
     p.list:SetHeight(math.max(1, #list * 34))
     p.empty:SetShown(#list == 0)
-    p.empty:SetText("Noch keine Reservierungen für " .. raid.name .. ".\nRaider reservieren im Addon unter „Meine Reservierung“.")
+    p.empty:SetText(L["Noch keine Reservierungen für "] .. raid.name .. L[".\nRaider reservieren im Addon unter „Meine Reservierung“."])
 
     p.manCard:SetShown(isCouncil)
     p.btnRound:SetEnabled(isCouncil)
     p.btnDays:SetEnabled(isCouncil)
     local nDays = #(LC:GetRaidDays())
-    p.btnDays:SetText((nDays > 3) and ("Raidtage: " .. nDays .. " Tage") or ("Raidtage: " .. LC:RaidDaysText()))
+    p.btnDays:SetText((nDays > 3) and (L["Raidtage: "] .. nDays .. L[" Tage"]) or (L["Raidtage: "] .. LC:RaidDaysText()))
 end
 
 ------------------------------------------------------------------------
@@ -1744,12 +1745,12 @@ local P_ROW = 26
 local COLS = { 0, 200, 300, 370, 470, 560, 650 }   -- Name, Anw., Parse, Eng., Score, Items, Status
 
 local function CreatePlayersPage(p)
-    local y = PageHeader(p, "Spieler", "Score 0–100 aus Anwesenheit, Parse und Engagement. Nur Leitung und Council sehen ihn. Zeile anklicken zum Bearbeiten, Maus drüber zeigt die letzten Items.")
+    local y = PageHeader(p, L["Spieler"], L["Score 0–100 aus Anwesenheit, Parse und Engagement. Nur Leitung und Council sehen ihn. Zeile anklicken zum Bearbeiten, Maus drüber zeigt die letzten Items."])
 
     local head = CreateFrame("Frame", nil, p)
     head:SetPoint("TOPLEFT", 0, -y)
     head:SetSize(CW, 18)
-    for i, label in ipairs({ "NAME", "ANWESENHEIT", "PARSE", "ENGAGEMENT", "SCORE", "ITEMS", "STATUS" }) do
+    for i, label in ipairs({ L["NAME"], L["ANWESENHEIT"], L["PARSE"], L["ENGAGEMENT"], L["SCORE"], L["ITEMS"], L["STATUS"] }) do
         local t = T:Text(head, 10, C.muted)
         t:SetPoint("LEFT", COLS[i] + 10, 0)
         t:SetText(label)
@@ -1766,7 +1767,7 @@ local function CreatePlayersPage(p)
     p.empty = T:Text(p, 11, C.muted, "CENTER")
     p.empty:SetPoint("TOP", sf, "TOP", 0, -30)
     p.empty:SetWidth(CW - 60)
-    p.empty:SetText("Noch keine Spieler. Sie erscheinen, sobald sie reservieren oder nach dem ersten Boss-Kill.")
+    p.empty:SetText(L["Noch keine Spieler. Sie erscheinen, sobald sie reservieren oder nach dem ersten Boss-Kill."])
 
     local edit = Card(p, 62)
     edit:SetPoint("BOTTOMLEFT", 0, 0)
@@ -1779,40 +1780,40 @@ local function CreatePlayersPage(p)
         l:SetPoint("BOTTOMLEFT", e, "TOPLEFT", 0, 4)
         return e
     end
-    p.name = Field("NAME", 230)
-    p.name:SetPlaceholder("Vor- und Nachname")
-    p.parse = Field("Ø PARSE (0–100)", 90, p.name)
+    p.name = Field(L["NAME"], 230)
+    p.name:SetPlaceholder(L["Vor- und Nachname"])
+    p.parse = Field(L["Ø PARSE (0–100)"], 90, p.name)
     p.parse:SetPlaceholder("z. B. 85")
-    p.eng = Field("ENGAGEMENT (1–5)", 100, p.parse)
-    p.eng:SetPlaceholder("1 bis 5")
-    Tip(p.eng, "Engagement", "Gildenaktivität, Hilfsbereitschaft, Vorbereitung (Consumables) und Pünktlichkeit.")
-    local save = T:Button(edit, "Speichern", 90, 24, "primary", function()
+    p.eng = Field(L["ENGAGEMENT (1–5)"], 100, p.parse)
+    p.eng:SetPlaceholder(L["1 bis 5"])
+    Tip(p.eng, L["Engagement"], L["Gildenaktivität, Hilfsbereitschaft, Vorbereitung (Consumables) und Pünktlichkeit."])
+    local save = T:Button(edit, L["Speichern"], 90, 24, "primary", function()
         local name = strtrim(p.name:GetText() or "")
-        if name == "" then p.msg:SetText(H.bad .. "Bitte einen Namen eingeben.|r") return end
+        if name == "" then p.msg:SetText(H.bad .. L["Bitte einen Namen eingeben.|r"]) return end
         local msgs = {}
         local pv, ev = strtrim(p.parse:GetText() or ""), strtrim(p.eng:GetText() or "")
         if pv ~= "" then
             local ok, err = LC:SetParse(name, pv, true)
-            msgs[#msgs + 1] = ok and (H.good .. "Parse gespeichert|r") or (H.bad .. err .. "|r")
+            msgs[#msgs + 1] = ok and (H.good .. L["Parse gespeichert|r"]) or (H.bad .. err .. "|r")
         end
         if ev ~= "" then
             local ok, err = LC:SetEngagement(name, ev, true)
-            msgs[#msgs + 1] = ok and (H.good .. "Engagement gespeichert|r") or (H.bad .. err .. "|r")
+            msgs[#msgs + 1] = ok and (H.good .. L["Engagement gespeichert|r"]) or (H.bad .. err .. "|r")
         end
-        if #msgs == 0 then msgs[1] = H.warn .. "Parse oder Engagement eintragen.|r" end
+        if #msgs == 0 then msgs[1] = H.warn .. L["Parse oder Engagement eintragen.|r"] end
         p.msg:SetText(table.concat(msgs, "  ·  "))
         LC:RefreshUI()
     end)
     save:SetPoint("LEFT", p.eng, "RIGHT", 10, 0)
     -- Anwesenheit erfassen: oben rechts neben der Überschrift, damit nichts überlappt
-    local att = T:Button(p, "Anwesenheit erfassen", 170, 26, "default", function()
+    local att = T:Button(p, L["Anwesenheit erfassen"], 170, 26, "default", function()
         local n = LC:RecordAttendance(true)
         local synced = LC:RequestAttendanceSync(false)
-        p.msg:SetText(n .. " Spieler für diese Woche erfasst." .. (synced and " Abgleich mit dem Council läuft." or ""))
+        p.msg:SetText(n .. L[" Spieler für diese Woche erfasst."] .. (synced and L[" Abgleich mit dem Council läuft."] or ""))
         LC:RefreshUI()
     end)
     att:SetPoint("TOPRIGHT", 0, 0)
-    Tip(att, "Anwesenheit erfassen", "Markiert alle Online-Raidmitglieder für diese Woche als anwesend. Passiert bei jedem Boss-Kill automatisch.\n\nDie Anwesenheit wird mit allen Council-Mitgliedern abgeglichen (beim Einloggen und bei jeder Erfassung). Wochen, in denen du selbst nicht dabei warst, kommen so trotzdem an.")
+    Tip(att, L["Anwesenheit erfassen"], L["Markiert alle Online-Raidmitglieder für diese Woche als anwesend. Passiert bei jedem Boss-Kill automatisch.\n\nDie Anwesenheit wird mit allen Council-Mitgliedern abgeglichen (beim Einloggen und bei jeder Erfassung). Wochen, in denen du selbst nicht dabei warst, kommen so trotzdem an."])
     p.msg = T:Text(edit, 11, C.muted, "LEFT")
     p.msg:SetPoint("LEFT", save, "RIGHT", 14, 0)
     p.msg:SetPoint("RIGHT", edit, "RIGHT", -10, 0)
@@ -1869,7 +1870,7 @@ local function RefreshPlayers()
             r.playerName = name
             local score, att, parse, eng = LC:GetScore(name)
             local cd, untilWeek = LC:IsOnCooldown(name)
-            local dash = H.muted .. "–|r"
+            local dash = H.muted .. L["–|r"]
             r.cols[1]:SetText(name)
             r.cols[2]:SetText(att and (att .. " %") or dash)
             r.cols[3]:SetText(parse and tostring(parse) or dash)
@@ -1889,7 +1890,7 @@ local function RefreshPlayers()
             end
             if cd then
                 local weeksLeft = untilWeek - LC:CurrentWeek()
-                r.cols[7]:SetText(H.warn .. "Loot-CD|r " .. H.muted .. (weeksLeft == 0 and "diese Wo." or ("noch " .. weeksLeft .. " Wo.")) .. "|r")
+                r.cols[7]:SetText(H.warn .. L["Loot-CD|r "] .. H.muted .. (weeksLeft == 0 and L["diese Wo."] or (L["noch "] .. weeksLeft .. L[" Wo."])) .. "|r")
             else
                 r.cols[7]:SetText("")
             end
@@ -1909,11 +1910,11 @@ local HCOLS = { 0, 130, 450, 620 }   -- Datum/Raid, Item, Spieler, Vergabe
 local historyRows = {}
 
 local function CreateHistoryPage(p)
-    local y = PageHeader(p, "Loot-Historie", "Wer hat wann welches Item bekommen. Jedes vergebene Item wird automatisch eingetragen – bei allen, die Light Council im Raid haben.")
+    local y = PageHeader(p, L["Loot-Historie"], L["Wer hat wann welches Item bekommen. Jedes vergebene Item wird automatisch eingetragen – bei allen, die Light Council im Raid haben."])
     p.mode = "all"
     p.seg = Segmented(p, {
-        { key = "all", label = "Alle", width = 90 },
-        { key = "mine", label = "Meine Items", width = 130 },
+        { key = "all", label = L["Alle"], width = 90 },
+        { key = "mine", label = L["Meine Items"], width = 130 },
     }, function(key)
         p.mode = key
         LC:RefreshUI()
@@ -1921,24 +1922,24 @@ local function CreateHistoryPage(p)
     p.seg.first:SetPoint("TOPLEFT", 0, -y)
     p.search = T:Input(p, 250, 30)
     p.search:SetPoint("LEFT", p.seg.buttons.mine, "RIGHT", 14, 0)
-    p.search:SetPlaceholder("Spieler, Item oder Raid suchen")
+    p.search:SetPlaceholder(L["Spieler, Item oder Raid suchen"])
     p.search:HookScript("OnTextChanged", function() LC:RefreshUI() end)
     p.search:SetScript("OnEscapePressed", function(self) self:SetText("") self:ClearFocus() end)
     p.count = T:Text(p, 12, C.muted, "RIGHT")
     p.count:SetPoint("TOPRIGHT", 0, -6)
 
-    local export = T:Button(p, "Exportieren", 120, 30, "default", function() LC:ShowHistoryExport(p.lastList or {}) end)
+    local export = T:Button(p, L["Exportieren"], 120, 30, "default", function() LC:ShowHistoryExport(p.lastList or {}) end)
     export:SetPoint("TOPRIGHT", 0, -y)
-    Tip(export, "Exportieren", "Die angezeigte Liste als Text – für eine Tabelle (Excel, Google Sheets) oder zum Posten in Discord.")
-    local sync = T:Button(p, "Abgleichen", 110, 30, "ghost", function() LC:RequestHistorySync(true) end)
+    Tip(export, L["Exportieren"], L["Die angezeigte Liste als Text – für eine Tabelle (Excel, Google Sheets) oder zum Posten in Discord."])
+    local sync = T:Button(p, L["Abgleichen"], 110, 30, "ghost", function() LC:RequestHistorySync(true) end)
     sync:SetPoint("RIGHT", export, "LEFT", -8, 0)
-    Tip(sync, "Abgleichen", "Holt fehlende Einträge vom Council – z. B. aus Raids, bei denen du nicht dabei warst. Passiert beim Einloggen auch automatisch.")
+    Tip(sync, L["Abgleichen"], L["Holt fehlende Einträge vom Council – z. B. aus Raids, bei denen du nicht dabei warst. Passiert beim Einloggen auch automatisch."])
     y = y + 32 + 16
 
     local head = CreateFrame("Frame", nil, p)
     head:SetPoint("TOPLEFT", 0, -y)
     head:SetSize(CW, 18)
-    for i, label in ipairs({ "DATUM / RAID", "ITEM", "SPIELER", "VERGABE" }) do
+    for i, label in ipairs({ L["DATUM / RAID"], L["ITEM"], L["SPIELER"], L["VERGABE"] }) do
         local t = T:Text(head, 10, C.muted)
         t:SetPoint("LEFT", HCOLS[i] + 10, 0)
         t:SetText(label)
@@ -1957,7 +1958,7 @@ local function CreateHistoryPage(p)
     p.empty:SetWidth(CW - 60)
 
     StaticPopupDialogs["LIGHTCOUNCIL_DELETE_HISTORY"] = {
-        text = "Light Council: Diesen Eintrag aus der Loot-Historie löschen?\n\n%s",
+        text = L["Light Council: Diesen Eintrag aus der Loot-Historie löschen?\n\n%s"],
         button1 = YES, button2 = NO,
         OnAccept = function(self) if self.data then LC:DeleteHistory(self.data) end end,
         timeout = 0, whileDead = true, hideOnEscape = true,
@@ -1998,7 +1999,7 @@ local function CreateHistoryRow(i)
             GameTooltip:SetItemByID(self.entry.itemID)
             if LC:AmICouncil() or LC:IsMasterLooter() then
                 GameTooltip:AddLine(" ")
-                GameTooltip:AddLine("Rechtsklick: Eintrag löschen", 0.6, 0.6, 0.6)
+                GameTooltip:AddLine(L["Rechtsklick: Eintrag löschen"], 0.6, 0.6, 0.6)
             end
             GameTooltip:Show()
         end
@@ -2038,12 +2039,12 @@ local function RefreshHistory()
     end
     p.lastList = list
     local total = #LC.db.history
-    p.count:SetText((#list == total) and (total .. (total == 1 and " Item" or " Items"))
-        or (#list .. " von " .. total .. " Items"))
+    p.count:SetText((#list == total) and (total .. (total == 1 and L[" Item"] or L[" Items"]))
+        or (#list .. L[" von "] .. total .. L[" Items"]))
     if total == 0 then
-        p.empty:SetText("Noch keine Einträge.\nSobald der Plündermeister ein Item über Light Council vergibt, steht es hier – mit Datum, Raid und Spieler.")
+        p.empty:SetText(L["Noch keine Einträge.\nSobald der Plündermeister ein Item über Light Council vergibt, steht es hier – mit Datum, Raid und Spieler."])
     else
-        p.empty:SetText("Nichts gefunden.")
+        p.empty:SetText(L["Nichts gefunden."])
     end
     p.empty:SetShown(#list == 0)
 
@@ -2064,15 +2065,15 @@ local function RefreshHistory()
             r.winner:SetText(e.winner or "?")
             local how
             if e.council then
-                how = H.accentLt .. "Council|r"
+                how = H.accentLt .. L["Council|r"]
             elseif e.reserved then
-                how = "Reserviert"
+                how = L["Reserviert"]
             elseif e.offspec then
-                how = "Off Spec"
+                how = L["Off Spec"]
             else
-                how = "Main Spec"
+                how = L["Main Spec"]
             end
-            if e.roll then how = how .. H.muted .. "  ·  Wurf " .. e.roll .. "|r" end
+            if e.roll then how = how .. H.muted .. L["  ·  Wurf "] .. e.roll .. "|r" end
             r.how:SetText(how)
             r:Show()
         elseif r then
@@ -2087,12 +2088,12 @@ end
 local exportFrame
 function LC:ShowHistoryExport(list)
     if not exportFrame then
-        local f = T:Window("LightCouncilExportFrame", 680, 480, "Loot-Historie exportieren", "Strg+C kopiert den markierten Text")
+        local f = T:Window("LightCouncilExportFrame", 680, 480, L["Loot-Historie exportieren"], L["Strg+C kopiert den markierten Text"])
         f:SetFrameStrata("DIALOG")
         f.format = "csv"
         f.seg = Segmented(f, {
-            { key = "csv", label = "Tabelle (Excel / Sheets)", width = 220 },
-            { key = "discord", label = "Discord", width = 110 },
+            { key = "csv", label = L["Tabelle (Excel / Sheets)"], width = 220 },
+            { key = "discord", label = L["Discord"], width = 110 },
         }, function(key)
             f.format = key
             LC:ShowHistoryExport(f.list)
@@ -2113,9 +2114,9 @@ function LC:ShowHistoryExport(list)
     local f = exportFrame
     f.list = list
     f.seg:Set(f.format)
-    f.hint:SetText(#list .. ((#list == 1) and " Eintrag" or " Einträge")
-        .. ((f.format == "csv") and "  ·  In eine leere Tabelle einfügen (Trennzeichen: Semikolon)" or "  ·  Direkt in Discord einfügen"))
-    f.edit:SetText(#list > 0 and self:HistoryExportText(list, f.format) or "Keine Einträge.")
+    f.hint:SetText(#list .. ((#list == 1) and L[" Eintrag"] or L[" Einträge"])
+        .. ((f.format == "csv") and L["  ·  In eine leere Tabelle einfügen (Trennzeichen: Semikolon)"] or L["  ·  Direkt in Discord einfügen"]))
+    f.edit:SetText(#list > 0 and self:HistoryExportText(list, f.format) or L["Keine Einträge."])
     f:Show()
     f.edit:SetFocus()
     f.edit:HighlightText()
@@ -2125,7 +2126,7 @@ end
 -- Seite: Protokoll
 ------------------------------------------------------------------------
 local function CreateLogPage(p)
-    local y = PageHeader(p, "Protokoll", "Jede Entscheidung mit Stimmen und Begründung – kann bei Fragen offengelegt werden.")
+    local y = PageHeader(p, L["Protokoll"], L["Jede Entscheidung mit Stimmen und Begründung – kann bei Fragen offengelegt werden."])
     local box = Card(p)
     box:SetPoint("TOPLEFT", 0, -y)
     box:SetPoint("BOTTOMRIGHT", 0, 40)
@@ -2139,14 +2140,14 @@ local function CreateLogPage(p)
     p.text:SetSpacing(3)
     p.content = content
 
-    local post = T:Button(p, "Letzte 10 in den Chat", 160, 26, "default", function() LC:PrintLog(10) end)
+    local post = T:Button(p, L["Letzte 10 in den Chat"], 160, 26, "default", function() LC:PrintLog(10) end)
     post:SetPoint("BOTTOMLEFT", 0, 0)
-    Tip(post, "In den Chat", "Zeigt die letzten 10 Entscheidungen in deinem Chatfenster (nur für dich sichtbar).")
-    local clear = T:Button(p, "Protokoll leeren", 130, 26, "danger", function() StaticPopup_Show("LIGHTCOUNCIL_CLEAR_LOG") end)
+    Tip(post, L["In den Chat"], L["Zeigt die letzten 10 Entscheidungen in deinem Chatfenster (nur für dich sichtbar)."])
+    local clear = T:Button(p, L["Protokoll leeren"], 130, 26, "danger", function() StaticPopup_Show("LIGHTCOUNCIL_CLEAR_LOG") end)
     clear:SetPoint("BOTTOMRIGHT", 0, 0)
 
     StaticPopupDialogs["LIGHTCOUNCIL_CLEAR_LOG"] = {
-        text = "Light Council: Das gesamte Protokoll löschen?",
+        text = L["Light Council: Das gesamte Protokoll löschen?"],
         button1 = YES, button2 = NO,
         OnAccept = function() wipe(LC.db.log) LC:RefreshUI() end,
         timeout = 0, whileDead = true, hideOnEscape = true,
@@ -2157,7 +2158,7 @@ local function RefreshLog()
     local p = pages.log
     local log = LC.db.log
     if #log == 0 then
-        p.text:SetText(H.muted .. "Noch keine Einträge. Jede Council-Entscheidung und jede Würfelrunde landet hier.|r")
+        p.text:SetText(H.muted .. L["Noch keine Einträge. Jede Council-Entscheidung und jede Würfelrunde landet hier.|r"])
     else
         local parts = {}
         for i = #log, math.max(1, #log - 60), -1 do
@@ -2206,24 +2207,58 @@ local function LabeledInput(card, label, width, x, y)
 end
 
 local function CreateSettingsPage(p)
-    local y = PageHeader(p, "Einstellungen", "Leitung und Council sollten dieselben Council-Namen eintragen.")
+    local y = PageHeader(p, L["Einstellungen"], L["Leitung und Council sollten dieselben Council-Namen eintragen."])
+
+    -- SPRACHE: Knopf oben rechts, Klick öffnet die Auswahl --------------
+    local function LangLabel(key)
+        for _, l in ipairs(LC.LANGUAGES) do
+            if l.key == key then return (key == "auto") and L["Automatisch"] or l.label end
+        end
+        return key
+    end
+    local menu = Card(p)
+    menu:SetFrameStrata("DIALOG")
+    menu:SetWidth(180)
+    menu:SetHeight(#LC.LANGUAGES * 30 + 12)
+    menu:Hide()
+    p.langBtn = T:Button(p, "", 180, 26, "default", function() menu:SetShown(not menu:IsShown()) end)
+    p.langBtn:SetPoint("TOPRIGHT", 0, 0)
+    Tip(p.langBtn, L["Sprache"], L["Sprache des Addons. „Automatisch“ nimmt die Sprache deines Spielclients. Nach dem Wechsel wird die Oberfläche neu geladen."])
+    menu:SetPoint("TOPRIGHT", p.langBtn, "BOTTOMRIGHT", 0, -2)
+    for i, l in ipairs(LC.LANGUAGES) do
+        local b = T:Button(menu, LangLabel(l.key), 164, 28, "ghost", function()
+            menu:Hide()
+            if (LC.db.config.language or "auto") == l.key then return end
+            LC.db.config.language = l.key
+            StaticPopupDialogs["LIGHTCOUNCIL_RELOAD_LANGUAGE"] = {
+                text = L["Light Council: Die Sprache wird nach dem Neuladen der Oberfläche übernommen."],
+                button1 = L["Jetzt neu laden"], button2 = L["Später"],
+                OnAccept = function() ReloadUI() end,
+                timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
+            }
+            StaticPopup_Show("LIGHTCOUNCIL_RELOAD_LANGUAGE")
+            p.langBtn:SetText(L["Sprache: "] .. LangLabel(l.key))
+        end)
+        b:SetPoint("TOPLEFT", 8, -6 - (i - 1) * 30)
+    end
+    p.langBtn:SetText(L["Sprache: "] .. LangLabel(LC.db.config.language or "auto"))
 
     -- COUNCIL ----------------------------------------------------------
     -- Eine eigene Zeile für die Größe (3 oder 5), darunter ein Feld pro Person.
     local SIZE_ROW, ROW1, ROW2 = 46, 98, 156
     local H3, H5 = ROW1 + 58 + 6, ROW2 + 58 + 6
-    local c1 = Section(p, "Council", y, H3, "Ein Feld pro Person – Vor- und Nachname, kein Komma nötig.")
+    local c1 = Section(p, L["Council"], y, H3, L["Ein Feld pro Person – Vor- und Nachname, kein Komma nötig."])
     p.councilCard = c1
     p.councilFields, p.councilExtra = {}, {}
     p.size = 3
 
     local sizeLabel = T:Text(c1, 12, C.text)
     sizeLabel:SetPoint("TOPLEFT", 16, -(SIZE_ROW + 8))
-    sizeLabel:SetText("Anzahl Mitglieder")
+    sizeLabel:SetText(L["Anzahl Mitglieder"])
     p.sizeButtons = {}
     local prev
     for _, n in ipairs({ 3, 5 }) do
-        local b = T:Button(c1, n .. " Mitglieder", 130, 32, "default", function()
+        local b = T:Button(c1, n .. L[" Mitglieder"], 130, 32, "default", function()
             p.size = n
             p:UpdateCouncilSize()
         end)
@@ -2243,28 +2278,28 @@ local function CreateSettingsPage(p)
         local rowY = (i <= 3) and ROW1 or ROW2
         local label = T:Text(c1, 11, C.muted)
         label:SetPoint("TOPLEFT", 16 + col * colW, -rowY)
-        label:SetText("Mitglied " .. i)
+        label:SetText(L["Mitglied "] .. i)
         -- Feld möglichst breit (Vor- und Nachname), "Ziel"-Knopf schmal, 12 px Abstand zur nächsten Spalte
         local field = T:Input(c1, colW - 54 - 6 - 12, 30)
         field:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -5)
-        field:SetPlaceholder("Vorname Nachname")
-        local target = T:Button(c1, "Ziel", 54, 30, "default", function()
+        field:SetPlaceholder(L["Vorname Nachname"])
+        local target = T:Button(c1, L["Ziel"], 54, 30, "default", function()
             local name = LC:UnitFullName("target")
             if not name or not UnitIsPlayer("target") then
-                p.msg:SetText(H.bad .. "Bitte zuerst einen Spieler anvisieren.|r")
+                p.msg:SetText(H.bad .. L["Bitte zuerst einen Spieler anvisieren.|r"])
                 return
             end
             for j, other in ipairs(p.councilFields) do
                 if j ~= i and LC:NamesMatch(other:GetText(), name) then
-                    p.msg:SetText(name .. " steht schon in Feld " .. j .. ".")
+                    p.msg:SetText(name .. L[" steht schon in Feld "] .. j .. ".")
                     return
                 end
             end
             field:SetText(name)
-            p.msg:SetText(name .. " eingetragen – zum Übernehmen „Speichern“ klicken.")
+            p.msg:SetText(name .. L[" eingetragen – zum Übernehmen „Speichern“ klicken."])
         end)
         target:SetPoint("LEFT", field, "RIGHT", 6, 0)
-        Tip(target, "Ziel eintragen", "Spieler anvisieren und klicken – trägt ihn mit Vor- und Nachnamen in dieses Feld ein.")
+        Tip(target, L["Ziel eintragen"], L["Spieler anvisieren und klicken – trägt ihn mit Vor- und Nachnamen in dieses Feld ein."])
         p.councilFields[i] = field
         if i > 3 then p.councilExtra[#p.councilExtra + 1] = { label, field, target } end
     end
@@ -2283,26 +2318,26 @@ local function CreateSettingsPage(p)
             for _, w in ipairs(parts) do w:SetShown(self.size == 5) end
         end
         self.councilCard:SetHeight(self.size == 5 and H5 or H3)
-        self.majority:SetText("Entscheidung mit Mehrheit: " .. H.accentLt .. (math.floor(self.size / 2) + 1) .. " von " .. self.size .. "|r")
+        self.majority:SetText(L["Entscheidung mit Mehrheit: "] .. H.accentLt .. (math.floor(self.size / 2) + 1) .. L[" von "] .. self.size .. "|r")
     end
 
     -- REGELN & SCORE ---------------------------------------------------
-    local c2 = Section(p, "Regeln & Score", c1, 166)
+    local c2 = Section(p, L["Regeln & Score"], c1, 166)
     local fw = math.floor((CW - 32) / 4) - 20
     local step = fw + 20
-    p.voteTimeout = LabeledInput(c2, "Abstimmung (Sek.)", fw, 16, 46)
-    p.rollTimeout = LabeledInput(c2, "Würfeln (Sek.)", fw, 16 + step, 46)
-    p.cooldown = LabeledInput(c2, "Loot-Cooldown (Wochen)", fw, 16 + 2 * step, 46)
-    p.attWeeks = LabeledInput(c2, "Anwesenheit (Wochen)", fw, 16 + 3 * step, 46)
-    p.wAtt = LabeledInput(c2, "Score: Anwesenheit %", fw, 16, 104)
-    p.wParse = LabeledInput(c2, "Score: Leistung (Parse) %", fw, 16 + step, 104)
-    p.wEng = LabeledInput(c2, "Score: Engagement %", fw, 16 + 2 * step, 104)
-    p.maxRes = LabeledInput(c2, "Reservierungen pro Raider", fw, 16 + 3 * step, 104)
+    p.voteTimeout = LabeledInput(c2, L["Abstimmung (Sek.)"], fw, 16, 46)
+    p.rollTimeout = LabeledInput(c2, L["Würfeln (Sek.)"], fw, 16 + step, 46)
+    p.cooldown = LabeledInput(c2, L["Loot-Cooldown (Wochen)"], fw, 16 + 2 * step, 46)
+    p.attWeeks = LabeledInput(c2, L["Anwesenheit (Wochen)"], fw, 16 + 3 * step, 46)
+    p.wAtt = LabeledInput(c2, L["Score: Anwesenheit %"], fw, 16, 104)
+    p.wParse = LabeledInput(c2, L["Score: Leistung (Parse) %"], fw, 16 + step, 104)
+    p.wEng = LabeledInput(c2, L["Score: Engagement %"], fw, 16 + 2 * step, 104)
+    p.maxRes = LabeledInput(c2, L["Reservierungen pro Raider"], fw, 16 + 3 * step, 104)
     p.wSum = T:Text(c2, 12, C.muted, "RIGHT")
     p.wSum:SetPoint("TOPRIGHT", -16, -16)
 
     -- OPTIONEN ---------------------------------------------------------
-    local c4 = Section(p, "Optionen", c2, 108)
+    local c4 = Section(p, L["Optionen"], c2, 108)
     local half = math.floor(CW / 2)
     local function CheckTip(cb, title, text)
         cb:HookScript("OnEnter", function(self)
@@ -2313,21 +2348,21 @@ local function CreateSettingsPage(p)
         end)
         cb:HookScript("OnLeave", GameTooltip_Hide)
     end
-    p.raidWarning = T:Check(c4, "Raidwarnungen (Council & Gewinner)")
+    p.raidWarning = T:Check(c4, L["Raidwarnungen (Council & Gewinner)"])
     p.raidWarning:SetPoint("TOPLEFT", 16, -48)
-    CheckTip(p.raidWarning, "Raidwarnung", "Council-Items, die Entscheidung des Councils, freies Würfeln und jeder Gewinner werden als Raidwarnung angesagt. Braucht Raidleitung oder Assistent, sonst normaler Raidchat.")
-    p.autoStart = T:Check(c4, "Council automatisch starten")
+    CheckTip(p.raidWarning, L["Raidwarnung"], L["Council-Items, die Entscheidung des Councils, freies Würfeln und jeder Gewinner werden als Raidwarnung angesagt. Braucht Raidleitung oder Assistent, sonst normaler Raidchat."])
+    p.autoStart = T:Check(c4, L["Council automatisch starten"])
     p.autoStart:SetPoint("TOPLEFT", 16, -76)
-    CheckTip(p.autoStart, "Automatisch starten", "Liegt ein Council-Item im Loot, startet die Abstimmung von selbst, sobald du als Plündermeister die Leiche öffnest.")
-    p.minimap = T:Check(c4, "Minimap-Button anzeigen")
+    CheckTip(p.autoStart, L["Automatisch starten"], L["Liegt ein Council-Item im Loot, startet die Abstimmung von selbst, sobald du als Plündermeister die Leiche öffnest."])
+    p.minimap = T:Check(c4, L["Minimap-Button anzeigen"])
     p.minimap:SetPoint("TOPLEFT", half, -48)
     p.minimap:SetScript("OnClick", function(self)
         LC.db.config.minimap.hide = not self:GetChecked()
         LC:UpdateMinimapButton()
     end)
-    p.raiderWindow = T:Check(c4, "Loot-Fenster für Raider anzeigen")
+    p.raiderWindow = T:Check(c4, L["Loot-Fenster für Raider anzeigen"])
     p.raiderWindow:SetPoint("TOPLEFT", half, -76)
-    CheckTip(p.raiderWindow, "Loot-Fenster für Raider", "Öffnet sich, wenn Loot droppt: zeigt Items, Prio und einen Würfel-Knopf für Berechtigte.")
+    CheckTip(p.raiderWindow, L["Loot-Fenster für Raider"], L["Öffnet sich, wenn Loot droppt: zeigt Items, Prio und einen Würfel-Knopf für Berechtigte."])
     p.raiderWindow:SetScript("OnClick", function(self)
         LC.db.config.raiderWindow = self:GetChecked() and true or false
     end)
@@ -2337,7 +2372,7 @@ local function CreateSettingsPage(p)
     p.msg:SetWidth(CW - 156)
     p.msg:SetWordWrap(false)
 
-    local save = T:Button(p, "Speichern", 140, 34, "primary", function()
+    local save = T:Button(p, L["Speichern"], 140, 34, "primary", function()
         local cfg = LC.db.config
         local council = {}
         for i, field in ipairs(p.councilFields) do
@@ -2362,8 +2397,8 @@ local function CreateSettingsPage(p)
         LC:BroadcastCouncilInfo()   -- Raider bekommen Council-Liste und Höchstzahl
         cfg.autoStart = p.autoStart:GetChecked() and true or false
         cfg.raidWarning = p.raidWarning:GetChecked() and true or false
-        local msg = H.good .. "Gespeichert.|r"
-        if #council ~= p.size then msg = msg .. "  " .. H.warn .. "Bitte alle " .. p.size .. " Council-Felder ausfüllen.|r" end
+        local msg = H.good .. L["Gespeichert.|r"]
+        if #council ~= p.size then msg = msg .. "  " .. H.warn .. L["Bitte alle "] .. p.size .. L[" Council-Felder ausfüllen.|r"] end
         p.msg:SetText(msg)
         p.needsLoad = true
         LC:RefreshUI()
@@ -2392,7 +2427,7 @@ local function RefreshSettings()
     p.wEng:SetText(tostring(cfg.weights.engagement))
     p.maxRes:SetText(tostring(cfg.maxReserves or 2))
     local sum = cfg.weights.attendance + cfg.weights.parse + cfg.weights.engagement
-    p.wSum:SetText("Summe: " .. (sum == 100 and H.good or H.warn) .. sum .. " %|r")
+    p.wSum:SetText(L["Summe: "] .. (sum == 100 and H.good or H.warn) .. sum .. " %|r")
     p.autoStart:SetChecked(cfg.autoStart)
     p.raidWarning:SetChecked(cfg.raidWarning)
     p.minimap:SetChecked(not cfg.minimap.hide)
@@ -2425,7 +2460,7 @@ function SelectTab(key)
 end
 
 local function CreateMainFrame()
-    main = T:Window("LightCouncilMainFrame", W, HGT, "Light Council", "Reservierungen + Council · Lootverteilung", 56)
+    main = T:Window("LightCouncilMainFrame", W, HGT, L["Light Council"], L["Reservierungen + Council · Lootverteilung"], 56)
     main:Hide()
 
     -- Titelleiste nutzen: rechts Status, Rolle und Schnellzugriffe
@@ -2449,9 +2484,9 @@ local function CreateMainFrame()
         return f
     end
     -- Test-Abstimmung gibt es auf "Erste Schritte" und der leeren Loot-Seite – oben nicht doppelt
-    main.btnRaid = T:Button(bar, "Raider-Ansicht", 140, 32, "ghost", function() LC:ToggleRaidFrame() end)
+    main.btnRaid = T:Button(bar, L["Raider-Ansicht"], 140, 32, "ghost", function() LC:ToggleRaidFrame() end)
     main.btnRaid:SetPoint("RIGHT", main.close, "LEFT", -14, 0)
-    Tip(main.btnRaid, "Raider-Ansicht", "Öffnet das Loot-Fenster, das Raider sehen: Items, Prio und Würfel-Knopf.")
+    Tip(main.btnRaid, L["Raider-Ansicht"], L["Öffnet das Loot-Fenster, das Raider sehen: Items, Prio und Würfel-Knopf."])
     main.rolePill = Pill(bar)
     main.rolePill:SetPoint("RIGHT", main.btnRaid, "LEFT", -18, 0)
     main.statusPill = Pill(bar)
@@ -2467,8 +2502,8 @@ local function CreateMainFrame()
         end)
         pill:SetScript("OnLeave", GameTooltip_Hide)
     end
-    PillTip(main.statusPill, "Status", "Was gerade läuft: Nicht im Raid, Bereit (im Raid), Council stimmt ab, Würfelrunde läuft oder wartende Items.")
-    PillTip(main.rolePill, "Deine Rolle", "Raidleitung, Plündermeister und/oder Council – davon hängt ab, was du im Addon tun darfst. Ohne besondere Rolle: Raider.")
+    PillTip(main.statusPill, L["Status"], L["Was gerade läuft: Nicht im Raid, Bereit (im Raid), Council stimmt ab, Würfelrunde läuft oder wartende Items."])
+    PillTip(main.rolePill, L["Deine Rolle"], L["Raidleitung, Plündermeister und/oder Council – davon hängt ab, was du im Addon tun darfst. Ohne besondere Rolle: Raider."])
 
     -- Seitenleiste
     local side = CreateFrame("Frame", nil, main, "BackdropTemplate")
@@ -2496,7 +2531,7 @@ local function CreateMainFrame()
             div:SetPoint("TOPRIGHT", -16, -(y + 6))
             y = y + 13
         end
-        local b = T:NavButton(side, t.label, SIDEBAR - 1, function() SelectTab(t.key) end)
+        local b = T:NavButton(side, L[t.label], SIDEBAR - 1, function() SelectTab(t.key) end)
         b:SetPoint("TOPLEFT", 0, -y)
         nav[t.key] = b
         y = y + 38
@@ -2504,7 +2539,7 @@ local function CreateMainFrame()
 
     local ver = T:Text(side, 10, C.muted)
     ver:SetPoint("BOTTOMLEFT", 16, 14)
-    ver:SetText("v" .. LC.version .. "  ·  /lc hilfe")
+    ver:SetText("v" .. LC.version .. L["  ·  /lc hilfe"])
 
     for _, t in ipairs(TABS) do
         local p = CreateFrame("Frame", nil, main)
@@ -2551,29 +2586,29 @@ function LC:RefreshUI()
     for _, k in ipairs({ "council", "softres", "items" }) do
         if not st[k].ok then open = open + 1 end
     end
-    nav.start.badge:SetText(open > 0 and (H.warn .. open .. " offen|r") or "")
-    nav.reserves.badge:SetText((st.softres.pending or 0) > 0 and (H.warn .. st.softres.pending .. " Antrag|r") or "")
+    nav.start.badge:SetText(open > 0 and (H.warn .. open .. L[" offen|r"]) or "")
+    nav.reserves.badge:SetText((st.softres.pending or 0) > 0 and (H.warn .. st.softres.pending .. L[" Antrag|r"]) or "")
 
     -- Titelleiste: Status und Rolle
     if self.active then
-        main.statusPill:Set("Council stimmt ab", C.accent)
+        main.statusPill:Set(L["Council stimmt ab"], C.accent)
     elseif self.roll then
-        main.statusPill:Set("Würfelrunde läuft", C.warn)
+        main.statusPill:Set(L["Würfelrunde läuft"], C.warn)
     elseif #self.queue > 0 then
-        main.statusPill:Set(#self.queue .. " Item(s) warten", C.accentLt)
+        main.statusPill:Set(#self.queue .. L[" Item(s) warten"], C.accentLt)
     elseif IsInRaid() then
-        main.statusPill:Set("Bereit", C.good)
+        main.statusPill:Set(L["Bereit"], C.good)
     else
-        main.statusPill:Set("Nicht im Raid", C.muted)
+        main.statusPill:Set(L["Nicht im Raid"], C.muted)
     end
     local roles = {}
-    if self:IsMasterLooter() then roles[#roles + 1] = "Plündermeister" end
-    if IsInRaid() and (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) then roles[#roles + 1] = "Raidleitung" end
-    if self:IsCouncilMember(self:PlayerName()) then roles[#roles + 1] = "Council" end
+    if self:IsMasterLooter() then roles[#roles + 1] = L["Plündermeister"] end
+    if IsInRaid() and (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) then roles[#roles + 1] = L["Raidleitung"] end
+    if self:IsCouncilMember(self:PlayerName()) then roles[#roles + 1] = L["Council"] end
     if #roles > 0 then
         main.rolePill:Set(table.concat(roles, " · "), C.accent)
     else
-        main.rolePill:Set("Raider", C.muted)
+        main.rolePill:Set(L["Raider"], C.muted)
     end
 end
 
@@ -2591,5 +2626,5 @@ LC:On("GET_ITEM_INFO_RECEIVED", function(self)
 end)
 
 function LC:OnInitialize()
-    self:Print("v" .. self.version .. " geladen – |cffd1b5ff/lc|r öffnet das Fenster.")
+    self:Print("v" .. self.version .. L[" geladen – |cffd1b5ff/lc|r öffnet das Fenster."])
 end

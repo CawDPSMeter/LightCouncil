@@ -8,6 +8,7 @@
 -- Nur Einträge von Council-Mitgliedern werden übernommen, damit niemand die Historie fälschen kann.
 -- Der Abgleich läuft nachrangig: während Abstimmungen und Würfelrunden wird nichts davon gesendet.
 local _, LC = ...
+local L = LC.L
 
 local SEP = "~"
 local CMDS = { HQ = true, HE = true }
@@ -67,9 +68,9 @@ function LC:RequestHistorySync(manual)
     self.historySyncAt = time()
     if manual then
         if sent then
-            self:Print("Loot-Historie: Abgleich angefragt – fehlende Einträge kommen vom Council, sobald jemand online ist.")
+            self:Print(L["Loot-Historie: Abgleich angefragt – fehlende Einträge kommen vom Council, sobald jemand online ist."])
         else
-            self:Print("Loot-Historie: Kein Abgleich möglich – du bist in keiner Gilde oder Gruppe.")
+            self:Print(L["Loot-Historie: Kein Abgleich möglich – du bist in keiner Gilde oder Gruppe."])
         end
     end
     return sent
@@ -116,9 +117,9 @@ end
 -- Export (Tabelle oder Discord)
 ------------------------------------------------------------------------
 local function HowText(e)
-    if e.council then return "Council" end
-    if e.reserved then return "Reserviert" end
-    return e.offspec and "Frei gewürfelt (Off Spec)" or "Frei gewürfelt (Main Spec)"
+    if e.council then return L["Council"] end
+    if e.reserved then return L["Reserviert"] end
+    return e.offspec and L["Frei gewürfelt (Off Spec)"] or L["Frei gewürfelt (Main Spec)"]
 end
 
 -- list = Einträge (neueste zuerst), format = "csv" oder "discord"
@@ -126,16 +127,16 @@ function LC:HistoryExportText(list, format)
     local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
     local lines = {}
     if format == "csv" then
-        lines[1] = "Datum;Raid;Item;Item-ID;Spieler;Vergabe;Wurf"
+        lines[1] = L["Datum;Raid;Item;Item-ID;Spieler;Vergabe;Wurf"]
     end
     for _, e in ipairs(list) do
-        local itemName = getInfo(e.itemID) or ("Item " .. e.itemID)
+        local itemName = getInfo(e.itemID) or (L["Item "] .. e.itemID)
         if format == "csv" then
             lines[#lines + 1] = table.concat({ date("%d.%m.%Y", e.time), e.raid or "", itemName, tostring(e.itemID),
                 e.winner or "", HowText(e), e.roll and tostring(e.roll) or "" }, ";")
         else
             lines[#lines + 1] = string.format("%s · %s · **%s** → %s (%s%s)", date("%d.%m.", e.time), e.raid or "?",
-                itemName, e.winner or "?", HowText(e), e.roll and (", Wurf " .. e.roll) or "")
+                itemName, e.winner or "?", HowText(e), e.roll and (L[", Wurf "] .. e.roll) or "")
         end
     end
     return table.concat(lines, "\n")

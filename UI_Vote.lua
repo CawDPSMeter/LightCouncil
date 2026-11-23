@@ -1,5 +1,6 @@
 -- Light Council – Abstimmungs-Popup für Council-Mitglieder
 local _, LC = ...
+local L = LC.L
 local T = LC.T
 local C = T.C
 local H = T.HEX
@@ -13,12 +14,12 @@ local LIST_TOP = 138
 local COL = { name = 34, score = 250, att = 340, parse = 405, eng = 465, last = 525 }
 
 local function Val(v, suffix)
-    if v == nil then return H.muted .. "–|r" end
+    if v == nil then return H.muted .. L["–|r"] end
     return tostring(v) .. (suffix or "")
 end
 
 local function CreateVoteFrame()
-    frame = T:Window("LightCouncilVoteFrame", W, 300, "Council-Abstimmung", "Score nur für den Council sichtbar")
+    frame = T:Window("LightCouncilVoteFrame", W, 300, L["Council-Abstimmung"], L["Score nur für den Council sichtbar"])
     frame:SetFrameStrata("DIALOG")
     frame:ClearAllPoints()
     frame:SetPoint("CENTER", 0, 140)
@@ -64,19 +65,19 @@ local function CreateVoteFrame()
         t:SetPoint("TOPLEFT", PAD + x, -120)
         t:SetText(text)
     end
-    Head("SPIELER", COL.name)
-    Head("SCORE", COL.score)
-    Head("ANW.", COL.att)
-    Head("PARSE", COL.parse)
-    Head("ENG.", COL.eng)
-    Head("LETZTES ITEM", COL.last)
+    Head(L["SPIELER"], COL.name)
+    Head(L["SCORE"], COL.score)
+    Head(L["ANW."], COL.att)
+    Head(L["PARSE"], COL.parse)
+    Head(L["ENG."], COL.eng)
+    Head(L["LETZTES ITEM"], COL.last)
     local line = T:Line(frame, C.line)
     line:SetPoint("TOPLEFT", PAD, -LIST_TOP + 4)
     line:SetPoint("TOPRIGHT", -PAD, -LIST_TOP + 4)
 
     -- Begründung
     frame.reasonLabel = T:Text(frame, 10, C.muted)
-    frame.reasonLabel:SetText("BEGRÜNDUNG (wird im Protokoll gespeichert)")
+    frame.reasonLabel:SetText(L["BEGRÜNDUNG (wird im Protokoll gespeichert)"])
     frame.reason = T:Input(frame, W - 2 * PAD, 26)
     frame.reason:SetMaxLetters(120)
 
@@ -88,9 +89,9 @@ local function CreateVoteFrame()
         b.tooltip = tip
         return b
     end
-    frame.btnOpen = Decision("Freigeben", "Alle berechtigten Reservierer würfeln.", "OPEN", "primary")
-    frame.btnLimit = Decision("Eingrenzen", "Nur die angehakten Spieler würfeln.", "LIMIT", "default")
-    frame.btnSkip = Decision("Aussetzen", "Der angehakte Spieler (genau einer) setzt bei diesem Item diese Woche aus.", "SKIP", "default")
+    frame.btnOpen = Decision(L["Freigeben"], L["Alle berechtigten Reservierer würfeln."], "OPEN", "primary")
+    frame.btnLimit = Decision(L["Eingrenzen"], L["Nur die angehakten Spieler würfeln."], "LIMIT", "default")
+    frame.btnSkip = Decision(L["Aussetzen"], L["Der angehakte Spieler (genau einer) setzt bei diesem Item diese Woche aus."], "SKIP", "default")
 
     frame.status = T:Text(frame, 12, C.text, "CENTER")
     frame.status:SetWidth(W - 2 * PAD)
@@ -107,9 +108,9 @@ local function CreateVoteFrame()
         local c = (left <= 10 and not s.ended) and C.bad or C.accent
         self.timer.bar:SetStatusBarColor(c[1], c[2], c[3])
         if s.ended then
-            self.timeText:SetText("beendet")
+            self.timeText:SetText(L["beendet"])
         else
-            self.timeText:SetText(string.format("%d Sek.", math.ceil(left)))
+            self.timeText:SetText(string.format(L["%d Sek."], math.ceil(left)))
             if left <= 0 and not s.voted and not s.recused and not self.expiredShown then
                 self.expiredShown = true
                 LC:UpdateVoteFrame()
@@ -167,8 +168,8 @@ end
 function LC:ShowVoteFrame(s)
     if not frame then CreateVoteFrame() end
     frame.expiredShown = nil
-    frame.subtitle:SetText(string.format("Mehrheit %d von %d  ·  Score nur für den Council sichtbar", s.need or 2, s.size or 3))
-    local link = s.link or ("Item #" .. tostring(s.itemID))
+    frame.subtitle:SetText(string.format(L["Mehrheit %d von %d  ·  Score nur für den Council sichtbar"], s.need or 2, s.size or 3))
+    local link = s.link or (L["Item #"] .. tostring(s.itemID))
     frame.itemText:SetText(link)
     frame.icon.tex:SetTexture(self:ItemIcon(s.itemID))
     local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
@@ -193,11 +194,11 @@ function LC:ShowVoteFrame(s)
             r.name:SetTextColor(nc[1], nc[2], nc[3])
             -- Etikett rechts neben dem Namen
             local tag, tagColor
-            if flags:find("A") then tag, tagColor = "ABWESEND", { 0.35, 0.12, 0.16 }
-            elseif flags:find("S") then tag, tagColor = "SETZT AUS", { 0.35, 0.12, 0.16 }
+            if flags:find("A") then tag, tagColor = L["ABWESEND"], { 0.35, 0.12, 0.16 }
+            elseif flags:find("S") then tag, tagColor = L["SETZT AUS"], { 0.35, 0.12, 0.16 }
             elseif flags:find("C") then
-                if eligible then tag, tagColor = "CD IGNORIERT", { 0.40, 0.26, 0.08 }
-                else tag, tagColor = "LOOT-CD", { 0.40, 0.26, 0.08 } end
+                if eligible then tag, tagColor = L["CD IGNORIERT"], { 0.40, 0.26, 0.08 }
+                else tag, tagColor = L["LOOT-CD"], { 0.40, 0.26, 0.08 } end
             end
             r.badge:ClearAllPoints()
             r.badge:SetPoint("LEFT", r.name, "LEFT", math.min(r.name:GetStringWidth(), 150) + 8, 0)
@@ -216,9 +217,9 @@ function LC:ShowVoteFrame(s)
             local loot = self:GetPlayerLoot(c.name)
             local last = loot[1]
             if last then
-                r.last:SetText((last.council and (H.accentLt .. "Council|r ") or "") .. self:AgoText(last.time))
+                r.last:SetText((last.council and (H.accentLt .. L["Council|r "]) or "") .. self:AgoText(last.time))
             else
-                r.last:SetText(H.muted .. "noch keins|r")
+                r.last:SetText(H.muted .. L["noch keins|r"])
             end
             r.candidate = c
             r:SetAlpha(eligible and 1 or 0.6)
@@ -267,18 +268,18 @@ function LC:UpdateVoteFrame()
     end
 
     if s.ended then
-        frame.status:SetText(H.good .. "Ergebnis:|r " .. (s.result or ""))
+        frame.status:SetText(H.good .. L["Ergebnis:|r "] .. (s.result or ""))
     elseif s.recused then
-        frame.status:SetText(H.warn .. "Du hast dieses Item selbst reserviert – du stimmst nicht ab.|r")
+        frame.status:SetText(H.warn .. L["Du hast dieses Item selbst reserviert – du stimmst nicht ab.|r"])
     elseif s.voted then
         local v = s.myVote
-        local txt = self.DECISION_LABEL[v.decision] or v.decision
+        local txt = L[self.DECISION_LABEL[v.decision] or v.decision]
         if #v.names > 0 then txt = txt .. " (" .. table.concat(v.names, ", ") .. ")" end
-        frame.status:SetText("Deine Stimme: " .. H.accentLt .. txt .. "|r  ·  warte auf die anderen …")
+        frame.status:SetText(L["Deine Stimme: "] .. H.accentLt .. txt .. L["|r  ·  warte auf die anderen …"])
     elseif s.expires and GetTime() > s.expires then
-        frame.status:SetText(H.bad .. "Zeit abgelaufen.|r")
+        frame.status:SetText(H.bad .. L["Zeit abgelaufen.|r"])
     else
-        frame.status:SetText(H.muted .. "Spieler anhaken für „Eingrenzen“ (mehrere) oder „Aussetzen“ (genau einer). Maus über einen Spieler zeigt seine letzten Items.|r")
+        frame.status:SetText(H.muted .. L["Spieler anhaken für „Eingrenzen“ (mehrere) oder „Aussetzen“ (genau einer). Maus über einen Spieler zeigt seine letzten Items.|r"])
     end
 end
 
@@ -293,7 +294,7 @@ function LC:VoteButtonClicked(decision)
     end
     local ok, err = self:SubmitVote(decision, names, frame.reason:GetText())
     if not ok then
-        frame.status:SetText(H.bad .. (err or "Fehler") .. "|r")
+        frame.status:SetText(H.bad .. (err or L["Fehler"]) .. "|r")
         return
     end
     frame.reason:ClearFocus()

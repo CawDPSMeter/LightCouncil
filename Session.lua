@@ -1,5 +1,6 @@
 -- Light Council – Ablauf: Loot erkennen, Council-Abstimmung (Leitung), Stimmabgabe (Council), Würfeln
 local _, LC = ...
+local L = LC.L
 
 LC.lootItems = {}   -- Einträge im aktuell geöffneten Lootfenster
 LC.itemState = {}   -- [key] = Eintrag (bleibt erhalten, wenn das Lootfenster erneut geöffnet wird)
@@ -169,7 +170,7 @@ local function ExcludedText(list)
     local out = {}
     for _, c in ipairs(list) do
         if not c.eligible then
-            local why = (not c.present) and "nicht anwesend" or (c.sitout and "setzt diese Woche aus") or (c.cooldown and "Loot-Cooldown") or "ausgeschlossen"
+            local why = (not c.present) and L["nicht anwesend"] or (c.sitout and L["setzt diese Woche aus"]) or (c.cooldown and L["Loot-Cooldown"]) or L["ausgeschlossen"]
             out[#out + 1] = c.name .. " (" .. why .. ")"
         end
     end
@@ -198,9 +199,9 @@ function LC:StartCouncil(entry)
     local excluded = ExcludedText(cand)
 
     if #cand == 0 or #eligible == 0 then
-        local why = (#cand == 0) and "keine Reservierung" or "kein Reservierer anwesend"
-        self:Announce("Council-Item " .. link .. ": " .. why .. " – freies Würfeln.", test, true)
-        local log = self:AddLog({ itemID = entry.itemID, link = link, result = why .. " – freies Würfeln", test = test, excluded = excluded })
+        local why = (#cand == 0) and L["keine Reservierung"] or L["kein Reservierer anwesend"]
+        self:Announce(L["Council-Item "] .. link .. ": " .. why .. L[" – freies Würfeln."], test, true)
+        local log = self:AddLog({ itemID = entry.itemID, link = link, result = why .. L[" – freies Würfeln"], test = test, excluded = excluded })
         return self:StartRoll(entry, nil, log)
     end
 
@@ -228,8 +229,8 @@ function LC:StartCouncil(entry)
 
     local need = test and 1 or self:CouncilMajority()
     if nVoters < need then
-        local text = "Council nicht beschlussfähig – alle Reservierer würfeln normal"
-        self:Announce("Council-Item " .. link .. ": " .. text .. ".", test, true)
+        local text = L["Council nicht beschlussfähig – alle Reservierer würfeln normal"]
+        self:Announce(L["Council-Item "] .. link .. ": " .. text .. ".", test, true)
         local log = self:AddLog({
             itemID = entry.itemID, link = link, result = text, test = test,
             recused = NamesOf(recused), excluded = excluded, rollers = eligible,
@@ -245,7 +246,7 @@ function LC:StartCouncil(entry)
         recused = recused, votes = {}, voteOrder = {}, need = need, test = test,
         excluded = excluded, relaxed = relaxed, endsAt = GetTime() + timeout,
     }
-    entry.status = "Council stimmt ab"
+    entry.status = L["Council stimmt ab"]
     self:NetItem(entry, "CS")
 
     -- Kandidaten in möglichst wenige Nachrichten packen
@@ -273,7 +274,7 @@ function LC:StartCouncil(entry)
         if r.target then SendSession(r.target, true) end
     end
 
-    self:Announce("Council-Item: " .. link .. " – der Council entscheidet (" .. timeout .. " Sek.)", test, true)
+    self:Announce(L["Council-Item: "] .. link .. L[" – der Council entscheidet ("] .. timeout .. L[" Sek.)"], test, true)
     -- Wartende Nachrichten verzögern das Popup beim Council – die Zeit wird hier draufgerechnet
     local delay = self:SendBacklog()
     self.active.endsAt = self.active.endsAt + delay
@@ -333,48 +334,48 @@ function LC:ResolveCouncil()
     if best then
         local v = best.vote
         if v.decision == "OPEN" then
-            result = "Freigegeben – alle Reservierer würfeln"
+            result = L["Freigegeben – alle Reservierer würfeln"]
         elseif v.decision == "LIMIT" then
             local allowed = {}
             for _, n in ipairs(v.names) do allowed[self:NameKey(n)] = true end
             rollers = NamesOf(a.cand, function(c) return c.eligible and allowed[c.key] end)
             if #rollers == 0 then
                 rollers = eligible
-                result = "Eingrenzung ohne berechtigte Spieler – alle Reservierer würfeln"
+                result = L["Eingrenzung ohne berechtigte Spieler – alle Reservierer würfeln"]
             else
-                result = "Nur " .. self:JoinNames(rollers) .. " würfeln"
+                result = L["Nur "] .. self:JoinNames(rollers) .. L[" würfeln"]
             end
         elseif v.decision == "SKIP" then
             local skip = v.names[1]
             local skipKey = self:NameKey(skip)
             if not test then self:AddSitout(skip, entry.itemID) end
             rollers = NamesOf(a.cand, function(c) return c.eligible and c.key ~= skipKey end)
-            result = self:ShortName(skip) .. " setzt bei diesem Item diese Woche aus"
+            result = self:ShortName(skip) .. L[" setzt bei diesem Item diese Woche aus"]
             if #rollers == 0 then
                 rollers = nil
-                result = result .. " – keine weiteren Reservierer, freies Würfeln"
+                result = result .. L[" – keine weiteren Reservierer, freies Würfeln"]
             end
         end
     else
         if #a.voteOrder < a.nVoters then
-            result = "Zeit abgelaufen – alle Reservierer würfeln normal"
+            result = L["Zeit abgelaufen – alle Reservierer würfeln normal"]
         else
-            result = "Keine Mehrheit – alle Reservierer würfeln normal"
+            result = L["Keine Mehrheit – alle Reservierer würfeln normal"]
         end
     end
 
-    self:Announce("Council " .. link .. ": " .. result, test, true)
+    self:Announce(L["Council "] .. link .. ": " .. result, test, true)
     local announceExcluded = {}
     for _, c in ipairs(a.cand) do
         if c.present and not c.eligible then
-            announceExcluded[#announceExcluded + 1] = c.name .. (c.sitout and " (setzt aus)" or " (Loot-Cooldown)")
+            announceExcluded[#announceExcluded + 1] = c.name .. (c.sitout and L[" (setzt aus)"] or L[" (Loot-Cooldown)"])
         end
     end
     if #announceExcluded > 0 then
-        self:AnnounceList("Council: nicht berechtigt –", announceExcluded, test)
+        self:AnnounceList(L["Council: nicht berechtigt –"], announceExcluded, test)
     end
     if a.relaxed then
-        self:Announce("Council: alle Anwesenden sind im Loot-Cooldown – Cooldown wird für dieses Item ignoriert.", test)
+        self:Announce(L["Council: alle Anwesenden sind im Loot-Cooldown – Cooldown wird für dieses Item ignoriert."], test)
     end
 
     local log = self:AddLog({
@@ -434,11 +435,11 @@ function LC:StartNormal(entry)
     local rollers = NamesOf(cand, function(c) return c.present end)
     local prio = self:GetPrio(entry.itemID)
     if prio and #prio > 0 then
-        self:Announce("Prio für " .. entry.link .. ": " .. table.concat(prio, " > "), test)
+        self:Announce(L["Prio für "] .. entry.link .. ": " .. table.concat(prio, " > "), test)
     end
     local log = self:AddLog({
         itemID = entry.itemID, link = entry.link, test = test,
-        result = (#rollers > 0) and "Reservierer würfeln" or "keine Reservierung – freies Würfeln",
+        result = (#rollers > 0) and L["Reservierer würfeln"] or L["keine Reservierung – freies Würfeln"],
         rollers = rollers,
     })
     self:StartRoll(entry, (#rollers > 0) and rollers or nil, log)
@@ -452,7 +453,7 @@ function LC:StartRoll(entry, rollers, logEntry, offspecTie)
     local test = entry.test
     local link = entry.link
     if rollers and #rollers == 1 then
-        return self:FinishRollWith(entry, rollers[1], nil, logEntry, "einziger Berechtigter")
+        return self:FinishRollWith(entry, rollers[1], nil, logEntry, L["einziger Berechtigter"])
     end
 
     local allowed
@@ -464,12 +465,12 @@ function LC:StartRoll(entry, rollers, logEntry, offspecTie)
     -- Freies Würfeln (keine Reservierung/Prio): Main Spec = /roll, Off Spec = /roll 99
     self.roll = { entry = entry, allowed = allowed, rollers = rollers, rolls = {}, count = 0, log = logEntry,
         endsAt = GetTime() + t, free = (rollers == nil), offspecTie = offspecTie or nil }
-    entry.status = "Würfeln"
+    entry.status = L["Würfeln"]
 
     if rollers then
-        self:AnnounceList("Würfelt jetzt (/roll) für " .. link .. " – " .. t .. " Sek.:", rollers, test)
+        self:AnnounceList(L["Würfelt jetzt (/roll) für "] .. link .. " – " .. t .. L[" Sek.:"], rollers, test)
     else
-        self:Announce("Freies Würfeln für " .. link .. " – Main Spec: /roll · Off Spec: /roll 99 – " .. t .. " Sek.", test, true)
+        self:Announce(L["Freies Würfeln für "] .. link .. L[" – Main Spec: /roll · Off Spec: /roll 99 – "] .. t .. L[" Sek."], test, true)
     end
     self.roll.timer = C_Timer.NewTimer(t, function() LC:FinishRoll() end)
     self:NetRollStart(entry, rollers, t)
@@ -535,7 +536,7 @@ function LC:FinishRoll()
         end
     end
     if best < 0 then
-        self:Announce("Niemand hat für " .. entry.link .. " gewürfelt.", entry.test)
+        self:Announce(L["Niemand hat für "] .. entry.link .. L[" gewürfelt."], entry.test)
         entry.status = "offen"
         self:NetItem(entry, "RN")
         self:RefreshUI()
@@ -544,11 +545,11 @@ function LC:FinishRoll()
         return
     end
     if #tied > 1 then
-        self:Announce("Gleichstand (" .. best .. ") zwischen " .. self:JoinNames(tied) .. " – bitte erneut würfeln (/roll)!", entry.test)
+        self:Announce(L["Gleichstand ("] .. best .. L[") zwischen "] .. self:JoinNames(tied) .. L[" – bitte erneut würfeln (/roll)!"], entry.test)
         return self:StartRoll(entry, tied, r.log, wantOS)
     end
     local isOS = wantOS or r.offspecTie
-    self:FinishRollWith(entry, tied[1], best, r.log, isOS and "Off Spec" or nil, isOS)
+    self:FinishRollWith(entry, tied[1], best, r.log, isOS and L["Off Spec"] or nil, isOS)
 end
 
 -- offspec = true: der Gewinner hat für Off Spec gewürfelt
@@ -557,8 +558,8 @@ function LC:FinishRollWith(entry, winner, roll, logEntry, note, offspec)
     entry.winner = winner
     entry.winRoll = roll
     entry.winOS = offspec or nil
-    entry.status = "Gewinner: " .. winner
-    local msg = entry.link .. " geht an " .. winner
+    entry.status = L["Gewinner: "] .. winner
+    local msg = entry.link .. L[" geht an "] .. winner
     if roll then msg = msg .. " (" .. roll .. ")" end
     if note then msg = msg .. " – " .. note end
     self:Announce(msg, entry.test, true)   -- Gewinner immer per Raidwarnung
@@ -631,7 +632,7 @@ end
 function LC:MarkAwarded(entry, winner)
     winner = self:ShortName(winner)
     entry.winner = entry.winner or winner
-    entry.status = "vergeben an " .. winner
+    entry.status = L["vergeben an "] .. winner
     entry.awarded = true
     -- Wurf und Off Spec gehören nur dazu, wenn der Würfelgewinner das Item auch bekommt
     local same = self:NamesMatch(winner, entry.winner)
@@ -659,7 +660,7 @@ end
 function LC:AwardLoot(entry, auto)
     if not entry or not entry.winner or entry.awarded then return end
     if entry.test then
-        self:Print("Test: " .. entry.link .. " würde " .. (auto and "automatisch " or "") .. "an " .. entry.winner .. " vergeben.")
+        self:Print(L["Test: "] .. entry.link .. L[" würde "] .. (auto and L["automatisch "] or "") .. L["an "] .. entry.winner .. L[" vergeben."])
         self:MarkAwarded(entry, entry.winner)
         return
     end
@@ -673,9 +674,9 @@ function LC:AwardLoot(entry, auto)
     end
     if not slot then
         if auto then
-            self:Print(entry.link .. " geht an " .. entry.winner .. " – Lootfenster ist zu. Leiche öffnen und „An …“ klicken.")
+            self:Print(entry.link .. L[" geht an "] .. entry.winner .. L[" – Lootfenster ist zu. Leiche öffnen und „An …“ klicken."])
         else
-            self:Print("Das Item liegt nicht im geöffneten Lootfenster. Bitte die Leiche erneut öffnen.")
+            self:Print(L["Das Item liegt nicht im geöffneten Lootfenster. Bitte die Leiche erneut öffnen."])
         end
         return
     end
@@ -689,8 +690,8 @@ function LC:AwardLoot(entry, auto)
             return
         end
     end
-    self:Print(entry.winner .. " kann das Item nicht erhalten (nicht in Reichweite oder nicht berechtigt)."
-        .. (auto and " Bitte von Hand vergeben." or ""))
+    self:Print(entry.winner .. L[" kann das Item nicht erhalten (nicht in Reichweite oder nicht berechtigt)."]
+        .. (auto and L[" Bitte von Hand vergeben."] or ""))
 end
 
 -- Vergabe am Addon vorbei (Blizzard-Plündermeister-Menü) trotzdem erfassen
@@ -721,11 +722,11 @@ function LC:CancelAll()
         if a.timer then a.timer:Cancel() end
         self.active = nil
         a.entry.status = "offen"
-        for _, v in pairs(a.voters) do self:SendTo(v.target, "E", a.sid, "Abstimmung abgebrochen") end
+        for _, v in pairs(a.voters) do self:SendTo(v.target, "E", a.sid, L["Abstimmung abgebrochen"]) end
         for _, r in ipairs(a.recused) do
-            if r.target then self:SendTo(r.target, "E", a.sid, "Abstimmung abgebrochen") end
+            if r.target then self:SendTo(r.target, "E", a.sid, L["Abstimmung abgebrochen"]) end
         end
-        self:Announce("Council-Abstimmung für " .. a.entry.link .. " abgebrochen.", a.test)
+        self:Announce(L["Council-Abstimmung für "] .. a.entry.link .. L[" abgebrochen."], a.test)
         self:NetItem(a.entry, "RC")
         any = true
     end
@@ -734,14 +735,14 @@ function LC:CancelAll()
         if r.timer then r.timer:Cancel() end
         self.roll = nil
         r.entry.status = "offen"
-        self:Announce("Würfelrunde für " .. r.entry.link .. " abgebrochen.", r.entry.test)
+        self:Announce(L["Würfelrunde für "] .. r.entry.link .. L[" abgebrochen."], r.entry.test)
         self:NetItem(r.entry, "RC")
         any = true
     end
     for _, e in ipairs(self.queue) do e.status = "offen" end
     wipe(self.queue)
     self:ClearTestEntries()   -- abgebrochene Tests verschwinden aus der Liste
-    if not any then self:Print("Nichts aktiv.") end
+    if not any then self:Print(L["Nichts aktiv."]) end
     self:RefreshUI()
 end
 
@@ -765,8 +766,8 @@ function LC:StartTest(arg)
         },
     }
     table.insert(self.lootItems, entry)
-    self:Print("Testmodus: Council-Ablauf für " .. link .. " (Ansagen erscheinen nur lokal). "
-        .. "Tipp: Stimme mit „Aussetzen“ für dich selbst, um den Hinweis für ausgeschlossene Spieler zu sehen.")
+    self:Print(L["Testmodus: Council-Ablauf für "] .. link .. L[" (Ansagen erscheinen nur lokal). "]
+        .. L["Tipp: Stimme mit „Aussetzen“ für dich selbst, um den Hinweis für ausgeschlossene Spieler zu sehen."])
     self:ShowMainFrame("loot")
     self:NetLoot({ entry }, true)
     self:Enqueue(entry)
@@ -806,10 +807,10 @@ end
 
 function LC:SubmitVote(decision, names, reason)
     local s = self.voteSession
-    if not s or s.voted or s.recused or s.ended then return false, "Keine offene Abstimmung." end
-    if s.expires and GetTime() > s.expires then return false, "Die Zeit ist abgelaufen." end
-    if decision == "LIMIT" and #names == 0 then return false, "Für „Eingrenzen“ mindestens einen Spieler anhaken." end
-    if decision == "SKIP" and #names ~= 1 then return false, "Für „Aussetzen“ genau einen Spieler anhaken." end
+    if not s or s.voted or s.recused or s.ended then return false, L["Keine offene Abstimmung."] end
+    if s.expires and GetTime() > s.expires then return false, L["Die Zeit ist abgelaufen."] end
+    if decision == "LIMIT" and #names == 0 then return false, L["Für „Eingrenzen“ mindestens einen Spieler anhaken."] end
+    if decision == "SKIP" and #names ~= 1 then return false, L["Für „Aussetzen“ genau einen Spieler anhaken."] end
     s.voted = true
     s.myVote = { decision = decision, names = names, reason = reason }
     self:SendTo(s.owner, "V", s.sid, decision, table.concat(names, ","), self:CleanText(reason, 120))

@@ -3,6 +3,7 @@
 --   Naowh Forever     : NaowhForever.Journal.Dungeons()  (mit Drop-Chancen, Raids haben "raid = 10/20/40")
 -- Jeder wählt die Quelle selbst (Einstellung lootSource): "auto" = alle installierten zusammengeführt.
 local _, LC = ...
+local L = LC.L
 
 local ATLAS_DATA = "AtlasLootClassic_DungeonsAndRaids"
 
@@ -65,7 +66,7 @@ end
 
 function LC:GetLootSourceLabel(key)
     for _, s in ipairs(self.LOOT_SOURCES) do
-        if s.key == key then return s.label end
+        if s.key == key then return L[s.label] end
     end
     return key
 end
@@ -236,7 +237,7 @@ function LC:GetLootDB()
         self.lootCache = { source = source, all = Merge(lists) }
     end
     if #self.lootCache.all == 0 then
-        return nil, "Keine Loot-Quelle gefunden. Installiere AtlasLoot Forever oder Naowh Forever."
+        return nil, L["Keine Loot-Quelle gefunden. Installiere AtlasLoot Forever oder Naowh Forever."]
     end
     return self.lootCache.all
 end
@@ -265,8 +266,8 @@ LC:On("PLAYER_ENTERING_WORLD", function(self)
         reminded[raid.key] = true
         local rec = LC:GetReservation(raid.key)
         if not rec or #(rec.items or {}) == 0 then
-            LC:Print("Du hast für |cffb48cff" .. raid.name .. "|r noch nichts reserviert. "
-                .. "Tippe |cffb48cff/lc|r – die Auswahl öffnet sich direkt für diesen Raid.")
+            LC:Print(L["Du hast für |cffb48cff"] .. raid.name .. L["|r noch nichts reserviert. "]
+                .. L["Tippe |cffb48cff/lc|r – die Auswahl öffnet sich direkt für diesen Raid."])
         end
     end)
 end)

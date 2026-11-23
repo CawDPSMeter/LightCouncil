@@ -1,5 +1,6 @@
 -- Light Council – Fenster für Raider: Loot-Übersicht mit Würfel-Knopf und Hinweis bei Ausschluss
 local _, LC = ...
+local L = LC.L
 local T = LC.T
 local C = T.C
 local H = T.HEX
@@ -16,7 +17,7 @@ local rows = {}
 -- Loot-Fenster
 ------------------------------------------------------------------------
 local function CreateRaidFrame()
-    frame = T:Window("LightCouncilRaidFrame", W, 200, "Loot", "Würfeln per Knopfdruck · alle sehen die Ergebnisse")
+    frame = T:Window("LightCouncilRaidFrame", W, 200, L["Loot"], L["Würfeln per Knopfdruck · alle sehen die Ergebnisse"])
     frame:ClearAllPoints()
     frame:SetPoint("RIGHT", UIParent, "RIGHT", -220, 40)
     frame:SetFrameStrata("MEDIUM")
@@ -58,7 +59,7 @@ local function GetRow(i)
             local it = r.it
             if it and it.reservers and #it.reservers > 0 then
                 GameTooltip:AddLine(" ")
-                GameTooltip:AddLine("Reserviert (" .. #it.reservers .. "):", 0.7, 0.55, 1)
+                GameTooltip:AddLine(L["Reserviert ("] .. #it.reservers .. "):", 0.7, 0.55, 1)
                 GameTooltip:AddLine(table.concat(it.reservers, ", "), 1, 1, 1, true)
             end
             GameTooltip:Show()
@@ -76,13 +77,13 @@ local function GetRow(i)
     r.rolls:SetWidth(W - 2 * PAD - 60)
     r.rolls:SetWordWrap(false)
 
-    r.btn = T:Button(r, "Würfeln", 96, 28, "primary", function() LC:RaidRoll(r.idx) end)
+    r.btn = T:Button(r, L["Würfeln"], 96, 28, "primary", function() LC:RaidRoll(r.idx) end)
     r.btn:SetPoint("TOPRIGHT", -8, -8)
     -- Beim freien Würfeln: zweiter Knopf für Off Spec (/roll 99) unter "Main Spec"
-    r.btnOS = T:Button(r, "Off Spec", 96, 24, "default", function() LC:RaidRoll(r.idx, true) end)
+    r.btnOS = T:Button(r, L["Off Spec"], 96, 24, "default", function() LC:RaidRoll(r.idx, true) end)
     r.btnOS:SetPoint("TOPRIGHT", r.btn, "BOTTOMRIGHT", 0, -4)
-    r.btnOS.tooltipTitle = "Off Spec"
-    r.btnOS.tooltip = "Würfelt /roll 99. Off Spec zählt nur, wenn niemand für Main Spec würfelt."
+    r.btnOS.tooltipTitle = L["Off Spec"]
+    r.btnOS.tooltip = L["Würfelt /roll 99. Off Spec zählt nur, wenn niemand für Main Spec würfelt."]
     r.btnOS:Hide()
     r.state = T:Text(r, 11, C.muted, "RIGHT")
     r.state:SetPoint("TOPRIGHT", -10, -9)
@@ -139,16 +140,16 @@ function LC:RefreshRaidFrame()
             local _, _, quality = getInfo(it.itemID)
             local qc = T:QualityColor(quality)
             r.icon:SetBackdropBorderColor(qc[1], qc[2], qc[3], 1)
-            r.link:SetText(self:ItemLink(it.itemID) .. (it.council and ("  " .. H.accent .. "Council|r") or ""))
+            r.link:SetText(self:ItemLink(it.itemID) .. (it.council and ("  " .. H.accent .. L["Council|r"]) or ""))
 
             -- Wer hat Prio / reserviert?
             local who
             if it.prio and #it.prio > 0 then
-                who = H.accentLt .. "Prio:|r " .. table.concat(it.prio, " > ")
+                who = H.accentLt .. L["Prio:|r "] .. table.concat(it.prio, " > ")
             elseif it.reservers and #it.reservers > 0 then
-                who = H.accentLt .. "Reserviert:|r " .. table.concat(it.reservers, ", ")
+                who = H.accentLt .. L["Reserviert:|r "] .. table.concat(it.reservers, ", ")
             else
-                who = H.good .. "Keine Reservierung – jeder darf würfeln|r"
+                who = H.good .. L["Keine Reservierung – jeder darf würfeln|r"]
             end
             r.who:SetText(who)
 
@@ -158,37 +159,37 @@ function LC:RefreshRaidFrame()
             r.btn:SetShown(canRoll)
             r.btnOS:SetShown(canRoll and free)
             r.rolls:SetWidth(W - 2 * PAD - ((canRoll and free) and 160 or 60))   -- nicht unter den Off-Spec-Knopf laufen
-            r.btn.tooltipTitle = free and "Main Spec" or "Würfeln"
-            r.btn.tooltip = free and "Würfelt /roll 100 für deine Hauptspezialisierung. Main Spec geht vor Off Spec." or nil
+            r.btn.tooltipTitle = free and L["Main Spec"] or L["Würfeln"]
+            r.btn.tooltip = free and L["Würfelt /roll 100 für deine Hauptspezialisierung. Main Spec geht vor Off Spec."] or nil
             r.state:SetShown(not canRoll)
             local st, sc = "", C.muted
             if it.state == "wait" then
                 st = "wartet"
             elseif it.state == "council" then
-                st, sc = "Council entscheidet …", C.accentLt
+                st, sc = L["Council entscheidet …"], C.accentLt
             elseif it.state == "prep" or it.state == "roll" then
                 if it.myRoll then
-                    st, sc = "Dein Wurf: " .. it.myRoll .. (it.myOS and " (OS)" or ""), C.accentLt
+                    st, sc = L["Dein Wurf: "] .. it.myRoll .. (it.myOS and " (OS)" or ""), C.accentLt
                 elseif it.rollPending then
-                    st = "würfelt …"
+                    st = L["würfelt …"]
                 elseif not self:RaidIsAllowed(it) then
-                    st = "nur Berechtigte"
+                    st = L["nur Berechtigte"]
                 end
             elseif it.state == "done" then
                 -- Der Name steht unten bei "Gewinner: …" – hier nur der Zustand, damit nichts abgeschnitten wird
                 if it.winner and self:IsMe(it.winner) then
-                    st, sc = "Gewonnen!", C.good
+                    st, sc = L["Gewonnen!"], C.good
                 else
-                    st, sc = "entschieden", C.text
+                    st, sc = L["entschieden"], C.text
                 end
             elseif it.state == "awarded" then
                 if it.winner and self:IsMe(it.winner) then
-                    st, sc = "Gehört dir!", C.good
+                    st, sc = L["Gehört dir!"], C.good
                 else
-                    st, sc = "vergeben", C.good
+                    st, sc = L["vergeben"], C.good
                 end
             elseif it.state == "none" then
-                st = "niemand gewürfelt"
+                st = L["niemand gewürfelt"]
             end
             r.state:SetText(st)
             r.state:SetTextColor(sc[1], sc[2], sc[3])
@@ -198,7 +199,7 @@ function LC:RefreshRaidFrame()
                 r.timer.bar:SetMinMaxValues(0, it.seconds or 20)
                 r.timer.bar:SetValue(left)
                 r.timer:Show()
-                if canRoll then r.btn:SetText(string.format(free and "Main Spec  %d" or "Würfeln  %d", math.ceil(left))) end
+                if canRoll then r.btn:SetText(string.format(free and L["Main Spec  %d"] or L["Würfeln  %d"], math.ceil(left))) end
             else
                 r.timer:Hide()
             end
@@ -206,16 +207,16 @@ function LC:RefreshRaidFrame()
             -- Würfe (für alle sichtbar)
             local rt = RollsText(it)
             if it.state == "done" or it.state == "awarded" then
-                rt = H.good .. "Gewinner: " .. (it.winner or "?") .. (it.winRoll and (" (" .. it.winRoll .. (it.winOS and " OS" or "") .. ")") or "") .. "|r" .. ((rt ~= "") and ("   " .. rt) or "")
+                rt = H.good .. L["Gewinner: "] .. (it.winner or "?") .. (it.winRoll and (" (" .. it.winRoll .. (it.winOS and " OS" or "") .. ")") or "") .. "|r" .. ((rt ~= "") and ("   " .. rt) or "")
             elseif rt == "" then
                 if it.state == "roll" then
                     if type(it.allowed) == "table" then
                         local l = {}
                         for _, nm in pairs(it.allowed) do l[#l + 1] = nm:match("^(%S+)") end
                         table.sort(l)
-                        rt = H.muted .. "Würfeln dürfen: " .. table.concat(l, ", ") .. "|r"
+                        rt = H.muted .. L["Würfeln dürfen: "] .. table.concat(l, ", ") .. "|r"
                     else
-                        rt = H.muted .. "Alle dürfen würfeln · Main Spec vor Off Spec|r"
+                        rt = H.muted .. L["Alle dürfen würfeln · Main Spec vor Off Spec|r"]
                     end
                 else
                     rt = ""
@@ -229,7 +230,7 @@ function LC:RefreshRaidFrame()
             r:Hide()
         end
     end
-    frame.hint:SetText(shown == 0 and "Noch kein Loot." or (H.muted .. "* = nicht berechtigt, Wurf zählt nicht.  Fenster: /lc loot|r"))
+    frame.hint:SetText(shown == 0 and L["Noch kein Loot."] or (H.muted .. L["* = nicht berechtigt, Wurf zählt nicht.  Fenster: /lc loot|r"]))
     frame:SetHeight(44 + math.max(1, shown) * ROW_H + 28)
 end
 
@@ -258,7 +259,7 @@ local KIND_TEXT = {
 }
 
 local function CreateNotice()
-    notice = T:Window("LightCouncilNoticeFrame", 420, 240, "Council-Entscheidung", "Persönlicher Hinweis – nur du siehst das")
+    notice = T:Window("LightCouncilNoticeFrame", 420, 240, L["Council-Entscheidung"], L["Persönlicher Hinweis – nur du siehst das"])
     notice:ClearAllPoints()
     notice:SetPoint("TOP", UIParent, "TOP", 0, -160)
     notice:SetFrameStrata("DIALOG")
@@ -271,7 +272,7 @@ local function CreateNotice()
     notice.item:SetWordWrap(false)
     notice.head = T:Text(notice, 12, C.warn)
     notice.head:SetPoint("TOPLEFT", notice.item, "BOTTOMLEFT", 0, -5)
-    notice.head:SetText("Diesmal würfelst du nicht mit.")
+    notice.head:SetText(L["Diesmal würfelst du nicht mit."])
 
     notice.body = T:Text(notice, 12, C.text)
     notice.body:SetPoint("TOPLEFT", 16, -100)
@@ -289,27 +290,27 @@ local function CreateNotice()
     stripe:SetVertexColor(unpack(C.accent))
     notice.reasonLabel = T:Text(notice.reasonBox, 10, C.accentLt)
     notice.reasonLabel:SetPoint("TOPLEFT", 12, -8)
-    notice.reasonLabel:SetText("BEGRÜNDUNG DES COUNCILS")
+    notice.reasonLabel:SetText(L["BEGRÜNDUNG DES COUNCILS"])
     notice.reason = T:Text(notice.reasonBox, 12, C.text)
     notice.reason:SetPoint("TOPLEFT", notice.reasonLabel, "BOTTOMLEFT", 0, -4)
     notice.reason:SetWidth(360)
 
     notice.foot = T:Text(notice, 10, C.muted)
     notice.foot:SetWidth(388)
-    notice.foot:SetText("Die Abstimmung ist anonym – du siehst nicht, wer wie gestimmt hat. Bei Fragen wende dich an die Raidleitung.")
+    notice.foot:SetText(L["Die Abstimmung ist anonym – du siehst nicht, wer wie gestimmt hat. Bei Fragen wende dich an die Raidleitung."])
 
-    notice.ok = T:Button(notice, "Verstanden", 120, 26, "primary", function() notice:Hide() end)
+    notice.ok = T:Button(notice, L["Verstanden"], 120, 26, "primary", function() notice:Hide() end)
 end
 
 function LC:ShowExcludedNotice(itemID, kind, reason)
     if not notice then CreateNotice() end
     notice.icon.tex:SetTexture(self:ItemIcon(itemID))
     notice.item:SetText(self:ItemLink(itemID))
-    notice.body:SetText(KIND_TEXT[kind] or "Du bist bei diesem Item nicht berechtigt zu würfeln.")
+    notice.body:SetText(KIND_TEXT[kind] and L[KIND_TEXT[kind]] or L["Du bist bei diesem Item nicht berechtigt zu würfeln."])
 
     local y = 100 + notice.body:GetStringHeight() + 12
     local hasReason = reason and reason ~= ""
-    notice.reason:SetText(hasReason and ("„" .. reason .. "“") or (H.muted .. "Der Council hat keine Begründung angegeben.|r"))
+    notice.reason:SetText(hasReason and ("„" .. reason .. "“") or (H.muted .. L["Der Council hat keine Begründung angegeben.|r"]))
     notice.reasonBox:ClearAllPoints()
     notice.reasonBox:SetPoint("TOPLEFT", 16, -y)
     notice.reasonBox:SetPoint("TOPRIGHT", -16, -y)

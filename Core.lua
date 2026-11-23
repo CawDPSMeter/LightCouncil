@@ -1,8 +1,9 @@
 -- Light Council – Core: Namespace, SavedVariables, Hilfsfunktionen, Events, Slash-Befehle
 local ADDON, LC = ...
+local L = LC.L
 _G.LightCouncil = LC
 
-LC.version = "0.13.0"
+LC.version = "0.14.0"
 LC.prefix = "LCouncil"
 LC.COLOR = "|cffb48cff"
 
@@ -27,6 +28,7 @@ local DEFAULTS = {
         reminderRaid = "",      -- Raid (Schlüssel), an den erinnert wird; "" = irgendein Raid
         maxReserves = 2,        -- Reservierungen pro Raider und Raid
         lootSource = "auto",    -- Loot-Quelle: auto / atlas / naowh (nur Raids)
+        language = "auto",      -- Sprache: auto (Spielclient) / deDE / enUS / frFR / esES / ruRU
     },
     reserves = {},      -- Reservierungen im Addon (siehe Reserve.lua)
     knownCouncil = {},  -- vom Council übermittelte Council-Liste (für Raider ohne eigene Einstellung)
@@ -58,7 +60,7 @@ end
 ------------------------------------------------------------------------
 function LC:Print(...)
     local msg = strjoin(" ", tostringall(...))
-    DEFAULT_CHAT_FRAME:AddMessage(LC.COLOR .. "Light Council:|r " .. msg)
+    DEFAULT_CHAT_FRAME:AddMessage(LC.COLOR .. L["Light Council:|r "] .. msg)
 end
 
 -- WoW Forever: Charaktere haben Vor- und Nachnamen ("Anna Müller"), keine Realm-Endung.
@@ -159,7 +161,7 @@ function LC:ItemLink(itemID)
     if C_Item and C_Item.RequestLoadItemDataByID then
         pcall(C_Item.RequestLoadItemDataByID, itemID)
     end
-    return "Item #" .. itemID
+    return L["Item #"] .. itemID
 end
 
 function LC:ItemIcon(itemID)
@@ -174,7 +176,7 @@ function LC:JoinNames(list, lastSep)
     local n = #list
     if n == 0 then return "-" end
     if n == 1 then return list[1] end
-    lastSep = lastSep or " und "
+    lastSep = lastSep or L[" und "]
     return table.concat(list, ", ", 1, n - 1) .. lastSep .. list[n]
 end
 
@@ -349,7 +351,7 @@ local warnedNoAssist = false
 function LC:Announce(msg, test, warning)
     warning = warning and self.db.config.raidWarning
     if test or not IsInGroup() then
-        self:Print((warning and "|cffff4040[Raidwarnung]|r " or "|cffff7f00[Raid]|r ") .. msg)
+        self:Print((warning and L["|cffff4040[Raidwarnung]|r "] or L["|cffff7f00[Raid]|r "]) .. msg)
         if warning then LocalRaidWarning(msg) end
         return
     end
@@ -362,7 +364,7 @@ function LC:Announce(msg, test, warning)
             LocalRaidWarning(msg)
             if not warnedNoAssist then
                 warnedNoAssist = true
-                self:Print("Für Raidwarnungen brauchst du Raidleitung oder Assistent – die Ansage geht deshalb in den Raidchat.")
+                self:Print(L["Für Raidwarnungen brauchst du Raidleitung oder Assistent – die Ansage geht deshalb in den Raidchat."])
             end
         end
     end
@@ -417,6 +419,7 @@ LC:On("ADDON_LOADED", function(self, name)
     LightCouncilDB = LightCouncilDB or {}
     ApplyDefaults(LightCouncilDB, DEFAULTS)
     self.db = LightCouncilDB
+    self:SetLanguage(self.db.config.language)
     self:MigrateCouncilNames()
     if self.OnInitialize then self:OnInitialize() end
 end)
@@ -425,18 +428,19 @@ end)
 -- Slash-Befehle
 ------------------------------------------------------------------------
 local function ShowHelp()
-    LC:Print("Befehle:")
-    print("  /lc – Hauptfenster öffnen")
-    print("  /lc test [Itemlink] – Council-Ablauf lokal testen")
-    print("  /lc ci [Itemlink] – Item als Council-Item markieren/entfernen")
-    print("  /lc parse <Name> <0-100> – Ø Parse-% eintragen")
-    print("  /lc eng <Name> <1-5> – Engagement-Bewertung eintragen")
-    print("  /lc anw – Anwesenheit des aktuellen Raids jetzt erfassen")
-    print("  /lc log – letzte Entscheidungen im Chat anzeigen")
-    print("  /lc abbruch – laufende Abstimmung/Würfelrunde abbrechen")
-    print("  /lc minimap – Minimap-Button ein-/ausblenden")
-    print("  /lc loot – Loot-Fenster für Raider öffnen/schließen")
-    print("  /lc councilreset – gespeicherte Council-Liste vergessen und neu anfragen")
+    LC:Print(L["Befehle:"])
+    print(L["  /lc – Hauptfenster öffnen"])
+    print(L["  /lc test [Itemlink] – Council-Ablauf lokal testen"])
+    print(L["  /lc ci [Itemlink] – Item als Council-Item markieren/entfernen"])
+    print(L["  /lc parse <Name> <0-100> – Ø Parse-% eintragen"])
+    print(L["  /lc eng <Name> <1-5> – Engagement-Bewertung eintragen"])
+    print(L["  /lc anw – Anwesenheit des aktuellen Raids jetzt erfassen"])
+    print(L["  /lc log – letzte Entscheidungen im Chat anzeigen"])
+    print(L["  /lc abbruch – laufende Abstimmung/Würfelrunde abbrechen"])
+    print(L["  /lc minimap – Minimap-Button ein-/ausblenden"])
+    print(L["  /lc loot – Loot-Fenster für Raider öffnen/schließen"])
+    print(L["  /lc councilreset – gespeicherte Council-Liste vergessen und neu anfragen"])
+    print(L["  /lc lang <auto|de|en|fr|es|ru> – Sprache wechseln"])
 end
 
 SLASH_LIGHTCOUNCIL1 = "/lc"
@@ -450,34 +454,46 @@ SlashCmdList["LIGHTCOUNCIL"] = function(input)
         LC:ToggleMainFrame()
     elseif cmd == "help" or cmd == "hilfe" then
         ShowHelp()
+    elseif cmd == "sprache" or cmd == "lang" or cmd == "language" then
+        local want = (rest or ""):lower()
+        local found
+        for _, l in ipairs(LC.LANGUAGES) do
+            if l.key:lower() == want or l.key:sub(1, 2):lower() == want then found = l.key end
+        end
+        if not found then
+            LC:Print(L["Sprachen: auto, de, en, fr, es, ru – z. B. /lc lang en"])
+        else
+            LC.db.config.language = found
+            LC:Print(L["Sprache gespeichert. Mit /reload wird sie übernommen."])
+        end
     elseif cmd == "councilreset" then
         LC:ResetKnownCouncil()
-        LC:Print("Gespeicherte Council-Liste gelöscht. Sie wird neu angenommen, sobald Raidleitung, Gildenleitung oder zwei Council-Mitglieder sie schicken.")
+        LC:Print(L["Gespeicherte Council-Liste gelöscht. Sie wird neu angenommen, sobald Raidleitung, Gildenleitung oder zwei Council-Mitglieder sie schicken."])
     elseif cmd == "test" then
         LC:StartTest(rest)
     elseif cmd == "ci" or cmd == "council" then
         local id = LC:ItemIDFromLink(rest) or tonumber(rest)
-        if not id then LC:Print("Bitte Itemlink oder Item-ID angeben.") return end
+        if not id then LC:Print(L["Bitte Itemlink oder Item-ID angeben."]) return end
         if LC.db.councilItems[id] then
             LC.db.councilItems[id] = nil
-            LC:Print(LC:ItemLink(id), "ist kein Council-Item mehr.")
+            LC:Print(LC:ItemLink(id), L["ist kein Council-Item mehr."])
         else
             LC.db.councilItems[id] = true
-            LC:Print(LC:ItemLink(id), "ist jetzt ein Council-Item.")
+            LC:Print(LC:ItemLink(id), L["ist jetzt ein Council-Item."])
         end
         LC:RefreshUI()
     elseif cmd == "parse" or cmd == "eng" then
         local name, value = rest:match("^(.-)%s+(%S+)$")
         value = tonumber(value)
-        if not name or not value then LC:Print("Syntax: /lc " .. cmd .. " <Name> <Wert>") return end
+        if not name or not value then LC:Print(L["Syntax: /lc "] .. cmd .. L[" <Name> <Wert>"]) return end
         local ok, err
         if cmd == "parse" then ok, err = LC:SetParse(name, value, true)
         else ok, err = LC:SetEngagement(name, value, true) end
-        if ok then LC:Print("Gespeichert:", name, cmd, value) else LC:Print(err) end
+        if ok then LC:Print(L["Gespeichert:"], name, cmd, value) else LC:Print(err) end
         LC:RefreshUI()
     elseif cmd == "anw" then
         local n = LC:RecordAttendance(true)
-        LC:Print(n .. " Spieler für diese Woche als anwesend erfasst.")
+        LC:Print(n .. L[" Spieler für diese Woche als anwesend erfasst."])
         LC:RequestAttendanceSync(true)
         LC:RefreshUI()
     elseif cmd == "log" then

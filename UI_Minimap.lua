@@ -1,5 +1,6 @@
 -- Light Council – Minimap-Button (Standard-Look wie LibDBIcon) und Addon-Compartment
 local _, LC = ...
+local L = LC.L
 
 local button
 local ICON = "Interface\\AddOns\\LightCouncil\\Media\\IconLC"   -- Buchstaben "LC"
@@ -23,16 +24,16 @@ end
 
 local function ShowTooltip(owner)
     GameTooltip:SetOwner(owner, "ANCHOR_LEFT")
-    GameTooltip:AddLine("Light Council", 0.82, 0.71, 1)
-    GameTooltip:AddLine("|cffffffffLinksklick:|r Fenster öffnen/schließen", 0.8, 0.8, 0.8)
-    GameTooltip:AddLine("|cffffffffRechtsklick:|r Einstellungen", 0.8, 0.8, 0.8)
-    GameTooltip:AddLine("|cffffffffZiehen:|r Button verschieben", 0.8, 0.8, 0.8)
+    GameTooltip:AddLine(L["Light Council"], 0.82, 0.71, 1)
+    GameTooltip:AddLine(L["|cffffffffLinksklick:|r Fenster öffnen/schließen"], 0.8, 0.8, 0.8)
+    GameTooltip:AddLine(L["|cffffffffRechtsklick:|r Einstellungen"], 0.8, 0.8, 0.8)
+    GameTooltip:AddLine(L["|cffffffffZiehen:|r Button verschieben"], 0.8, 0.8, 0.8)
     if LC.active then
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Council stimmt gerade ab …", 0.82, 0.71, 1)
+        GameTooltip:AddLine(L["Council stimmt gerade ab …"], 0.82, 0.71, 1)
     elseif LC.roll then
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Würfelrunde läuft …", 0.82, 0.71, 1)
+        GameTooltip:AddLine(L["Würfelrunde läuft …"], 0.82, 0.71, 1)
     end
     GameTooltip:Show()
 end
@@ -101,7 +102,7 @@ function LC:ToggleMinimapButton()
     local cfg = self.db.config.minimap
     cfg.hide = not cfg.hide
     self:UpdateMinimapButton()
-    self:Print(cfg.hide and "Minimap-Button ausgeblendet (/lc minimap zum Einblenden)." or "Minimap-Button eingeblendet.")
+    self:Print(cfg.hide and L["Minimap-Button ausgeblendet (/lc minimap zum Einblenden)."] or L["Minimap-Button eingeblendet."])
 end
 
 LC:On("PLAYER_LOGIN", function(self)

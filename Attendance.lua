@@ -10,6 +10,7 @@
 --
 -- Nur Einträge von Council-Mitgliedern werden übernommen. Der Abgleich läuft nachrangig.
 local _, LC = ...
+local L = LC.L
 
 local SEP = "~"
 local CMDS = { AQ = true, AE = true }
@@ -103,9 +104,9 @@ function LC:RequestAttendanceSync(manual)
     elseif IsInGroup() then self:SendLow(msg, "PARTY") sent = true end
     if manual then
         if sent then
-            self:Print("Anwesenheit: Abgleich angefragt – fehlende Wochen kommen vom Council, sobald jemand online ist.")
+            self:Print(L["Anwesenheit: Abgleich angefragt – fehlende Wochen kommen vom Council, sobald jemand online ist."])
         else
-            self:Print("Anwesenheit: Kein Abgleich möglich – du bist in keiner Gilde oder Gruppe.")
+            self:Print(L["Anwesenheit: Kein Abgleich möglich – du bist in keiner Gilde oder Gruppe."])
         end
     end
     return sent

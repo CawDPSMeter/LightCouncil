@@ -22,6 +22,7 @@
 --   YQ                               alle: bitte Abgleich schicken
 --   YL~name;name;…                   Council: wer gehört zum Council
 local _, LC = ...
+local L = LC.L
 
 local SEP = "~"
 local CMDS = { YR = true, YC = true, YA = true, YP = true, YD = true, YX = true, YQ = true, YL = true }
@@ -188,11 +189,11 @@ end
 ------------------------------------------------------------------------
 function LC:SubmitReservation(raid, items)
     local max = self:MaxReserves()
-    if #items == 0 then return false, "Bitte mindestens ein Item auswählen." end
-    if #items > max then return false, "Höchstens " .. max .. " Items pro Raid." end
+    if #items == 0 then return false, L["Bitte mindestens ein Item auswählen."] end
+    if #items > max then return false, L["Höchstens "] .. max .. L[" Items pro Raid."] end
     local current = self:GetReservation(raid)
     if current and (current.rev or 0) > 0 then
-        return false, "Deine Reservierung ist gesperrt. Nutze „Änderung beantragen“."
+        return false, L["Deine Reservierung ist gesperrt. Nutze „Änderung beantragen“."]
     end
     local R = self:ResRaid(raid)
     local me = self:PlayerName()
@@ -202,20 +203,20 @@ function LC:SubmitReservation(raid, items)
     if self:AmICouncil() then self:ResHandle("YR", { "YR", raid, tostring(R.epoch), "0", ItemsString(items) }, me) end
     Changed()
     if not sent and not self:AmICouncil() then
-        return true, "Gespeichert – aber du bist in keiner Gilde oder Gruppe. Die Reservierung wird übermittelt, sobald du online mit dem Council bist („Abgleichen“)."
+        return true, L["Gespeichert – aber du bist in keiner Gilde oder Gruppe. Die Reservierung wird übermittelt, sobald du online mit dem Council bist („Abgleichen“)."]
     end
-    return true, "Reservierung gesendet – wartet auf Bestätigung durch den Council."
+    return true, L["Reservierung gesendet – wartet auf Bestätigung durch den Council."]
 end
 
 function LC:RequestReservationChange(raid, items, reason)
     local max = self:MaxReserves()
-    if #items == 0 then return false, "Bitte mindestens ein Item auswählen." end
-    if #items > max then return false, "Höchstens " .. max .. " Items pro Raid." end
+    if #items == 0 then return false, L["Bitte mindestens ein Item auswählen."] end
+    if #items > max then return false, L["Höchstens "] .. max .. L[" Items pro Raid."] end
     local current = self:GetReservation(raid)
     if not current or (current.rev or 0) == 0 then return self:SubmitReservation(raid, items) end
-    if SameItems(current.items, items) then return false, "Das ist bereits deine Reservierung." end
+    if SameItems(current.items, items) then return false, L["Das ist bereits deine Reservierung."] end
     reason = self:CleanText(reason or "", 120)
-    if reason == "" then return false, "Bitte kurz begründen, warum du ändern möchtest." end
+    if reason == "" then return false, L["Bitte kurz begründen, warum du ändern möchtest."] end
     current.pending = { items = items, reason = reason, time = time() }
     local R = self:ResRaid(raid)
     self:ResSend("YC", raid, tostring(R.epoch), ItemsString(items), reason)
@@ -223,7 +224,7 @@ function LC:RequestReservationChange(raid, items, reason)
         self:ResHandle("YC", { "YC", raid, tostring(R.epoch), ItemsString(items), reason }, self:PlayerName())
     end
     Changed()
-    return true, "Änderungsantrag gesendet – der Council entscheidet."
+    return true, L["Änderungsantrag gesendet – der Council entscheidet."]
 end
 
 ------------------------------------------------------------------------
@@ -234,11 +235,11 @@ local function BroadcastRecord(raid, R, p)
 end
 
 function LC:DecideChange(raid, name, approve)
-    if not self:AmICouncil() then return false, "Nur der Council kann Anträge entscheiden." end
+    if not self:AmICouncil() then return false, L["Nur der Council kann Anträge entscheiden."] end
     local R = self:ResRaid(raid)
     local p = self:FindByName(R.players, name)
-    if not p or not p.pending then return false, "Kein offener Antrag gefunden." end
-    if self:IsMe(p.name) then return false, "Über deinen eigenen Antrag entscheidet ein anderes Council-Mitglied." end
+    if not p or not p.pending then return false, L["Kein offener Antrag gefunden."] end
+    if self:IsMe(p.name) then return false, L["Über deinen eigenen Antrag entscheidet ein anderes Council-Mitglied."] end
     local newItems = p.pending.items
     local oldItems = p.items
     local reason = p.pending.reason
@@ -250,19 +251,19 @@ function LC:DecideChange(raid, name, approve)
     p.time = time()
     self:ResSend("YD", raid, tostring(R.epoch), p.name, approve and "1" or "0", tostring(p.rev), ItemsString(p.items))
     self:AddLog({
-        kind = "reserve", itemID = newItems[1], link = "Reservierung " .. p.name,
-        result = string.format("Änderung %s von %s: %s → %s. Begründung des Raiders: %s",
-            approve and "freigegeben" or "abgelehnt", self:PlayerName(), self:ItemListText(oldItems), self:ItemListText(newItems), reason or "-"),
+        kind = "reserve", itemID = newItems[1], link = L["Reservierung "] .. p.name,
+        result = string.format(L["Änderung %s von %s: %s → %s. Begründung des Raiders: %s"],
+            approve and L["freigegeben"] or L["abgelehnt"], self:PlayerName(), self:ItemListText(oldItems), self:ItemListText(newItems), reason or "-"),
     })
     Changed()
-    return true, approve and "Änderung freigegeben." or "Änderung abgelehnt."
+    return true, approve and L["Änderung freigegeben."] or L["Änderung abgelehnt."]
 end
 
 function LC:CouncilSetReservation(raid, name, items)
-    if not self:AmICouncil() then return false, "Nur der Council kann für andere eintragen." end
+    if not self:AmICouncil() then return false, L["Nur der Council kann für andere eintragen."] end
     name = strtrim(name or ""):gsub("%s+", " ")
-    if name == "" then return false, "Bitte einen Namen eingeben." end
-    if #items > self:MaxReserves() then return false, "Höchstens " .. self:MaxReserves() .. " Items pro Raid." end
+    if name == "" then return false, L["Bitte einen Namen eingeben."] end
+    if #items > self:MaxReserves() then return false, L["Höchstens "] .. self:MaxReserves() .. L[" Items pro Raid."] end
     local R = self:ResRaid(raid)
     local p, key = self:FindByName(R.players, name)
     if not p then
@@ -278,21 +279,21 @@ function LC:CouncilSetReservation(raid, name, items)
     if #items == 0 then R.players[key] = nil end
     self:ResSend("YA", raid, tostring(R.epoch), p.name, tostring(p.rev), ItemsString(items))
     self:AddLog({
-        kind = "reserve", itemID = items[1], link = "Reservierung " .. p.name,
+        kind = "reserve", itemID = items[1], link = L["Reservierung "] .. p.name,
         result = string.format("Vom Council (%s) eingetragen: %s (vorher: %s)", self:PlayerName(), self:ItemListText(items), self:ItemListText(old)),
     })
     Changed()
-    return true, "Reservierung für " .. p.name .. " eingetragen."
+    return true, L["Reservierung für "] .. p.name .. L[" eingetragen."]
 end
 
 function LC:NewReserveRound(raid)
-    if not self:AmICouncil() then return false, "Nur der Council kann eine neue Runde starten." end
+    if not self:AmICouncil() then return false, L["Nur der Council kann eine neue Runde starten."] end
     local R = self:ResRaid(raid)
     R.epoch = (R.epoch or 0) + 1
     wipe(R.players)
     self:ResSend("YX", raid, tostring(R.epoch))
     Changed()
-    return true, "Neue Runde gestartet – alle Reservierungen dieses Raids wurden gelöscht."
+    return true, L["Neue Runde gestartet – alle Reservierungen dieses Raids wurden gelöscht."]
 end
 
 local lastSync = 0
@@ -412,7 +413,7 @@ function LC:ResHandle(cmd, p, sender)
             elseif not SameItems(rec.items, items) then
                 rec.pending = { items = items, reason = self:CleanText(p[5] or "", 120), time = time() }
                 if not self:IsMe(sender) then
-                    self:Print(rec.name .. " beantragt eine Änderung der Reservierung (" .. self:ItemListText(items) .. "). Entscheiden unter „Reservierungen“.")
+                    self:Print(rec.name .. L[" beantragt eine Änderung der Reservierung ("] .. self:ItemListText(items) .. L["). Entscheiden unter „Reservierungen“."])
                 end
             end
         end
@@ -461,8 +462,8 @@ function LC:ResHandle(cmd, p, sender)
             if ok then rec.items, rec.rev = items, rev end
             rec.pending = nil
             if self:IsMe(name) then
-                self:Print(ok and ("|cff6ae08fDeine Änderung wurde freigegeben:|r " .. self:ItemListText(items))
-                    or "|cffff6070Deine Änderung wurde vom Council abgelehnt.|r Deine Reservierung bleibt unverändert.")
+                self:Print(ok and (L["|cff6ae08fDeine Änderung wurde freigegeben:|r "] .. self:ItemListText(items))
+                    or L["|cffff6070Deine Änderung wurde vom Council abgelehnt.|r Deine Reservierung bleibt unverändert."])
             end
             Changed()
         end
@@ -536,9 +537,9 @@ function LC:RaidDaysText()
     for _, d in ipairs(days) do set[d] = true end
     local out = {}
     for _, w in ipairs(self.WEEKDAYS) do
-        if set[w.wday] then out[#out + 1] = w.short end
+        if set[w.wday] then out[#out + 1] = L[w.short] end
     end
-    return (#out > 0) and table.concat(out, ", ") or "keine"
+    return (#out > 0) and table.concat(out, ", ") or L["keine"]
 end
 
 function LC:SetRaidDays(days, raidKey)

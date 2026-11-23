@@ -1,5 +1,6 @@
 -- Light Council – Prio-Editor: Spieler anklicken = in Reihenfolge übernehmen
 local _, LC = ...
+local L = LC.L
 local T = LC.T
 local C = T.C
 local H = T.HEX
@@ -21,7 +22,7 @@ local function Candidates(itemID, filter, exclude)
         out[#out + 1] = { name = name, tag = tag }
     end
     for _, r in ipairs(LC:GetReservers(itemID)) do Add(r.name, "SR") end
-    for _, m in pairs(LC:GetGroupMembers()) do Add(m.name, IsInRaid() and "Raid" or nil) end
+    for _, m in pairs(LC:GetGroupMembers()) do Add(m.name, IsInRaid() and L["Raid"] or nil) end
     for _, n in ipairs(LC:GetKnownPlayers()) do Add(n, nil) end
     return out
 end
@@ -55,7 +56,7 @@ local function Refresh()
             r.del:SetPoint("RIGHT", -4, 0)
             r.down:SetPoint("RIGHT", r.del, "LEFT", -2, 0)
             r.up:SetPoint("RIGHT", r.down, "LEFT", -2, 0)
-            r.del.tooltipTitle, r.del.tooltip = "Entfernen", "Spieler aus der Prio nehmen."
+            r.del.tooltipTitle, r.del.tooltip = L["Entfernen"], L["Spieler aus der Prio nehmen."]
             rightRows[i] = r
         end
         r.index = i
@@ -107,7 +108,7 @@ function LC:PrioMove(index, dir)
 end
 
 local function CreateFrame_()
-    frame = T:Window("LightCouncilPrioFrame", W, HGT, "Prio festlegen", "Spieler anklicken – die Reihenfolge ist die Prio", 40)
+    frame = T:Window("LightCouncilPrioFrame", W, HGT, L["Prio festlegen"], L["Spieler anklicken – die Reihenfolge ist die Prio"], 40)
     frame:SetFrameStrata("DIALOG")
 
     frame.icon = T:Icon(frame, 40)
@@ -118,7 +119,7 @@ local function CreateFrame_()
     frame.item:SetWordWrap(false)
     frame.info = T:Text(frame, 11, C.muted)
     frame.info:SetPoint("TOPLEFT", frame.item, "BOTTOMLEFT", 0, -4)
-    frame.info:SetText("SR = hat das Item im Addon reserviert")
+    frame.info:SetText(L["SR = hat das Item im Addon reserviert"])
 
     frame.colW = math.floor((W - 2 * PAD - 14) / 2)
     local top = 112
@@ -131,10 +132,10 @@ local function CreateFrame_()
     left:SetWidth(frame.colW)
     local lt = T:Text(left, 13, C.text, "LEFT", nil, true)
     lt:SetPoint("TOPLEFT", 12, -12)
-    lt:SetText("Spieler")
+    lt:SetText(L["Spieler"])
     frame.search = T:Input(left, frame.colW - 24, 28)
     frame.search:SetPoint("TOPLEFT", 12, -36)
-    frame.search:SetPlaceholder("Suchen …")
+    frame.search:SetPlaceholder(L["Suchen …"])
     frame.search:HookScript("OnTextChanged", function() if frame.state then Refresh() end end)
     local lsf, lcontent = T:Scroll(left)
     lsf:SetPoint("TOPLEFT", 6, -74)
@@ -143,7 +144,7 @@ local function CreateFrame_()
     frame.leftEmpty = T:Text(left, 12, C.muted, "CENTER")
     frame.leftEmpty:SetPoint("TOP", lsf, "TOP", 0, -20)
     frame.leftEmpty:SetWidth(frame.colW - 30)
-    frame.leftEmpty:SetText("Keine weiteren Spieler.\nSpieler erscheinen, sobald sie reservieren, im Raid oder nach dem ersten Boss-Kill.")
+    frame.leftEmpty:SetText(L["Keine weiteren Spieler.\nSpieler erscheinen, sobald sie reservieren, im Raid oder nach dem ersten Boss-Kill."])
 
     -- rechte Spalte: Reihenfolge
     local right = CreateFrame("Frame", nil, frame, "BackdropTemplate")
@@ -153,7 +154,7 @@ local function CreateFrame_()
     right:SetWidth(frame.colW)
     local rt = T:Text(right, 13, C.text, "LEFT", nil, true)
     rt:SetPoint("TOPLEFT", 12, -12)
-    rt:SetText("Prio-Reihenfolge")
+    rt:SetText(L["Prio-Reihenfolge"])
     local rsf, rcontent = T:Scroll(right)
     rsf:SetPoint("TOPLEFT", 6, -40)
     rsf:SetPoint("BOTTOMRIGHT", -14, 8)
@@ -161,18 +162,18 @@ local function CreateFrame_()
     frame.rightEmpty = T:Text(right, 12, C.muted, "CENTER")
     frame.rightEmpty:SetPoint("TOP", rsf, "TOP", 0, -20)
     frame.rightEmpty:SetWidth(frame.colW - 30)
-    frame.rightEmpty:SetText("Noch keine Prio.\nLinks Spieler anklicken – der erste hat die höchste Prio.")
+    frame.rightEmpty:SetText(L["Noch keine Prio.\nLinks Spieler anklicken – der erste hat die höchste Prio."])
 
     -- Knöpfe
-    local save = T:Button(frame, "Speichern", 140, 34, "primary", function()
+    local save = T:Button(frame, L["Speichern"], 140, 34, "primary", function()
         LC:SetPrio(frame.state.itemID, frame.state.order)
         frame:Hide()
         LC:RefreshUI()
     end)
     save:SetPoint("BOTTOMRIGHT", -PAD, 16)
-    local cancel = T:Button(frame, "Abbrechen", 120, 34, "ghost", function() frame:Hide() end)
+    local cancel = T:Button(frame, L["Abbrechen"], 120, 34, "ghost", function() frame:Hide() end)
     cancel:SetPoint("RIGHT", save, "LEFT", -8, 0)
-    local clear = T:Button(frame, "Prio löschen", 130, 34, "danger", function()
+    local clear = T:Button(frame, L["Prio löschen"], 130, 34, "danger", function()
         wipe(frame.state.order)
         Refresh()
     end)

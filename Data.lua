@@ -1,5 +1,6 @@
 -- Light Council – Daten: Import (SoftRes, Prio, Council-Items), Score, Anwesenheit, Cooldowns, Protokoll
 local _, LC = ...
+local L = LC.L
 
 ------------------------------------------------------------------------
 -- Import
@@ -54,7 +55,7 @@ end
 -- Ohne Kopfzeile wird "ItemID,Spielername" pro Zeile erwartet.
 function LC:ImportSoftRes(text)
     local lines = SplitLines(text)
-    if #lines == 0 then return false, "Kein Text eingefügt." end
+    if #lines == 0 then return false, L["Kein Text eingefügt."] end
 
     local sep = (CountChar(lines[1], ";") > CountChar(lines[1], ",")) and ";" or ","
     if CountChar(lines[1], "\t") > CountChar(lines[1], sep) then sep = "\t" end
@@ -110,7 +111,7 @@ function LC:ImportSoftRes(text)
             skipped = skipped + 1
         end
     end
-    if count == 0 then return false, "Keine Reservierungen erkannt. Auf softres.it auf „CSV“ klicken, „Copy to Clipboard“ und hier einfügen (inkl. Kopfzeile)." end
+    if count == 0 then return false, L["Keine Reservierungen erkannt. Auf softres.it auf „CSV“ klicken, „Copy to Clipboard“ und hier einfügen (inkl. Kopfzeile)."] end
 
     self.db.softres = result
     self.db.softresMeta = { time = time(), count = count }
@@ -146,9 +147,9 @@ function LC:ImportPrio(text)
             end
         end
     end
-    if items == 0 then return false, "Keine Prio-Einträge erkannt. Format: ItemID: Name1 > Name2 > Name3" end
+    if items == 0 then return false, L["Keine Prio-Einträge erkannt. Format: ItemID: Name1 > Name2 > Name3"] end
     self.db.prio = result
-    return true, items .. " Prio-Einträge importiert."
+    return true, items .. L[" Prio-Einträge importiert."]
 end
 
 -- Council-Items: beliebiger Text mit Item-IDs und/oder Itemlinks
@@ -166,7 +167,7 @@ function LC:ImportCouncilItems(text)
     end
     self.db.councilItems = result
     for id in pairs(result) do self:ItemLink(id) end
-    return true, count .. " Council-Items gesetzt."
+    return true, count .. L[" Council-Items gesetzt."]
 end
 
 function LC:ExportCouncilItems()
@@ -196,8 +197,8 @@ function LC:AddCouncilItems(text)
             added = added + 1
         end
     end
-    if #ids == 0 then return false, "Kein Item erkannt. Item-ID eintippen oder ein Item mit Shift-Klick einfügen." end
-    return true, (added == 1) and "1 Council-Item hinzugefügt." or (added .. " Council-Items hinzugefügt.")
+    if #ids == 0 then return false, L["Kein Item erkannt. Item-ID eintippen oder ein Item mit Shift-Klick einfügen."] end
+    return true, (added == 1) and L["1 Council-Item hinzugefügt."] or (added .. L[" Council-Items hinzugefügt."])
 end
 
 function LC:SetCouncilItem(itemID, on)
@@ -255,7 +256,7 @@ end
 
 function LC:SetParse(name, value, broadcast)
     value = tonumber(value)
-    if not value or value < 0 or value > 100 then return false, "Parse muss zwischen 0 und 100 liegen." end
+    if not value or value < 0 or value > 100 then return false, L["Parse muss zwischen 0 und 100 liegen."] end
     local p = self:GetPlayer(name, true)
     p.parse = math.floor(value + 0.5)
     if broadcast then self:BroadcastData("P", p.name, p.parse) end
@@ -264,7 +265,7 @@ end
 
 function LC:SetEngagement(name, value, broadcast)
     value = tonumber(value)
-    if not value or value < 1 or value > 5 then return false, "Engagement muss zwischen 1 und 5 liegen." end
+    if not value or value < 1 or value > 5 then return false, L["Engagement muss zwischen 1 und 5 liegen."] end
     local p = self:GetPlayer(name, true)
     p.engagement = math.floor(value + 0.5)
     if broadcast then self:BroadcastData("E", p.name, p.engagement) end
@@ -390,34 +391,34 @@ LC.DECISION_LABEL = DECISION_LABEL
 function LC:FormatLogEntry(e)
     local lines = {}
     local head = date("%d.%m. %H:%M", e.time) .. "  " .. (e.link or self:ItemLink(e.itemID))
-    if e.test then head = head .. " |cff888888(Test)|r" end
+    if e.test then head = head .. L[" |cff888888(Test)|r"] end
     lines[#lines + 1] = head
-    lines[#lines + 1] = "   Entscheidung: " .. (e.result or "-")
+    lines[#lines + 1] = L["   Entscheidung: "] .. (e.result or "-")
     if e.votes and #e.votes > 0 then
         for _, v in ipairs(e.votes) do
-            local s = "   - " .. v.name .. ": " .. (DECISION_LABEL[v.decision] or v.decision)
+            local s = "   - " .. v.name .. ": " .. L[DECISION_LABEL[v.decision] or v.decision]
             if v.names and #v.names > 0 then s = s .. " (" .. table.concat(v.names, ", ") .. ")" end
             if v.reason and v.reason ~= "" then s = s .. " – \"" .. v.reason .. "\"" end
             lines[#lines + 1] = s
         end
     end
     if e.recused and #e.recused > 0 then
-        lines[#lines + 1] = "   Befangen (nicht abgestimmt): " .. table.concat(e.recused, ", ")
+        lines[#lines + 1] = L["   Befangen (nicht abgestimmt): "] .. table.concat(e.recused, ", ")
     end
     if e.excluded and #e.excluded > 0 then
-        lines[#lines + 1] = "   Automatisch ausgeschlossen: " .. table.concat(e.excluded, ", ")
+        lines[#lines + 1] = L["   Automatisch ausgeschlossen: "] .. table.concat(e.excluded, ", ")
     end
     if e.rollers and #e.rollers > 0 then
-        lines[#lines + 1] = "   Würfeln: " .. table.concat(e.rollers, ", ")
+        lines[#lines + 1] = L["   Würfeln: "] .. table.concat(e.rollers, ", ")
     end
-    if e.kind ~= "reserve" then lines[#lines + 1] = "   Gewinner: " .. (e.winner or "-") end
+    if e.kind ~= "reserve" then lines[#lines + 1] = L["   Gewinner: "] .. (e.winner or "-") end
     return table.concat(lines, "\n")
 end
 
 function LC:PrintLog(n)
     local log = self.db.log
-    if #log == 0 then self:Print("Protokoll ist leer.") return end
-    self:Print("Letzte Entscheidungen:")
+    if #log == 0 then self:Print(L["Protokoll ist leer."]) return end
+    self:Print(L["Letzte Entscheidungen:"])
     for i = #log, math.max(1, #log - (n or 10) + 1), -1 do
         for line in (self:FormatLogEntry(log[i]) .. "\n"):gmatch("(.-)\n") do print(line) end
     end
@@ -485,9 +486,9 @@ end
 -- "heute", "gestern", "vor 5 Tagen"
 function LC:AgoText(t)
     local days = math.floor((time() - (t or 0)) / 86400)
-    if days <= 0 then return "heute" end
-    if days == 1 then return "gestern" end
-    return "vor " .. days .. " Tagen"
+    if days <= 0 then return L["heute"] end
+    if days == 1 then return L["gestern"] end
+    return L("vor %d Tagen", days)
 end
 
 -- Kurze Liste der letzten Items eines Spielers in einen Tooltip schreiben
@@ -495,17 +496,17 @@ function LC:AddLootTooltip(tooltip, name, max)
     local list = self:GetPlayerLoot(name)
     tooltip:AddLine(" ")
     if #list == 0 then
-        tooltip:AddLine("Noch kein Item in der Loot-Historie.", 0.6, 0.6, 0.6)
+        tooltip:AddLine(L["Noch kein Item in der Loot-Historie."], 0.6, 0.6, 0.6)
         return
     end
-    tooltip:AddLine("Zuletzt erhalten:", 0.8, 0.7, 1)
+    tooltip:AddLine(L["Zuletzt erhalten:"], 0.8, 0.7, 1)
     for i = 1, math.min(max or 6, #list) do
         local e = list[i]
-        tooltip:AddDoubleLine(self:ItemLink(e.itemID) .. (e.council and " |cffb48cff(Council)|r" or ""),
+        tooltip:AddDoubleLine(self:ItemLink(e.itemID) .. (e.council and L[" |cffb48cff(Council)|r"] or ""),
             self:AgoText(e.time), 1, 1, 1, 0.6, 0.6, 0.6)
     end
     if #list > (max or 6) then
-        tooltip:AddLine("… insgesamt " .. #list .. " Items", 0.6, 0.6, 0.6)
+        tooltip:AddLine(L["… insgesamt "] .. #list .. L[" Items"], 0.6, 0.6, 0.6)
     end
 end
 
