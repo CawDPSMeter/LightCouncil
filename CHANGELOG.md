@@ -1,43 +1,43 @@
 # Changelog
 
 ## 0.16.1
-- Fairness: Ein Item gilt im Set auch dann als „hat es“, wenn die Loot-Historie zeigt, dass der Spieler es bekommen hat (niemand kann sich durch falsche Angaben bedürftiger machen).
-- Sets anderer Spieler zeigen ihren Stand; Sets älter als 14 Tage sind im Council-Fenster als „(alt)“ markiert.
-- Leistung: „Habe ich das Item?“ wird zwischengespeichert; Set-Änderungen werden nur noch gemeldet, wenn sich wirklich etwas ändert.
-- Versionsabfrage (`/lc check`) wird nur noch aus der eigenen Gruppe beantwortet, höchstens alle 30 Sekunden.
-- Lange Sets werden nicht mehr mitten in einem Item abgeschnitten; „Umbenennen“ zeigt den bisherigen Namen.
+- Fairness: an item counts as owned in a gear set if the loot history shows the player received it (nobody can look needier by reporting false data).
+- Other players' sets show when they were last updated; sets older than 14 days are marked “(old)” in the council window.
+- Performance: “do I have this item?” is cached; set changes are only broadcast when something actually changed.
+- Version requests (`/lc check`) are only answered from your own group, at most every 30 seconds.
+- Long sets are no longer cut off in the middle of an item; “Rename” shows the current name.
 
 ## 0.16.0
-- Neu: **Gear-Sets**. Raider stellen sich ein oder mehrere benannte Sets zusammen (z. B. je Biom) und bringen die Items in ihre Prio-Reihenfolge. Was man schon hat, erkennt das Addon selbst (angelegt, Taschen, Bank).
-- Das aktive Set wird an alle verteilt; unter „Gear-Sets → Alle Sets“ sieht jeder den Stand der anderen.
-- Council-Abstimmung zeigt in der neuen Spalte „Set“, auf welchem Platz das Item in der Prio des Spielers steht; Tooltips zeigen das ganze Set.
-- „Meine Reservierung“: „+ Set“ bei jedem Item; optional „Aus Gear-Set übernehmen“ (Council schaltet das unter „Raidtage“ ein – Randoms ohne Set reservieren wie gewohnt).
-- Item-Tooltips und Loot-Fenster zeigen, wer das Item im Set hat bzw. welchen Platz es in deinem Set hat.
+- New: **gear sets**. Raiders build one or more named sets (e.g. one per biome) and put the items in their own priority order. The addon detects what you already have (equipped, bags, bank).
+- The active set is shared with everyone; “Gear sets → All sets” shows everyone's progress.
+- The council vote window has a new “Set” column showing the item's place in the player's priority; tooltips show the whole set.
+- “My reservation”: “+ Set” on every item; optional “Take from gear set” (the council turns this on under “Raid days” – pugs without a set reserve as usual).
+- Item tooltips and the loot window show who has the item in their set and its place in your own set.
 
 ## 0.15.0
-- Gelöschte Einträge der Loot-Historie werden abgeglichen und kommen nicht mehr zurück.
-- Versionsprüfung: Hinweis auf neuere Versionen, `/lc check` zeigt alle Versionen im Raid.
-- Item-Tooltips zeigen Council-Item, Prio und Reservierer (`/lc tooltip` zum Abschalten).
-- Sprachmenü schließt bei Klick daneben.
-- Versionsnummer nur noch in der `.toc`.
-- README, CHANGELOG und Prüfskript für Übersetzungen; ungenutzte Bilder entfernt.
-- `UI_Main.lua` in mehrere Dateien aufgeteilt.
+- Deleted loot history entries are synced and no longer come back.
+- Version check: notice about newer versions; `/lc check` lists all versions in the raid.
+- Item tooltips show council item, priority and reservers (`/lc tooltip` to turn off).
+- The language menu closes when clicking elsewhere.
+- The version number lives only in the `.toc`.
+- README, CHANGELOG and a translation check script; unused images removed.
+- `UI_Main.lua` split into several files.
 
 ## 0.14.1
-- Sicherheit: Raider können die Reservierungsrunde nicht mehr hochsetzen (vorher konnte jeder alle Reservierungen löschen).
-- Abstimmungen und Raider-Fenster nur noch von Raidleiter oder Plündermeister; Lootliste nur vom Ersteller änderbar.
-- Abgleich-Anfragen gedrosselt, Raid-Schlüssel begrenzt, empfangene Texte entschärft.
+- Security: raiders can no longer raise the reservation round (previously anyone could delete all reservations).
+- Votes and the raider window are accepted only from the raid leader or master looter; a loot list can only be changed by its creator.
+- Sync requests throttled, raid keys limited, received texts sanitized.
 
 ## 0.14.0
-- Mehrsprachig: Deutsch, Englisch, Französisch, Spanisch, Russisch; Sprachwahl in den Einstellungen und per `/lc lang`.
+- Multilingual: German, English, French, Spanish, Russian; language selection in the settings and via `/lc lang`.
 
 ## 0.13.0
-- Anwesenheit wird zwischen allen Council-Mitgliedern abgeglichen.
-- Erste Council-Liste nur von Raidleitung, Gildenleitung oder zwei Council-Mitgliedern; `/lc councilreset`.
-- Parse/Engagement nur per Flüstern an Council und Raidleiter.
-- Vergaben nur von Council oder Plündermeister in die Loot-Historie.
-- Texte werden UTF-8-sicher gekürzt.
+- Attendance is synced between all council members.
+- The first council list is only accepted from the raid lead, guild leadership or two council members; `/lc councilreset`.
+- Parse/engagement are only whispered to the council and raid lead.
+- Awards from the council or master looter only are added to the loot history.
+- Texts are truncated UTF-8 safely.
 
 ## 0.12.0
-- Einstellbare Raidtage mit Erinnerung zum Reservieren beim Einloggen.
-- Loot-Historie mit Abgleich und Export, automatische Vergabe, Main/Off-Spec-Würfeln.
+- Configurable raid days with a login reminder to reserve.
+- Loot history with sync and export, automatic awarding, Main/Off Spec rolls.
