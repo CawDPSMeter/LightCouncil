@@ -1,0 +1,8 @@
+Inter (Inter-Regular.ttf, Inter-SemiBold.ttf)
+Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+The full license text is available at: https://openfontlicense.org
+
+TODO vor einer Veröffentlichung: den vollständigen Lizenztext (OFL.txt) aus dem
+offiziellen Inter-Paket (https://github.com/rsms/inter) in diesen Ordner legen.
