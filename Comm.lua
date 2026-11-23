@@ -45,11 +45,25 @@ local function Pump()
     end
 end
 
+-- Nachrichten an sich selbst: in einer Warteschlange und in Sende-Reihenfolge zustellen.
+-- (Ein eigener Timer pro Nachricht garantiert keine Reihenfolge – dann kam z. B. „Popup anzeigen“
+-- vor der Spielerliste an und das Abstimmungsfenster blieb leer.)
+local localQueue = {}
+local function FlushLocal()
+    local q = localQueue
+    localQueue = {}
+    local me = LC:PlayerName()
+    for _, msg in ipairs(q) do
+        local ok, err = pcall(LC.OnComm, LC, msg, me, "WHISPER")
+        if not ok then geterrorhandler()(err) end
+    end
+end
+
 function LC:Send(msg, channel, target)
     -- An sich selbst: direkt verarbeiten (Testmodus / Leitung ist selbst im Council)
     if channel == "WHISPER" and target and self:IsMe(target) then
-        local me = self:PlayerName()
-        C_Timer.After(0.05, function() LC:OnComm(msg, me, "WHISPER") end)
+        if #localQueue == 0 then C_Timer.After(0.05, FlushLocal) end
+        localQueue[#localQueue + 1] = msg
         return
     end
     if #msg > 250 then msg = self:Utf8Cut(msg, 250) end

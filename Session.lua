@@ -752,7 +752,13 @@ end
 function LC:StartTest(arg)
     arg = arg or ""
     self:ClearTestEntries()   -- alte, liegengebliebene Tests entfernen
-    local itemID = self:ItemIDFromLink(arg) or tonumber(arg) or 19019
+    -- Ohne Angabe: ein eigenes Council-Item (19019 gibt es in Forever evtl. nicht)
+    local anyCouncil
+    for id in pairs(self.db.councilItems or {}) do
+        id = tonumber(id)
+        if id and (not anyCouncil or id < anyCouncil) then anyCouncil = id end
+    end
+    local itemID = self:ItemIDFromLink(arg) or tonumber(arg) or anyCouncil or 19019
     local link = arg:match("|c.-|r") or self:ItemLink(itemID)
     local entry = {
         key = "test:" .. GetTime(), itemID = itemID, link = link, isCouncil = true,
@@ -794,6 +800,8 @@ function LC:VoteSessionCandidates(sender, sid, payload)
             parse = tonumber(parse), eng = tonumber(eng), flags = flags or "",
         })
     end
+    -- Kommt die Liste erst nach dem Popup an (verlorene Reihenfolge im Netz), Fenster neu aufbauen
+    if s.expires then self:ShowVoteFrame(s) end
 end
 
 function LC:VoteSessionShow(sender, sid)

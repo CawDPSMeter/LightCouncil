@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.17.1
+- Fix: in the test vote (and whenever the raid lead is also on the council) the vote window could open without any players, so “Restrict” and “Sit out” were impossible. Messages to yourself are now delivered in order, and a player list that arrives late refreshes the window.
+- The test vote uses one of your council items instead of an item that may not exist in Forever.
+
 ## 0.17.0
 - New: **JSON export** of all data – loot history, attendance, sit-outs, players and their wins, council items, priorities, reservations, gear sets and the decision log. Open it with `/lc json` or under Loot history → Export → “JSON (all data)”.
 - On logout or `/reload` the JSON is also written to the SavedVariables (`LightCouncilExport.json`), ready for a future website or upload tool. Turn it off with `/lc json auto`.
