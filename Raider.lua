@@ -138,7 +138,7 @@ function LC:OnRaidComm(cmd, p, sender)
     if not self:IsTrustedLeader(sender) then return true end
 
     if cmd == "X" then
-        self:ShowExcludedNotice(tonumber(p[2]), p[3], p[4] or "")
+        self:ShowExcludedNotice(tonumber(p[2]), p[3], self:SafeText(p[4], 150))
         return true
     end
 
@@ -152,6 +152,8 @@ function LC:OnRaidComm(cmd, p, sender)
         return true
     end
     if not R or R.lid ~= lid then return true end
+    -- Änderungen an einer Lootliste nur von dem, der sie angelegt hat
+    if R.owner and not self:NamesMatch(R.owner, sender) then return true end
 
     if cmd == "LE" then
         if self.db.config.raiderWindow then self:ShowRaidFrame() end

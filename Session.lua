@@ -293,7 +293,7 @@ function LC:OnVote(sender, sid, decision, names, reason)
     if decision ~= "OPEN" and decision ~= "LIMIT" and decision ~= "SKIP" then return end
     if decision ~= "OPEN" and #names == 0 then return end
 
-    local v = { name = a.voters[key].name, decision = decision, names = names, reason = reason }
+    local v = { name = a.voters[key].name, decision = decision, names = names, reason = self:SafeText(reason, 120) }
     a.votes[key] = v
     table.insert(a.voteOrder, v)
     self:RefreshUI()

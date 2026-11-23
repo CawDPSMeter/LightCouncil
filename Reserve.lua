@@ -349,7 +349,16 @@ end
 
 function LC:ResHandle(cmd, p, sender)
     if cmd == "YQ" then
-        if self:AmICouncil() and not self:IsMe(sender) then self:SendResSync(sender) end
+        -- Höchstens ein vollständiger Abgleich pro Anfragendem und Minute (sonst verstopft die Sende-Warteschlange
+        -- und Abstimmungen kämen verspätet an)
+        if self:AmICouncil() and not self:IsMe(sender) then
+            local key = self:NameKey(sender)
+            self.ysyncAnswered = self.ysyncAnswered or {}
+            if key and (GetTime() - (self.ysyncAnswered[key] or -999)) >= 60 then
+                self.ysyncAnswered[key] = GetTime()
+                self:SendResSync(sender)
+            end
+        end
         return
     end
 
@@ -381,13 +390,27 @@ function LC:ResHandle(cmd, p, sender)
     end
 
     local raid = p[2]
-    if not raid or raid == "" then return end
+    if not raid or raid == "" or #raid > 60 or raid:find("[|;]") then return end
+    -- Neue Raid-Schlüssel nur in Grenzen anlegen (Schutz vor aufgeblähten SavedVariables)
+    if not (self.db.reserves and self.db.reserves[raid]) then
+        local n = 0
+        for _ in pairs(self.db.reserves or {}) do n = n + 1 end
+        if n >= 40 then return end
+    end
     local R = self:ResRaid(raid)
 
     if cmd == "YR" or cmd == "YC" then
         if not self:AmICouncil() then return end
-        if not CheckEpoch(R, p[3]) then
-            self:SendTo(sender, "YX", raid, tostring(R.epoch))
+        -- Die Runde (epoch) bestimmt nur der Council. Ein Raider darf sie nie hochsetzen –
+        -- sonst könnte jeder mit einer gefälschten Nachricht alle Reservierungen löschen.
+        local epoch = tonumber(p[3]) or 0
+        if epoch ~= (R.epoch or 0) then
+            if epoch < (R.epoch or 0) then
+                self:SendTo(sender, "YX", raid, tostring(R.epoch))
+            else
+                -- Raider kennt eine neuere Runde: eigenen Stand beim restlichen Council holen
+                self:RequestResSync(false)
+            end
             return
         end
         local items = ParseItems(cmd == "YR" and p[5] or p[4])
@@ -453,7 +476,7 @@ function LC:ResHandle(cmd, p, sender)
         end
     elseif cmd == "YP" then
         if rec and (rec.rev or 0) > 0 and not rec.pending then
-            rec.pending = { items = ParseItems(p[5]), reason = p[6] or "", time = time() }
+            rec.pending = { items = ParseItems(p[5]), reason = self:SafeText(p[6], 120), time = time() }
             Changed()
         end
     elseif cmd == "YD" then

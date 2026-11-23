@@ -3,7 +3,7 @@ local ADDON, LC = ...
 local L = LC.L
 _G.LightCouncil = LC
 
-LC.version = "0.14.0"
+LC.version = "0.14.1"
 LC.prefix = "LCouncil"
 LC.COLOR = "|cffb48cff"
 
@@ -198,6 +198,13 @@ function LC:Utf8Cut(text, maxBytes)
     return text
 end
 
+-- Für empfangene Texte, die angezeigt werden: keine Farb-, Link- oder Texturcodes von anderen zulassen
+function LC:SafeText(text, maxLen)
+    text = tostring(text or ""):gsub("|", "/"):gsub("[\n\r]", " ")
+    if maxLen and #text > maxLen then text = self:Utf8Cut(text, maxLen) end
+    return text
+end
+
 function LC:CleanText(text, maxLen)
     text = tostring(text or ""):gsub("[~;:|\n\r]", " ")
     text = strtrim(text)
@@ -279,10 +286,13 @@ function LC:IsMasterLooter()
 end
 
 -- Darf dieser Absender eine Council-Abstimmung starten? (Leitung, Assistent oder Plündermeister)
+-- Wer Abstimmungen starten und das Loot-Fenster der Raider steuern darf: nur Raidleiter oder Plündermeister.
+-- (Nicht jeder Assistent – in vielen Raids haben alle Assist, und eine gefälschte Abstimmung
+-- würde die Stimmen des Councils an den Fälscher schicken.)
 function LC:IsTrustedLeader(sender)
     if self:IsMe(sender) then return true end
     local m = self:FindByName(self:GetGroupMembers(), sender)
-    return m ~= nil and ((m.rank or 0) >= 1 or m.isML)
+    return m ~= nil and ((m.rank or 0) >= 2 or m.isML == true)
 end
 
 function LC:GetCouncilSize()

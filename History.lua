@@ -30,8 +30,9 @@ local function Decode(s)
     itemID, t = tonumber(itemID), tonumber(t)
     if not id or id == "" or not itemID or not winner or winner == "" or not t then return nil end
     flags = flags or ""
+    winner, raid = LC:SafeText(winner, 60), LC:SafeText(raid, 60)
     return {
-        id = id, itemID = itemID, winner = winner, time = t, raid = (raid ~= "") and raid or nil,
+        id = LC:SafeText(id, 80), itemID = itemID, winner = winner, time = t, raid = (raid ~= "") and raid or nil,
         roll = tonumber(roll), council = flags:find("c") and true or nil, reserved = flags:find("r") and true or nil,
         offspec = flags:find("o") and true or nil,
     }
