@@ -151,6 +151,11 @@ function LC:RefreshRaidFrame()
             else
                 who = H.good .. L["Keine Reservierung – jeder darf würfeln|r"]
             end
+            -- In meinem Gear-Set? Dann den Platz in meiner Prio vorne anzeigen
+            local mineInfo = self:IsInMySet(it.itemID) and self:GearSetRank(self:PlayerName(), it.itemID)
+            if mineInfo and mineInfo.rank then
+                who = H.good .. L("Dein Set #%d", mineInfo.rank) .. "|r   " .. who
+            end
             r.who:SetText(who)
 
             -- Zustand

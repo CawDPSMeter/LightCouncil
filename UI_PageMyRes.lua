@@ -18,12 +18,32 @@ local function SelectTab(key) return U.SelectTab(key) end
 local myBossButtons, myItemRows = {}, {}
 
 local function CreateMyResPage(p)
-    local y, _, desc = PageHeader(p, L["Meine Reservierung"], L["Wähle bis zu "] .. LC:MaxReserves() .. L[" Items pro Raid. Nach dem Speichern ist deine Wahl gesperrt – Änderungen nur mit Freigabe des Councils."])
+    local _, title, desc = PageHeader(p, L["Meine Reservierung"], L["Wähle bis zu "] .. LC:MaxReserves() .. L[" Items pro Raid. Nach dem Speichern ist deine Wahl gesperrt – Änderungen nur mit Freigabe des Councils."])
+    desc:SetWidth(CW - 420)   -- rechts sitzen „Aus Gear-Set übernehmen“ und „Quelle“
+    local y = math.ceil(title:GetStringHeight() + 5 + desc:GetStringHeight() + 16)
     p.desc = desc
     p.sel = {}
 
     p.sourceBtn = SourceButton(p)
     p.sourceBtn:SetPoint("TOPRIGHT", 0, 0)
+
+    -- Aus dem Gear-Set übernehmen (nur wenn der Council das eingeschaltet hat)
+    p.fromSet = T:Button(p, L["Aus Gear-Set übernehmen"], 200, 30, "primary", function()
+        local raid = p.raid
+        if not raid then return end
+        local want = LC:GearSetItemsForRaid(raid)
+        if #want == 0 then
+            p.msgText = H.warn .. L["In deinem aktiven Gear-Set fehlt dir nichts, was in diesem Raid droppt.|r"]
+        else
+            local sel = p.sel[raid.key]
+            wipe(sel)
+            for i = 1, math.min(#want, LC:MaxReserves()) do sel[i] = want[i] end
+            p.msgText = H.good .. L["Auswahl aus deinem Gear-Set übernommen (höchste Prio zuerst). Prüfen und speichern.|r"]
+        end
+        LC:RefreshUI()
+    end)
+    p.fromSet:SetPoint("RIGHT", p.sourceBtn, "LEFT", -8, 0)
+    Tip(p.fromSet, L["Aus Gear-Set übernehmen"], L["Wählt die wichtigsten Items aus deinem aktiven Gear-Set, die dir noch fehlen und in diesem Raid droppen."])
 
     p.chipBar = ChipBar(p)
     p.chipBar:SetPoint("TOPLEFT", 0, -y)
@@ -183,14 +203,28 @@ local function GetMyItemRow(p, i)
     r.icon:SetPoint("LEFT", 6, 0)
     r.name = T:Text(r, 13, C.text, "LEFT", nil, true)
     r.name:SetPoint("TOPLEFT", 50, -6)
-    r.name:SetWidth(p.itemsW - 210)
+    r.name:SetWidth(p.itemsW - 290)
     r.name:SetWordWrap(false)
     r.sub = T:Text(r, 11, C.muted)
     r.sub:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -4)
-    r.sub:SetWidth(p.itemsW - 210)
+    r.sub:SetWidth(p.itemsW - 290)
     r.sub:SetWordWrap(false)
     r.check = T:Check(r, L["Reservieren"])
-    r.check:SetPoint("RIGHT", -110, 0)
+    r.check:SetPoint("RIGHT", -190, 0)
+    -- Ins aktive Gear-Set aufnehmen bzw. wieder entfernen
+    r.setBtn = T:Button(r, L["+ Set"], 76, 26, "ghost", function()
+        local idx = LC:IsInMySet(r.itemID)
+        if idx then
+            LC:RemoveFromGearSet(idx)
+        else
+            local ok, msg = LC:AddToGearSet({ r.itemID })
+            if msg then p.msgText = (ok and H.good or H.warn) .. msg .. "|r" end
+        end
+        LC:RefreshUI()
+    end)
+    r.setBtn:SetPoint("RIGHT", -8, 0)
+    r.setBtn.tooltipTitle = L["Gear-Set"]
+    r.setBtn.tooltip = L["Nimmt das Item ans Ende deines aktiven Gear-Sets auf (oder entfernt es wieder). Die Reihenfolge legst du unter „Gear-Sets“ fest."]
     r.check:SetScript("OnClick", function(self)
         local sel = p.sel[p.raid.key]
         if self:GetChecked() then
@@ -225,6 +259,7 @@ local function RefreshMyRes()
     p.desc:SetText(L["Wähle bis zu "] .. max .. L[" Items pro Raid. Nach dem Speichern ist deine Wahl gesperrt – Änderungen nur mit Freigabe des Councils."])
 
     p.sourceBtn:Update()
+    p.fromSet:SetShown(LC:SetReserveEnabled() and LC:GetActiveSet() ~= nil)
     local raids, hasDB = ReserveRaids()
     -- Im Raid: automatisch diesen Raid auswählen (einmal pro Raid, danach entscheidet der Spieler)
     local current = LC:GetCurrentRaid()
@@ -336,6 +371,13 @@ local function RefreshMyRes()
             if LC:IsCouncilItem(id) then sub = sub .. "   ·   " .. H.accent .. L["Council-Item|r"] end
             local prio = LC:GetPrio(id)
             if prio and #prio > 0 then sub = sub .. "   ·   " .. H.accentLt .. L["Prio:|r "] .. table.concat(prio, " > ") end
+            local inSet = LC:IsInMySet(id)
+            if inSet then
+                local info = LC:GearSetRank(LC:PlayerName(), id)
+                local tag = (info and info.rank) and L("Set #%d", info.rank) or L["Set: hast du"]
+                sub = H.good .. tag .. "|r   ·   " .. sub
+            end
+            r.setBtn:SetText(inSet and L["Im Set"] or L["+ Set"])
             r.sub:SetText(sub)
             r.check:SetChecked(selSet[id] == true)
             r.check:SetEnabled(selSet[id] == true or not full)

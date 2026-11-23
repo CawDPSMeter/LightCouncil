@@ -7,11 +7,11 @@ local H = T.HEX
 
 local frame
 local rows = {}
-local W = 650
+local W = 720
 local PAD = 16
 local ROW_H = 30
 local LIST_TOP = 138
-local COL = { name = 34, score = 250, att = 340, parse = 405, eng = 465, last = 525 }
+local COL = { name = 34, score = 250, att = 340, parse = 405, eng = 465, set = 525, last = 600 }
 
 local function Val(v, suffix)
     if v == nil then return H.muted .. L["–|r"] end
@@ -70,6 +70,7 @@ local function CreateVoteFrame()
     Head(L["ANW."], COL.att)
     Head(L["PARSE"], COL.parse)
     Head(L["ENG."], COL.eng)
+    Head(L["SET"], COL.set)
     Head(L["LETZTES ITEM"], COL.last)
     local line = T:Line(frame, C.line)
     line:SetPoint("TOPLEFT", PAD, -LIST_TOP + 4)
@@ -144,6 +145,10 @@ local function GetRow(i)
     r.parse:SetPoint("LEFT", COL.parse, 0)
     r.eng = T:Text(r, 11, C.text)
     r.eng:SetPoint("LEFT", COL.eng, 0)
+    r.set = T:Text(r, 11, C.text)
+    r.set:SetPoint("LEFT", COL.set, 0)
+    r.set:SetWidth(COL.last - COL.set - 6)
+    r.set:SetWordWrap(false)
     r.last = T:Text(r, 11, C.text)
     r.last:SetPoint("LEFT", COL.last, 0)
     r.last:SetWidth(W - 2 * PAD - COL.last - 8)
@@ -157,6 +162,7 @@ local function GetRow(i)
         if not self.candidate then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(self.candidate.name, 1, 1, 1)
+        LC:AddGearSetTooltip(GameTooltip, self.candidate.name, LC.voteSession and LC.voteSession.itemID)
         LC:AddLootTooltip(GameTooltip, self.candidate.name, 6)
         GameTooltip:Show()
     end)
@@ -213,6 +219,8 @@ function LC:ShowVoteFrame(s)
             r.att:SetText(Val(c.att, "%"))
             r.parse:SetText(Val(c.parse))
             r.eng:SetText(Val(c.eng, "/5"))
+            -- Gear-Set: Platz dieses Items in der Prio des Spielers
+            r.set:SetText(self:GearSetRankText(c.name, s.itemID))
             -- Letztes Item: Council-Items lila hervorgehoben
             local loot = self:GetPlayerLoot(c.name)
             local last = loot[1]

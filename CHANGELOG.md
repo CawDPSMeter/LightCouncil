@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.0
+- Neu: **Gear-Sets**. Raider stellen sich ein oder mehrere benannte Sets zusammen (z. B. je Biom) und bringen die Items in ihre Prio-Reihenfolge. Was man schon hat, erkennt das Addon selbst (angelegt, Taschen, Bank).
+- Das aktive Set wird an alle verteilt; unter „Gear-Sets → Alle Sets“ sieht jeder den Stand der anderen.
+- Council-Abstimmung zeigt in der neuen Spalte „Set“, auf welchem Platz das Item in der Prio des Spielers steht; Tooltips zeigen das ganze Set.
+- „Meine Reservierung“: „+ Set“ bei jedem Item; optional „Aus Gear-Set übernehmen“ (Council schaltet das unter „Raidtage“ ein – Randoms ohne Set reservieren wie gewohnt).
+- Item-Tooltips und Loot-Fenster zeigen, wer das Item im Set hat bzw. welchen Platz es in deinem Set hat.
+
 ## 0.15.0
 - Gelöschte Einträge der Loot-Historie werden abgeglichen und kommen nicht mehr zurück.
 - Versionsprüfung: Hinweis auf neuere Versionen, `/lc check` zeigt alle Versionen im Raid.

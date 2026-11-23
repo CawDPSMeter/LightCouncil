@@ -32,6 +32,7 @@ local TABS = {
     { key = "start", label = "Erste Schritte", create = CreateStartPage, refresh = RefreshStart, group = "ÜBERSICHT" },
     { key = "loot", label = "Loot", create = CreateLootPage, refresh = RefreshLoot },
     { key = "myres", label = "Meine Reservierung", create = CreateMyResPage, refresh = RefreshMyRes },
+    { key = "sets", label = "Gear-Sets", create = U.CreateSetsPage, refresh = U.RefreshSets },
     { key = "history", label = "Loot-Historie", create = CreateHistoryPage, refresh = RefreshHistory },
     { key = "items", label = "Raid-Loot", create = CreateItemsPage, refresh = RefreshItems, group = "VORBEREITUNG" },
     { key = "reserves", label = "Reservierungen", create = CreateReservesPage, refresh = RefreshReserves },

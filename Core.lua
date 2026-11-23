@@ -32,6 +32,7 @@ local DEFAULTS = {
         reminderRaid = "",      -- Raid (Schlüssel), an den erinnert wird; "" = irgendein Raid
         maxReserves = 2,        -- Reservierungen pro Raider und Raid
         lootSource = "auto",    -- Loot-Quelle: auto / atlas / naowh (nur Raids)
+        setReserve = false,     -- Raider dürfen aus ihrem Gear-Set reservieren (Council-Einstellung)
         tooltip = true,         -- Council-Item, Prio und Reservierer im Item-Tooltip anzeigen
         language = "auto",      -- Sprache: auto (Spielclient) / deDE / enUS / frFR / esES / ruRU
     },
@@ -46,6 +47,8 @@ local DEFAULTS = {
     sitouts = {},       -- [week] = { [itemID] = { [key] = "Name" } }
     log = {},           -- Protokoll aller Entscheidungen
     history = {},       -- Loot-Historie: { id, itemID, winner, time, week, raid, roll, council, reserved }
+    gearSets = {},      -- [Charakter] = { active = "Name", order = { "Name", … }, sets = { [Name] = { items = { itemID, … } } } }
+    otherSets = {},     -- aktive Sets anderer Spieler: [key] = { name, set, items = { { id, have } }, time }
     historyDeleted = {}, -- [Eintrags-ID] = Zeitpunkt des Löschens (damit der Abgleich nichts zurückholt)
 }
 

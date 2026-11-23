@@ -22,7 +22,7 @@ local daysFrame
 local function ShowRaidDaysFrame()
     if not daysFrame then
         local FW = CW + 32
-        local f = T:Window("LightCouncilRaidDaysFrame", FW, 330, L["Raidtage & Erinnerung"],
+        local f = T:Window("LightCouncilRaidDaysFrame", FW, 390, L["Raidtage & Erinnerung"],
             L["An Raidtagen werden alle mit Light Council beim Einloggen ans Reservieren erinnert"])
         f:SetFrameStrata("DIALOG")
         f.sel = {}
@@ -54,6 +54,15 @@ local function ShowRaidDaysFrame()
         f.chips = ChipBar(f)
         f.chips:SetPoint("TOPLEFT", 16, -162)
 
+        -- Gear-Sets: Reservieren aus dem Set erlauben (Randoms ohne Set reservieren weiter normal)
+        f.setReserve = T:Check(f, L["Reservieren aus dem Gear-Set anbieten"])
+        f.setReserve:SetPoint("BOTTOMLEFT", 16, 74)
+        local srd = T:Text(f, 11, C.muted)
+        srd:SetPoint("LEFT", f.setReserve.label, "RIGHT", 10, 0)
+        srd:SetPoint("RIGHT", f, "RIGHT", -16, 0)
+        srd:SetWordWrap(false)
+        srd:SetText(L["Raider bekommen den Knopf „Aus Gear-Set übernehmen“. Wer kein Set hat, reserviert wie gewohnt."])
+
         f.msg = T:Text(f, 12, C.muted)
         f.msg:SetPoint("BOTTOMLEFT", 160, 26)
         f.msg:SetWidth(FW - 180)
@@ -63,7 +72,7 @@ local function ShowRaidDaysFrame()
             for _, w in ipairs(LC.WEEKDAYS) do
                 if f.sel[w.wday] then days[#days + 1] = w.wday end
             end
-            LC:SetRaidDays(days, f.raidKey)
+            LC:SetRaidDays(days, f.raidKey, f.setReserve:GetChecked() and true or false)
             f.msg:SetText(H.good .. L["Gespeichert und an alle Addon-Nutzer in Gilde/Raid geschickt.|r"])
         end)
         save:SetPoint("BOTTOMLEFT", 16, 16)
@@ -96,6 +105,7 @@ local function ShowRaidDaysFrame()
     wipe(f.sel)
     for _, d in ipairs(LC.db.config.raidDays or {}) do f.sel[d] = true end
     f.raidKey = LC.db.config.reminderRaid or ""
+    f.setReserve:SetChecked(LC.db.config.setReserve == true)
     f.msg:SetText("")
     f:Paint()
     f:Show()

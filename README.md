@@ -7,6 +7,7 @@ Loot-Addon für **World of Warcraft Forever** (Interface 16001): Reservierungen 
 ## Funktionen
 
 - **Reservierungen im Addon:** Raider wählen ihre Items selbst (Standard: 2 pro Raid). Nach dem Speichern ist die Wahl gesperrt, Änderungen gehen nur per Antrag an den Council.
+- **Gear-Sets:** Raider stellen sich Sets zusammen (z. B. je Biom) und legen ihre Prio-Reihenfolge fest. Das Addon erkennt, was schon vorhanden ist. Alle sehen die Sets der anderen, der Council sieht in der Abstimmung, welchen Platz das Item beim Spieler hat. Optional kann direkt aus dem Set reserviert werden.
 - **Raidtage mit Erinnerung:** An euren Raidtagen erinnert das Addon beim Einloggen alle, die noch nicht reserviert haben.
 - **Council-Abstimmung:** Bei markierten Council-Items stimmt der Council anonym ab: *Freigeben*, *Eingrenzen* oder *Aussetzen*. Score aus Anwesenheit, Parse und Engagement hilft bei der Entscheidung.
 - **Würfeln per Knopf:** Raider mit dem Addon bekommen ein Loot-Fenster mit Würfel-Knopf (Main Spec / Off Spec). Ohne Addon läuft alles über `/roll` im Raidchat.

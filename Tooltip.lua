@@ -24,7 +24,16 @@ local function AddInfo(tooltip, itemID)
     local prio = LC:GetPrio(itemID)
     local reservers = {}
     for _, r in ipairs(LC:GetReservers(itemID)) do reservers[#reservers + 1] = r.name end
-    if not council and not (prio and #prio > 0) and #reservers == 0 then return end
+    -- Wer hat das Item in seinem aktiven Gear-Set (und braucht es noch)? Sortiert nach Platz in der Prio
+    local wanted = {}
+    if LC.GetAllGearSets then
+        for _, s in ipairs(LC:GetAllGearSets()) do
+            local info = LC:GearSetRank(s.name, itemID)
+            if info and info.rank then wanted[#wanted + 1] = { name = s.name, rank = info.rank } end
+        end
+        table.sort(wanted, function(a, b) return a.rank < b.rank end)
+    end
+    if not council and not (prio and #prio > 0) and #reservers == 0 and #wanted == 0 then return end
     tooltip.lcItemID = itemID
     tooltip:AddLine(" ")
     tooltip:AddLine(LC.COLOR .. "Light Council|r" .. (council and ("  ·  " .. L["Council-Item"]) or ""), 1, 1, 1)
@@ -33,6 +42,11 @@ local function AddInfo(tooltip, itemID)
     end
     if #reservers > 0 then
         tooltip:AddLine(L("Reserviert (%d): %s", #reservers, NameList(reservers)), 0.8, 0.8, 0.8, true)
+    end
+    if #wanted > 0 then
+        local names = {}
+        for _, w in ipairs(wanted) do names[#names + 1] = w.name .. " #" .. w.rank end
+        tooltip:AddLine(L("Im Gear-Set (%d): %s", #wanted, NameList(names)), 0.6, 0.85, 0.6, true)
     end
     tooltip:Show()
 end

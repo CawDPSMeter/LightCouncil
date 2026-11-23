@@ -320,7 +320,8 @@ function LC:SendResSync(target)
     for _, n in ipairs(self:GetCouncilList()) do names[#names + 1] = self:CleanText(n, 40) end
     local days = {}
     for _, d in ipairs(self.db.config.raidDays or {}) do days[#days + 1] = tostring(d) end
-    Out("YL", table.concat(names, ";"), tostring(self:MaxReserves()), table.concat(days, ","), self.db.config.reminderRaid or "")
+    Out("YL", table.concat(names, ";"), tostring(self:MaxReserves()), table.concat(days, ","), self.db.config.reminderRaid or "",
+        self.db.config.setReserve and "1" or "0")
     for raid, R in pairs(self.db.reserves or {}) do
         for _, p in pairs(R.players) do
             if (p.rev or 0) > 0 then
@@ -384,6 +385,8 @@ function LC:ResHandle(cmd, p, sender)
                 self.db.knownReminderRaid = p[5] or ""
                 C_Timer.After(3, function() LC:CheckRaidDayReminder() end)
             end
+            -- Reservieren aus dem Gear-Set (ab 0.16.0)
+            if p[6] then self.db.knownSetReserve = (p[6] == "1") end
             self:RefreshUI()
         end
         return
@@ -521,7 +524,7 @@ function LC:BroadcastCouncilInfo()
     local days = {}
     for _, d in ipairs(self.db.config.raidDays or {}) do days[#days + 1] = tostring(d) end
     self:ResSend("YL", table.concat(names, ";"), tostring(self:MaxReserves()),
-        table.concat(days, ","), self.db.config.reminderRaid or "")
+        table.concat(days, ","), self.db.config.reminderRaid or "", self.db.config.setReserve and "1" or "0")
 end
 
 ------------------------------------------------------------------------
@@ -565,9 +568,16 @@ function LC:RaidDaysText()
     return (#out > 0) and table.concat(out, ", ") or L["keine"]
 end
 
-function LC:SetRaidDays(days, raidKey)
+-- Darf aus dem Gear-Set reserviert werden? (Council-Einstellung, an Raider übermittelt)
+function LC:SetReserveEnabled()
+    if self:AmICouncil() or #self:GetCouncilList() > 0 then return self.db.config.setReserve == true end
+    return self.db.knownSetReserve == true
+end
+
+function LC:SetRaidDays(days, raidKey, setReserve)
     self.db.config.raidDays = days
     self.db.config.reminderRaid = raidKey or ""
+    if setReserve ~= nil then self.db.config.setReserve = setReserve and true or false end
     self:BroadcastCouncilInfo()
     self:RefreshUI()
 end
