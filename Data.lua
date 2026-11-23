@@ -465,6 +465,7 @@ function LC:AddHistory(e, quiet)
     while pos > 1 and (h[pos - 1].time or 0) > e.time do pos = pos - 1 end
     table.insert(h, pos, e)
     while #h > MAX_HISTORY do table.remove(h, 1) end
+    self.historyVersion = (self.historyVersion or 0) + 1
     self:ItemLink(e.itemID)
     if not quiet then self:RefreshUI() end
     return true
@@ -519,6 +520,7 @@ function LC:DeleteHistory(entry, fromSync)
     for i = #h, 1, -1 do
         if h[i] == entry then table.remove(h, i) break end
     end
+    self.historyVersion = (self.historyVersion or 0) + 1
     if entry and entry.id then
         self.db.historyDeleted = self.db.historyDeleted or {}
         self.db.historyDeleted[entry.id] = time()
@@ -535,7 +537,11 @@ function LC:DeleteHistoryById(id)
     self.db.historyDeleted[id] = self.db.historyDeleted[id] or time()
     local h = self.db.history
     for i = #h, 1, -1 do
-        if h[i].id == id then table.remove(h, i) return true end
+        if h[i].id == id then
+            table.remove(h, i)
+            self.historyVersion = (self.historyVersion or 0) + 1
+            return true
+        end
     end
     return isNew
 end

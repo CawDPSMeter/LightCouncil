@@ -645,4 +645,6 @@ LC:RegisterLocale("esES", {
     ["Noch keine Sets bekannt. Sets kommen von allen mit Light Council in Gilde und Raid – „Aktualisieren“ fragt sie ab."] = "Todavía no se conocen sets. Llegan de todos los que tienen Light Council en hermandad y banda – «Actualizar» los consulta.",
     ["%d Spieler mit Set  ·  Maus über eine Zeile zeigt das ganze Set"] = "%d jugadores con set  ·  pasa el ratón por una fila para ver el set entero",
     ["Dein Set #%d"] = "Tu set n.º %d",
+    [" (alt)"] = " (antiguo)",
+    ["Stand: %s"] = "Estado: %s",
 })

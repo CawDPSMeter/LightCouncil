@@ -118,7 +118,7 @@ local function CreateSetsPage(p)
     mine.renameBtn = T:Button(bar, L["Umbenennen"], 120, 30, "default", function()
         local _, name = LC:GetActiveSet()
         if name then
-            local d = StaticPopup_Show("LIGHTCOUNCIL_RENAME_SET", name)
+            local d = StaticPopup_Show("LIGHTCOUNCIL_RENAME_SET", name, nil, name)
             if d then d.data = name end
         end
     end)
@@ -126,7 +126,7 @@ local function CreateSetsPage(p)
     mine.deleteBtn = T:Button(bar, L["Löschen"], 100, 30, "danger", function()
         local _, name = LC:GetActiveSet()
         if name then
-            local d = StaticPopup_Show("LIGHTCOUNCIL_DELETE_SET", name)
+            local d = StaticPopup_Show("LIGHTCOUNCIL_DELETE_SET", name, nil, name)
             if d then d.data = name end
         end
     end)

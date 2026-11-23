@@ -49,13 +49,39 @@ function LC:ItemSlot(itemID)
 end
 
 -- Habe ich das Item? (angelegt, Taschen oder Bank)
+-- Gecacht: Tooltips fragen das sehr oft ab; der Cache wird bei Taschen-/Ausrüstungsänderungen geleert.
+local haveCache = {}
 function LC:HaveItem(itemID)
     if not itemID then return false end
+    local c = haveCache[itemID]
+    if c ~= nil then return c end
+    local have = false
     for slot = 1, 19 do
-        if GetInventoryItemID("player", slot) == itemID then return true end
+        if GetInventoryItemID("player", slot) == itemID then have = true break end
     end
-    local count = (C_Item and C_Item.GetItemCount) and C_Item.GetItemCount(itemID, true) or GetItemCount(itemID, true)
-    return (count or 0) > 0
+    if not have then
+        local count = (C_Item and C_Item.GetItemCount) and C_Item.GetItemCount(itemID, true) or GetItemCount(itemID, true)
+        have = (count or 0) > 0
+    end
+    haveCache[itemID] = have
+    return have
+end
+
+-- Laut Loot-Historie erhalten? (Gegenprobe zu den selbst gemeldeten „habe ich“-Angaben anderer)
+local wonIndex, wonVersion = {}, -1
+local function WonByHistory(name, itemID)
+    if wonVersion ~= (LC.historyVersion or 0) then
+        wonIndex, wonVersion = {}, LC.historyVersion or 0
+        for _, e in ipairs(LC.db.history or {}) do
+            local key = LC:NameKey(e.winner)
+            if key and e.itemID then
+                wonIndex[key] = wonIndex[key] or {}
+                wonIndex[key][e.itemID] = true
+            end
+        end
+    end
+    local key = LC:NameKey(name)
+    return key and wonIndex[key] and wonIndex[key][itemID] or false
 end
 
 -- Wo droppt das Item? (Raid und Boss aus der Loot-Quelle; gecacht)
@@ -237,20 +263,30 @@ function LC:GetPlayerGearSet(name)
 end
 
 -- Platz eines Items im Set eines Spielers: Rang unter den fehlenden Items, Anzahl, schon vorhanden
+-- „Hat er schon“ gilt auch, wenn die Loot-Historie zeigt, dass er das Item bekommen hat –
+-- so kann sich niemand bedürftiger machen, indem er ein erhaltenes Item als fehlend meldet.
 function LC:GearSetRank(name, itemID)
     local s = self:GetPlayerGearSet(name)
     if not s then return nil end
     local rank, missing, have = nil, 0, 0
+    local owned = false
     for _, it in ipairs(s.items) do
-        if it.have then
+        local got = it.have or WonByHistory(s.name, it.id)
+        if it.id == itemID and got then owned = true end
+        if got then
             have = have + 1
         else
             missing = missing + 1
             if it.id == itemID then rank = missing end
         end
     end
-    return { rank = rank, missing = missing, have = have, total = #s.items, set = s.set,
-        owned = (function() for _, it in ipairs(s.items) do if it.id == itemID and it.have then return true end end end)() }
+    return { rank = rank, missing = missing, have = have, total = #s.items, set = s.set, owned = owned,
+        time = s.time }
+end
+
+-- Ist das Set eines anderen Spielers älter als 14 Tage? (dann ist es womöglich nicht mehr aktuell)
+function LC:GearSetIsOld(info)
+    return info and info.time and (time() - info.time) > 14 * 86400
 end
 
 -- Kurztext für Listen: "#2 von 7" (Platz unter den fehlenden Items), "hat es", "nicht im Set" oder "kein Set"
@@ -261,7 +297,9 @@ function LC:GearSetRankText(name, itemID)
     if info.owned then return H.muted .. L["hat es"] .. "|r" end
     if not info.rank then return H.muted .. L["nicht im Set"] .. "|r" end
     local color = (info.rank <= 2) and H.good or ((info.rank <= 5) and H.accentLt or "")
-    return color .. L("#%d von %d", info.rank, info.missing) .. ((color ~= "") and "|r" or "")
+    local text = color .. L("#%d von %d", info.rank, info.missing) .. ((color ~= "") and "|r" or "")
+    if self:GearSetIsOld(info) then text = text .. H.muted .. L[" (alt)"] .. "|r" end
+    return text
 end
 
 -- Zeilen für einen Tooltip: Set-Name, Stand und Platz eines Items
@@ -270,6 +308,10 @@ function LC:AddGearSetTooltip(tooltip, name, itemID)
     if not s then return end
     local info = self:GearSetRank(name, itemID)
     tooltip:AddLine(L("Gear-Set „%s“: %d von %d Items", s.set, info.have, info.total), 0.82, 0.71, 1)
+    if not self:IsMe(name) and s.time then
+        local c = self:GearSetIsOld(info) and { 1, 0.75, 0.25 } or { 0.6, 0.6, 0.6 }
+        tooltip:AddLine(L("Stand: %s", self:AgoText(s.time)), c[1], c[2], c[3])
+    end
     if itemID and info.rank then
         tooltip:AddLine(L("Dieses Item: Prio #%d der fehlenden Items", info.rank), 0.8, 0.8, 0.8)
     elseif itemID and info.owned then
@@ -297,11 +339,16 @@ end
 local function EncodeMine()
     local set, name = LC:GetActiveSet()
     if not set or #set.items == 0 then return strjoin(SEP, "GS", "", "") end
-    local parts = {}
+    -- Nur so viele Items, wie in eine Nachricht passen (sonst würde das letzte abgeschnitten)
+    local head = strjoin(SEP, "GS", name, "")
+    local parts, len = {}, #head
     for _, id in ipairs(set.items) do
-        parts[#parts + 1] = id .. ":" .. (LC:HaveItem(id) and "1" or "0")
+        local part = id .. ":" .. (LC:HaveItem(id) and "1" or "0")
+        if len + #part + 1 > 245 then break end
+        parts[#parts + 1] = part
+        len = len + #part + 1
     end
-    return strjoin(SEP, "GS", name, table.concat(parts, ","))
+    return head .. table.concat(parts, ",")
 end
 
 local lastSentSig
@@ -384,10 +431,20 @@ end
 -- Ereignisse
 ------------------------------------------------------------------------
 -- Neues Item bekommen: „habe ich“ ändert sich -> Set neu verteilen (gesammelt)
+-- Nur melden, wenn sich bei einem Set-Item wirklich etwas geändert hat (Taschen ändern sich ständig)
+local lastHaveSig
 local function HaveChanged()
+    wipe(haveCache)
     if not LC.db then return end
     local set = LC:GetActiveSet()
-    if set and #set.items > 0 then LC:GearSetChanged() end
+    if not set or #set.items == 0 then return end
+    local sig = {}
+    for i, id in ipairs(set.items) do sig[i] = LC:HaveItem(id) and "1" or "0" end
+    sig = table.concat(sig)
+    if sig ~= lastHaveSig then
+        lastHaveSig = sig
+        LC:GearSetChanged()
+    end
 end
 LC:On("BAG_UPDATE_DELAYED", HaveChanged)
 LC:On("PLAYER_EQUIPMENT_CHANGED", HaveChanged)

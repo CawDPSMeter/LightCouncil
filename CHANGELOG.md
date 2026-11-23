@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.1
+- Fairness: Ein Item gilt im Set auch dann als „hat es“, wenn die Loot-Historie zeigt, dass der Spieler es bekommen hat (niemand kann sich durch falsche Angaben bedürftiger machen).
+- Sets anderer Spieler zeigen ihren Stand; Sets älter als 14 Tage sind im Council-Fenster als „(alt)“ markiert.
+- Leistung: „Habe ich das Item?“ wird zwischengespeichert; Set-Änderungen werden nur noch gemeldet, wenn sich wirklich etwas ändert.
+- Versionsabfrage (`/lc check`) wird nur noch aus der eigenen Gruppe beantwortet, höchstens alle 30 Sekunden.
+- Lange Sets werden nicht mehr mitten in einem Item abgeschnitten; „Umbenennen“ zeigt den bisherigen Namen.
+
 ## 0.16.0
 - Neu: **Gear-Sets**. Raider stellen sich ein oder mehrere benannte Sets zusammen (z. B. je Biom) und bringen die Items in ihre Prio-Reihenfolge. Was man schon hat, erkennt das Addon selbst (angelegt, Taschen, Bank).
 - Das aktive Set wird an alle verteilt; unter „Gear-Sets → Alle Sets“ sieht jeder den Stand der anderen.

@@ -645,4 +645,6 @@ LC:RegisterLocale("enUS", {
     ["Noch keine Sets bekannt. Sets kommen von allen mit Light Council in Gilde und Raid – „Aktualisieren“ fragt sie ab."] = "No sets known yet. Sets come from everyone with Light Council in guild and raid – “Refresh” requests them.",
     ["%d Spieler mit Set  ·  Maus über eine Zeile zeigt das ganze Set"] = "%d players with a set  ·  hover a row to see the whole set",
     ["Dein Set #%d"] = "Your set #%d",
+    [" (alt)"] = " (old)",
+    ["Stand: %s"] = "As of: %s",
 })

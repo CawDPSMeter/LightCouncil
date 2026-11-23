@@ -645,4 +645,6 @@ LC:RegisterLocale("ruRU", {
     ["Noch keine Sets bekannt. Sets kommen von allen mit Light Council in Gilde und Raid – „Aktualisieren“ fragt sie ab."] = "Наборы пока неизвестны. Они приходят от всех с Light Council в гильдии и рейде – «Обновить» их запрашивает.",
     ["%d Spieler mit Set  ·  Maus über eine Zeile zeigt das ganze Set"] = "Игроков с набором: %d  ·  наведите на строку, чтобы увидеть весь набор",
     ["Dein Set #%d"] = "Ваш набор №%d",
+    [" (alt)"] = " (устар.)",
+    ["Stand: %s"] = "Состояние: %s",
 })
