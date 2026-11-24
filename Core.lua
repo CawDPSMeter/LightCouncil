@@ -334,6 +334,16 @@ function LC:IsTrustedLeader(sender)
     return m ~= nil and ((m.rank or 0) >= 2 or m.isML == true)
 end
 
+-- Ist dieser Spieler in meiner Gilde? (Gildenliste, gleicher Name)
+function LC:IsGuildMember(name)
+    if not name or not IsInGuild() or not GetGuildRosterInfo or not GetNumGuildMembers then return false end
+    for i = 1, (GetNumGuildMembers() or 0) do
+        local gName = GetGuildRosterInfo(i)
+        if gName and self:SameName(gName, name) then return true end
+    end
+    return false
+end
+
 function LC:GetCouncilSize()
     return (self.db.config.councilSize == 5) and 5 or 3
 end

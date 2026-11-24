@@ -431,11 +431,14 @@ end
 -- Der Council nimmt Reservierungen nur für bekannte Raids an: sonst könnte jemand mit erfundenen
 -- Raid-Namen die Grenze von 40 Raids füllen, und für neue Raids ginge nichts mehr.
 ------------------------------------------------------------------------
-local knownKeys, knownChecked
+local knownKeys, knownBuilt
 function LC:IsKnownRaidKey(key)
     if key == "custom" then return true end
-    if not knownChecked then
-        knownChecked = true
+    -- Neu aufbauen beim ersten Mal und – höchstens einmal pro Minute – wenn ein Raid fehlt:
+    -- direkt nach dem Login sind Loot-Quellen evtl. noch nicht fertig geladen.
+    local stale = not knownBuilt or ((not knownKeys or not knownKeys[key]) and GetTime() - knownBuilt >= 60)
+    if stale then
+        knownBuilt = GetTime()
         local lists = {}
         for _, r in ipairs({ { key = "naowh", fn = ReadNaowh }, { key = "atlas", fn = ReadAtlas } }) do
             if self:LootSourceAvailable(r.key) then

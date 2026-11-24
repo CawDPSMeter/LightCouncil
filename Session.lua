@@ -516,6 +516,8 @@ function LC:HandleRoll(name, roll, minRoll, maxRoll)
         if not allowedName then return end
         key, displayName = allowedKey, allowedName
     end
+    -- Freies Würfeln: nur Würfe aus der eigenen Gruppe (im Systemchat stehen je nach Server auch Spieler in der Nähe)
+    if not r.allowed and not self:IsMe(name) and not self:FindExact(self:GetGroupMembers(), name) then return end
     if r.rolls[key] then return end
     r.rolls[key] = { name = displayName, roll = roll, os = offspec or nil }
     r.count = r.count + 1

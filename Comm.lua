@@ -169,15 +169,21 @@ function LC:OnComm(msg, sender, channel)
     elseif cmd == "V" then
         local names = {}
         if parts[4] and parts[4] ~= "" then
-            for n in parts[4]:gmatch("[^,]+") do names[#names + 1] = n end
+            for n in parts[4]:gmatch("[^,]+") do
+                n = self:CleanText(n, 40)
+                if n ~= "" then names[#names + 1] = n end
+            end
         end
         self:OnVote(sender, parts[2], parts[3], names, parts[5] or "")
     elseif cmd == "D" then
         if self:IsMe(sender) then return end
-        -- Vom Council oder von der Raidleitung (die ohne Council-Sitz auch Werte einträgt)
-        if not (self:IsCouncilMember(sender) or self:IsTrustedLeader(sender)) then return end
-        if parts[2] == "P" then self:SetParse(parts[3], parts[4], false)
-        elseif parts[2] == "E" then self:SetEngagement(parts[3], parts[4], false) end
+        -- Vom Council oder von der eigenen Raidleitung (die ohne Council-Sitz auch Werte einträgt) –
+        -- nur aus der eigenen Gilde, sonst könnte der Leiter eines fremden Raids die Bewertungen ändern
+        if not (self:IsCouncilMember(sender) or (self:IsTrustedLeader(sender) and self:IsGuildMember(sender))) then return end
+        local who = self:CleanText(parts[3] or "", 40)
+        if who == "" then return end
+        if parts[2] == "P" then self:SetParse(who, parts[4], false)
+        elseif parts[2] == "E" then self:SetEngagement(who, parts[4], false) end
         self:RefreshUI()
     end
 end

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.19.3
+Security fixes.
+
+- **Free rolls** only count rolls from members of your own group – players standing nearby can no longer win an item.
+- **Parse/engagement** from a raid lead without a council seat are only accepted if the raid lead is in your guild – the lead of a pug raid can no longer change your ratings.
+- **Reservations:** if a raid is missing from the council's check (loot sources still loading after login), the list is rebuilt at most once a minute instead of rejecting valid reservations until the next reload.
+- Names in council votes and in parse/engagement messages are cleaned of WoW formatting codes.
+
 ## 0.19.2
 Security fixes.
 
