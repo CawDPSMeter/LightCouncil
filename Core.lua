@@ -126,13 +126,12 @@ end
 
 -- Zwei Namen gelten als gleich, wenn sie identisch sind oder einer nur der Vorname des anderen ist
 -- (der Council kann für Spieler ohne Addon auch nur den Vornamen eintragen).
--- Nur für eingetippte Namen und die Anzeige – Berechtigungen prüfen mit SameName/FindExact.
+-- Kein Vergleich „ohne Leerzeichen“ mehr (bis 0.19.1): sonst galt „Ann Amüller“ als „Anna Müller“ –
+-- auch beim Würfeln, bei Score, Cooldown und Gear-Sets.
 function LC:NamesMatch(a, b)
     local ka, kb = self:NameKey(a), self:NameKey(b)
     if not ka or not kb then return false end
     if ka == kb then return true end
-    -- Ohne Leerzeichen eingetippt: "ShockBrown" soll "Shock Brown" finden
-    if ka:gsub(" ", "") == kb:gsub(" ", "") then return true end
     if not ka:find(" ") and kb:find(" ") then return kb:match("^(%S+)") == ka end
     if not kb:find(" ") and ka:find(" ") then return ka:match("^(%S+)") == kb end
     return false
@@ -158,8 +157,7 @@ function LC:FindByName(tbl, name)
 end
 
 -- Für Berechtigungen und Absender von Nachrichten: gleicher Name (Groß-/Kleinschreibung und Leerzeichen
--- vereinheitlicht). Anders als NamesMatch ohne den Vergleich „ohne Leerzeichen“ – sonst könnte sich
--- „Ann Amüller“ als „Anna Müller“ ausgeben. Die Vornamen-Regel greift nur, wenn ein Name gar keinen
+-- vereinheitlicht), wie NamesMatch. Die Vornamen-Regel greift nur, wenn ein Name gar keinen
 -- Nachnamen hat (z. B. von Hand eingetragen); in Forever hat jeder Charakter einen.
 local function SameKey(ka, kb)
     if not ka or not kb then return false end

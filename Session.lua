@@ -808,7 +808,7 @@ function LC:VoteSessionCandidates(sender, sid, payload)
     for item in payload:gmatch("[^;]+") do
         local name, score, att, parse, eng, flags = strsplit(":", item)
         table.insert(s.candidates, {
-            name = name, score = tonumber(score), att = tonumber(att),
+            name = self:CleanText(name, 40), score = tonumber(score), att = tonumber(att),
             parse = tonumber(parse), eng = tonumber(eng), flags = flags or "",
         })
     end

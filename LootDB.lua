@@ -424,3 +424,29 @@ function LC:MigrateRaidKeys(raids)
     end
     if moved and self.RebuildReservers then self:RebuildReservers() end
 end
+
+------------------------------------------------------------------------
+-- Gibt es diesen Raid-Schlüssel in einer installierten Loot-Quelle? (unabhängig von der gewählten Quelle)
+-- true/false – oder nil, wenn keine Quelle installiert ist und sich das nicht prüfen lässt.
+-- Der Council nimmt Reservierungen nur für bekannte Raids an: sonst könnte jemand mit erfundenen
+-- Raid-Namen die Grenze von 40 Raids füllen, und für neue Raids ginge nichts mehr.
+------------------------------------------------------------------------
+local knownKeys, knownChecked
+function LC:IsKnownRaidKey(key)
+    if key == "custom" then return true end
+    if not knownChecked then
+        knownChecked = true
+        local lists = {}
+        for _, r in ipairs({ { key = "naowh", fn = ReadNaowh }, { key = "atlas", fn = ReadAtlas } }) do
+            if self:LootSourceAvailable(r.key) then
+                local entries = {}
+                if pcall(r.fn, entries) then lists[#lists + 1] = { key = r.key, entries = entries } end
+            end
+        end
+        local keys = {}
+        for _, m in ipairs(Merge(lists)) do keys[m.key] = true end
+        knownKeys = next(keys) and keys or nil
+    end
+    if not knownKeys then return nil end
+    return knownKeys[key] == true
+end

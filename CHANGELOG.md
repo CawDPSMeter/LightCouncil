@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.19.2
+Security fixes.
+
+- **Rolls:** a roll from a player with a similar name (e.g. “Ann Amüller” for “Anna Müller”) no longer counts as the eligible player's roll. The space-less name comparison is gone everywhere – also for score, loot cooldown, attendance and gear sets.
+- **Reservations:** the council only accepts reservations for raids that exist in an installed loot source. Invented raid names can no longer fill the limit of 40 raids and block reservations for new raids.
+- Names received from other players (council list, reservations, winners, reservers, vote candidates) are cleaned of WoW formatting codes.
+
 ## 0.19.1
 Fixes from a code review.
 

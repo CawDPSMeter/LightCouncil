@@ -370,7 +370,10 @@ function LC:ResHandle(cmd, p, sender)
 
     if cmd == "YL" then
         local list = {}
-        for n in (p[2] or ""):gmatch("[^;]+") do list[#list + 1] = n end
+        for n in (p[2] or ""):gmatch("[^;]+") do
+            n = self:CleanText(n, 40)
+            if n ~= "" then list[#list + 1] = n end
+        end
         -- Erste Liste nur von Raidleitung/Gildenleitung, danach nur Änderungen vom bekannten Council
         local trusted
         if #self:GetTrustedCouncil() == 0 then
@@ -401,6 +404,8 @@ function LC:ResHandle(cmd, p, sender)
     if not raid or raid == "" or #raid > 60 or raid:find("[|;]") then return end
     -- Neue Raid-Schlüssel nur in Grenzen anlegen (Schutz vor aufgeblähten SavedVariables)
     if not (self.db.reserves and self.db.reserves[raid]) then
+        -- Raider: nur Raids, die es in einer Loot-Quelle gibt (ohne Quelle nicht prüfbar – dann nur die Grenze)
+        if (cmd == "YR" or cmd == "YC") and self:IsKnownRaidKey(raid) == false then return end
         local n = 0
         for _ in pairs(self.db.reserves or {}) do n = n + 1 end
         if n >= 40 then return end
@@ -465,8 +470,8 @@ function LC:ResHandle(cmd, p, sender)
     end
 
     if not CheckEpoch(R, p[3]) then return end
-    local name = p[4]
-    if not name or name == "" then return end
+    local name = self:CleanText(p[4] or "", 40)
+    if name == "" then return end
     local rec, key = self:FindByName(R.players, name)
 
     if cmd == "YA" then

@@ -137,7 +137,7 @@ end
 local function SplitNames(s, into)
     into = into or {}
     for n in (s or ""):gmatch("[^,]+") do
-        n = strtrim(n)
+        n = LC:CleanText(n, 40)
         if n ~= "" then into[#into + 1] = n end
     end
     return into
@@ -213,7 +213,7 @@ function LC:OnRaidComm(cmd, p, sender)
         end
     elseif cmd == "RW" then
         it.state = "done"
-        it.winner, it.winRoll = p[4], tonumber(p[5])
+        it.winner, it.winRoll = LC:CleanText(p[4] or "", 40), tonumber(p[5])
         it.winOS = (p[6] == "1") or nil
         if R.activeIdx == idx then R.activeIdx = nil end
     elseif cmd == "RN" then
@@ -224,9 +224,10 @@ function LC:OnRaidComm(cmd, p, sender)
         if R.activeIdx == idx then R.activeIdx = nil end
     elseif cmd == "RA" then
         -- Wurf/Off Spec nur übernehmen, wenn der Würfelgewinner das Item auch bekommen hat
-        local sameWinner = it.winner and self:NamesMatch(it.winner, p[4] or "")
+        local winner = self:CleanText(p[4] or "", 40)
+        local sameWinner = it.winner and self:NamesMatch(it.winner, winner)
         it.state = "awarded"
-        it.winner = p[4]
+        it.winner = winner
         if not sameWinner then it.winRoll, it.winOS = nil, nil end
         if p[5] == "1" then it.winOS = true end
         if R.activeIdx == idx then R.activeIdx = nil end
