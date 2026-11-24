@@ -385,11 +385,11 @@ local function SetTooltip(owner, s)
     GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
     GameTooltip:SetText(s.name .. "  ·  " .. s.set, 1, 1, 1)
     for _, it in ipairs(s.items) do
-        local mark = it.have and CHECK or (it.important and LC.STAR or "     ")
+        local mark = it.have and CHECK or (it.important and LC.STAR or (it.upgrade and LC.UPGRADE) or "     ")
         GameTooltip:AddDoubleLine(mark .. " " .. LC:ItemLink(it.id), (LC:ItemSlot(it.id)), 1, 1, 1, 0.6, 0.6, 0.6)
     end
     GameTooltip:AddLine(" ")
-    GameTooltip:AddLine(CHECK .. " " .. L["hat es"] .. "    " .. LC.STAR .. " " .. L["wichtig"], 0.6, 0.6, 0.6)
+    GameTooltip:AddLine(CHECK .. " " .. L["hat es"] .. "    " .. LC.STAR .. " " .. L["wichtig"] .. "    " .. LC.UPGRADE .. L["Upgrade"], 0.6, 0.6, 0.6)
     GameTooltip:Show()
 end
 
@@ -459,6 +459,41 @@ local function RefreshMine(p)
         g.total = g.total + 1
         local id = slots[s.key]
         if id and LC:HaveItem(id) then g.have = g.have + 1 end
+    end
+
+    -- Zeile für ein Upgrade füllen (wie ein Slot, aber ohne Stern; reservieren geht genauso)
+    local function FillUpgrade(r, id, order)
+        r.itemID = id
+        r.slotLabel = LC:GearSlotLabel(LC.GEAR_SLOTS[order].key) .. " – " .. L["Upgrade"]
+        r.slot:SetText("   " .. LC.UPGRADE .. H.warn .. L["Upgrade"] .. "|r")
+        local owned = LC:HaveItem(id)
+        r.icon.tex:SetTexture(LC:ItemIcon(id))
+        ItemQualityBorder(r.icon, id)
+        r.icon:Show()
+        r.name:SetText(LC:ItemLink(id))
+        r.src:SetText(SourceText(id))
+        r.state:SetText(owned and (H.good .. L["Hast du"] .. "|r") or (H.warn .. L["Fehlt"] .. "|r"))
+        r.stripe:SetShown(owned)
+        r.star:Hide()
+        r.del:Show()
+        local src = LC:ItemSource(id)
+        r.raidKey = src and src.raid.key or nil
+        r.raidName = src and src.raid.name or nil
+        if r.raidKey then
+            raidsInSet[r.raidKey] = raidsInSet[r.raidKey] or { key = r.raidKey, name = r.raidName, order = order }
+            local on = U.ResSelected(r.raidKey, id)
+            r.res:SetChecked(on)
+            r.res:SetEnabled(on or #U.ResSel(r.raidKey) < LC:MaxReserves())
+            local rec = LC:GetReservation(r.raidKey)
+            local saved = false
+            for _, x in ipairs(rec and rec.items or {}) do if x == id then saved = true end end
+            local lc = saved and C.good or C.text
+            r.res.label:SetTextColor(lc[1], lc[2], lc[3])
+        else
+            r.res:SetChecked(false)
+            r.res:SetEnabled(false)
+        end
+        r.res:Show()
     end
 
     local lastGroup
@@ -531,6 +566,22 @@ local function RefreshMine(p)
             r.raidKey, r.raidName = nil, nil
         end
         r:Show()
+
+        -- Upgrade (zweite Wahl) direkt unter dem Slot
+        local up = set and set.upgrades and set.upgrades[s.key]
+        local u = slotRows[100 + i]
+        if up then
+            u = GetSlotRow(mine.list, 100 + i)
+            u.index = i
+            u:ClearAllPoints()
+            u:SetPoint("TOPLEFT", 0, -y)
+            y = y + SLOT_ROW
+            FillUpgrade(u, up, i)
+            u:Show()
+        elseif u then
+            u.itemID = nil
+            u:Hide()
+        end
     end
     mine.list:SetHeight(math.max(1, y))
 
@@ -596,15 +647,18 @@ local function RefreshRaid(p)
             r.name:SetText(s.name)
             r.set:SetText(s.set)
             -- Als Nächstes: fehlende Items, wichtige zuerst
+            local total = 0
+            for _, it in ipairs(s.items) do if not it.upgrade then total = total + 1 end end
             local have, first, rest = 0, {}, {}
             for _, it in ipairs(s.items) do
-                if it.have then have = have + 1
+                if it.upgrade then -- Upgrades zählen nicht zum Fortschritt
+                elseif it.have then have = have + 1
                 elseif it.important then first[#first + 1] = it
                 else rest[#rest + 1] = it end
             end
             for _, it in ipairs(rest) do first[#first + 1] = it end
-            local pc = (#s.items > 0 and have == #s.items) and H.good or ""
-            r.progress:SetText(pc .. have .. " / " .. #s.items .. ((pc ~= "") and "|r" or ""))
+            local pc = (total > 0 and have == total) and H.good or ""
+            r.progress:SetText(pc .. have .. " / " .. total .. ((pc ~= "") and "|r" or ""))
             for k, ic in ipairs(r.icons) do
                 local it = first[k]
                 if it then
@@ -631,8 +685,8 @@ end
 
 -- Hinweis unten, wenn keine Meldung ansteht
 local HINTS = {
-    mine = "Pro Slot ein Item. Der Stern markiert, was dir besonders wichtig ist – das sieht der Council bei der Abstimmung.",
-    items = "Häkchen „Set“ legt das Item in dein aktives Set (pro Slot eins – ein neues ersetzt das alte).",
+    mine = "Pro Slot ein Item, darunter optional ein Upgrade (zweite Wahl). Der Stern markiert, was dir wichtig ist.",
+    items = "„Set“: bestes Item für den Slot (ein neues ersetzt das alte). „Upgrade“: zweite Wahl, besser als dein jetziges.",
     raid = "",
     council = "Nur bei Council-Items entscheidet der Council, wer würfeln darf. Sie gelten beim Plündermeister.",
 }

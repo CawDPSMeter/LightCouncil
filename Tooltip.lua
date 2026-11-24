@@ -30,10 +30,12 @@ local function AddInfo(tooltip, itemID)
     if LC.GetAllGearSets then
         for _, s in ipairs(LC:GetAllGearSets()) do
             local info = LC:GearSetRank(s.name, itemID)
-            if info and info.inSet then wanted[#wanted + 1] = { name = s.name, important = info.important } end
+            if info and info.inSet then
+                wanted[#wanted + 1] = { name = s.name, important = info.important, upgrade = info.upgrade, rank = info.important and 1 or (info.upgrade and 3 or 2) }
+            end
         end
         table.sort(wanted, function(a, b)
-            if a.important ~= b.important then return a.important == true end
+            if a.rank ~= b.rank then return a.rank < b.rank end
             return a.name < b.name
         end)
     end
@@ -46,7 +48,7 @@ local function AddInfo(tooltip, itemID)
     end
     if #wanted > 0 then
         local names = {}
-        for _, w in ipairs(wanted) do names[#names + 1] = w.important and (LC.STAR .. w.name) or w.name end
+        for _, w in ipairs(wanted) do names[#names + 1] = (w.important and (LC.STAR .. w.name)) or (w.upgrade and (LC.UPGRADE .. w.name)) or w.name end
         tooltip:AddLine(L("Im Gear-Set (%d): %s", #wanted, NameList(names)), 0.6, 0.85, 0.6, true)
     end
     tooltip.lcLines = tooltip.NumLines and tooltip:NumLines() or 0

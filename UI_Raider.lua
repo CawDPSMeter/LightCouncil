@@ -150,9 +150,10 @@ function LC:RefreshRaidFrame()
                 who = H.good .. L["Keine Reservierung – jeder darf würfeln|r"]
             end
             -- In meinem Gear-Set? Dann vorne anzeigen (★ = wichtig)
-            local mineInfo = self:IsInMySet(it.itemID) and self:GearSetRank(self:PlayerName(), it.itemID)
+            local mineInfo = (self:IsInMySet(it.itemID) or self:IsUpgradeInMySet(it.itemID)) and self:GearSetRank(self:PlayerName(), it.itemID)
             if mineInfo and mineInfo.inSet then
-                who = (mineInfo.important and (self.STAR .. " ") or "") .. H.good .. L["In deinem Set"] .. "|r   " .. who
+                who = (mineInfo.important and (self.STAR .. " ") or (mineInfo.upgrade and self.UPGRADE) or "") .. H.good
+                    .. (mineInfo.upgrade and L["Upgrade in deinem Set"] or L["In deinem Set"]) .. "|r   " .. who
             end
             r.who:SetText(who)
 

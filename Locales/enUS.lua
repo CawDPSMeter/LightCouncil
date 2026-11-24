@@ -694,4 +694,11 @@ LC:RegisterLocale("enUS", {
     ["Kein Item erkannt. Shift-Klick auf ein Item fügt den Link ein."] = "No item recognized. Shift-click an item to insert its link.",
     ["Deine Änderung (%s) wurde freigegeben:"] = "Your change (%s) was approved:",
     ["Deine Änderung (%s) wurde abgelehnt – die Reservierung bleibt:"] = "Your change (%s) was declined – the reservation stays:",
+    ["%s ist jetzt das Upgrade für „%s“."] = "%s is now the upgrade for “%s”.",
+    ["Upgrade"] = "Upgrade",
+    ["Dieses Item: Upgrade im Set (nicht das beste, aber besser als das jetzige), fehlt noch"] = "This item: upgrade in the set (not the best, but better than the current one), still missing",
+    ["Angehakt: zweite Wahl für diesen Slot – nicht so gut wie das beste Item im Set, aber besser als dein jetziges. Pro Slot ein Upgrade (Ringe und Schmuck: zwei)."] = "Ticked: second choice for this slot – not as good as the best item in the set, but better than your current one. One upgrade per slot (rings and trinkets: two).",
+    ["Upgrade in deinem Set"] = "Upgrade in your set",
+    ["Pro Slot ein Item, darunter optional ein Upgrade (zweite Wahl). Der Stern markiert, was dir wichtig ist."] = "One item per slot, optionally an upgrade below it (second choice). The star marks what matters to you.",
+    ["„Set“: bestes Item für den Slot (ein neues ersetzt das alte). „Upgrade“: zweite Wahl, besser als dein jetziges."] = "“Set”: best item for the slot (a new one replaces the old). “Upgrade”: second choice, better than your current one.",
 })

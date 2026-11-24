@@ -231,6 +231,9 @@ local function BuildGearSets(db)
                     for _, it in ipairs(LC:GearSetList(s)) do
                         items[#items + 1] = { itemID = it.id, slot = it.slot, important = it.important }
                     end
+                    for _, it in ipairs(LC:GearSetUpgradeList(s)) do
+                        items[#items + 1] = { itemID = it.id, slot = it.slot, upgrade = true }
+                    end
                 else
                     -- Set eines anderen Charakters im alten Format (wird beim Einloggen umgestellt)
                     for _, id in ipairs(s.items or {}) do items[#items + 1] = { itemID = id } end
@@ -245,7 +248,7 @@ local function BuildGearSets(db)
     for _, o in pairs(db.otherSets or {}) do
         local items = Arr()
         for _, it in ipairs(o.items or {}) do
-            items[#items + 1] = { itemID = it.id, have = it.have and true or false, important = it.important == true }
+            items[#items + 1] = { itemID = it.id, have = it.have and true or false, important = it.important == true, upgrade = it.upgrade == true }
         end
         others[#others + 1] = { name = o.name, set = o.set, time = o.time, items = items }
     end

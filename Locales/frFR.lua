@@ -694,4 +694,11 @@ LC:RegisterLocale("frFR", {
     ["Kein Item erkannt. Shift-Klick auf ein Item fügt den Link ein."] = "Aucun objet reconnu. Maj-clic sur un objet insère son lien.",
     ["Deine Änderung (%s) wurde freigegeben:"] = "Votre modification (%s) a été acceptée :",
     ["Deine Änderung (%s) wurde abgelehnt – die Reservierung bleibt:"] = "Votre modification (%s) a été refusée – la réservation reste :",
+    ["%s ist jetzt das Upgrade für „%s“."] = "%s est maintenant l'amélioration pour « %s ».",
+    ["Upgrade"] = "Upgrade",
+    ["Dieses Item: Upgrade im Set (nicht das beste, aber besser als das jetzige), fehlt noch"] = "Cet objet : amélioration dans le set (pas le meilleur, mais mieux que l'actuel), manque encore",
+    ["Angehakt: zweite Wahl für diesen Slot – nicht so gut wie das beste Item im Set, aber besser als dein jetziges. Pro Slot ein Upgrade (Ringe und Schmuck: zwei)."] = "Coché : second choix pour cet emplacement – moins bon que le meilleur objet du set, mais mieux que l'actuel. Une amélioration par emplacement (anneaux et bijoux : deux).",
+    ["Upgrade in deinem Set"] = "Amélioration dans votre set",
+    ["Pro Slot ein Item, darunter optional ein Upgrade (zweite Wahl). Der Stern markiert, was dir wichtig ist."] = "Un objet par emplacement, éventuellement une amélioration en dessous (second choix). L'étoile marque ce qui compte pour vous.",
+    ["„Set“: bestes Item für den Slot (ein neues ersetzt das alte). „Upgrade“: zweite Wahl, besser als dein jetziges."] = "« Set » : meilleur objet pour l'emplacement (un nouveau remplace l'ancien). « Amélioration » : second choix, mieux que l'actuel.",
 })

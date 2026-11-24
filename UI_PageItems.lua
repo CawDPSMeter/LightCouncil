@@ -83,6 +83,27 @@ local function CreateItemRow(parent, width, marked, setMsg)
             GameTooltip:Show()
         end)
         r.set:HookScript("OnLeave", GameTooltip_Hide)
+
+        -- Als Upgrade (zweite Wahl) für den Slot: nicht das beste Item, aber besser als das jetzige
+        r.upgrade = T:Check(r, L["Upgrade"])
+        r.upgrade:SetPoint("RIGHT", r.set, "LEFT", -78, 0)
+        r.upgrade:SetScript("OnClick", function(self)
+            if self:GetChecked() then
+                local ok, msg = LC:AddToGearSet({ r.itemID }, true)
+                if msg then setMsg((ok and H.good or H.warn) .. msg .. "|r") end
+            else
+                LC:RemoveFromGearSet(r.itemID)
+                setMsg(nil)
+            end
+            LC:RefreshUI()
+        end)
+        r.upgrade:HookScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(L["Upgrade"], 1, 1, 1)
+            GameTooltip:AddLine(L["Angehakt: zweite Wahl für diesen Slot – nicht so gut wie das beste Item im Set, aber besser als dein jetziges. Pro Slot ein Upgrade (Ringe und Schmuck: zwei)."], nil, nil, nil, true)
+            GameTooltip:Show()
+        end)
+        r.upgrade:HookScript("OnLeave", GameTooltip_Hide)
     end
 
     r:SetScript("OnEnter", function(self)
@@ -128,13 +149,15 @@ local function FillItemRow(r, itemID, chance)
         r.set:ClearAllPoints()
         if manage then
             r.set:SetPoint("RIGHT", r.council, "LEFT", -46, 0)
-            right = 76 + 18 + 46 + 18 + 30
+            right = 76 + 18 + 46 + 18 + 78 + 30
         else
             r.set:SetPoint("RIGHT", -46, 0)
-            right = 46 + 18 + 30
+            right = 46 + 18 + 78 + 30
         end
         r.set:SetChecked(LC:IsInMySet(itemID) ~= nil)
         r.set:SetEnabled(slots ~= nil)
+        r.upgrade:SetChecked(LC:IsUpgradeInMySet(itemID) ~= nil)
+        r.upgrade:SetEnabled(slots ~= nil)
     end
     local textW = r.width - 50 - right
     r.name:SetWidth(textW)

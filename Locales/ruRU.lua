@@ -694,4 +694,11 @@ LC:RegisterLocale("ruRU", {
     ["Kein Item erkannt. Shift-Klick auf ein Item fügt den Link ein."] = "Предмет не распознан. Shift-клик по предмету вставит ссылку.",
     ["Deine Änderung (%s) wurde freigegeben:"] = "Ваше изменение (%s) одобрено:",
     ["Deine Änderung (%s) wurde abgelehnt – die Reservierung bleibt:"] = "Ваше изменение (%s) отклонено – резерв остаётся:",
+    ["%s ist jetzt das Upgrade für „%s“."] = "%s теперь улучшение для «%s».",
+    ["Upgrade"] = "Апгрейд",
+    ["Dieses Item: Upgrade im Set (nicht das beste, aber besser als das jetzige), fehlt noch"] = "Этот предмет: улучшение в наборе (не лучшее, но лучше текущего), ещё нет",
+    ["Angehakt: zweite Wahl für diesen Slot – nicht so gut wie das beste Item im Set, aber besser als dein jetziges. Pro Slot ein Upgrade (Ringe und Schmuck: zwei)."] = "Отмечено: второй вариант для слота – хуже лучшего предмета в наборе, но лучше текущего. Одно улучшение на слот (кольца и аксессуары: два).",
+    ["Upgrade in deinem Set"] = "Улучшение в вашем наборе",
+    ["Pro Slot ein Item, darunter optional ein Upgrade (zweite Wahl). Der Stern markiert, was dir wichtig ist."] = "Один предмет на слот, под ним по желанию улучшение (второй вариант). Звезда отмечает важное для вас.",
+    ["„Set“: bestes Item für den Slot (ein neues ersetzt das alte). „Upgrade“: zweite Wahl, besser als dein jetziges."] = "«Набор»: лучший предмет для слота (новый заменяет старый). «Улучшение»: второй вариант, лучше текущего.",
 })

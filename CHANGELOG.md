@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.0
+- **Upgrade per slot:** next to the best item, every slot in a gear set can hold an **upgrade** – a second choice that is not as good, but still better than what you wear now. Tick “Upgrade” in the “Items” view; it shows up under the slot in “My set” and can be reserved there as well.
+- The council sees “upgrade” in the vote window and tooltips (best items first: ★ important, in set, then upgrade). The raider loot window and “My reservation” show it too.
+- “Take from gear set” adds upgrades last, and only if the best item for that slot is still missing.
+- Upgrades don't count towards set progress (“4 of 10”). They are shared in a separate message, so older versions keep working (they just don't see upgrades). The JSON export has an `upgrade` field.
+
 ## 0.21.0
 - **Reserve by whisper:** players without the addon whisper a council member `!lc [item]` and are entered automatically (same rules as in the addon: limit per raid, only items from a loot source). `!lc - [item]` removes, `!lc` shows their reservations and the commands.
 - If the reservation is already locked, the whisper becomes a change request; the player gets a whisper once the council decides.

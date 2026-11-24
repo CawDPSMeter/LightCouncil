@@ -64,7 +64,7 @@ flowchart LR
 
 ### For all raiders
 - **Reserve in the addon** – 1 to 5 items per raid (set by the council). Once saved, the choice is locked; changes go to the council as a request with a reason.
-- **Gear sets** – any number of named sets (e.g. one per biome), laid out by slot like the character window: one item per slot (two rings, two trinkets), important items marked with a star. Reserve straight from the set: each item has a “Reserve” tick for the raid it drops in. Pick items with a tick from a raid → boss → item overview. The addon detects what you already have (equipped, bags, bank).
+- **Gear sets** – any number of named sets (e.g. one per biome), laid out by slot like the character window: one item per slot (two rings, two trinkets), important items marked with a star, plus an optional **upgrade** per slot – a second choice that is not the best, but better than what you wear now. Reserve straight from the set: each item has a “Reserve” tick for the raid it drops in. Pick items with a tick from a raid → boss → item overview. The addon detects what you already have (equipped, bags, bank).
 - **Item search** – type part of a name or an item ID and pick the item from the list. The search covers every raid in the loot source and jumps straight to the right raid and boss – no more clicking through bosses.
 - **Loot window with a roll button** – Main Spec and Off Spec with one click, everyone sees the rolls live.
 - **Raid day reminder** – a notice at login on your raid days if you haven't reserved yet.
@@ -73,7 +73,7 @@ flowchart LR
 
 ### For the council
 - **Anonymous voting** on important items: *Release*, *Restrict* or *Sit out* – majority of 3 or 5 votes.
-- **Everything in one window:** score (attendance, parse, engagement), whether the item is in the player's gear set (“★ important”, “in set”, “has it”), what they currently wear in that slot (with item level), last item received, loot cooldown.
+- **Everything in one window:** score (attendance, parse, engagement), whether the item is in the player's gear set (“★ important”, “in set”, “upgrade”, “has it”), what they currently wear in that slot (with item level), last item received, loot cooldown.
 - **Log** of every decision with votes and reasons – traceable if anyone asks.
 - **Change requests** from raiders can be approved or declined; reservations can be entered for players without the addon – or they whisper a council member `!lc [item]` and are entered automatically.
 
@@ -97,7 +97,7 @@ Light Council turns this around: **the guild leadership doesn't maintain lists f
 | Biomes / situations | One separate list per biome needed | Any number of sets, one is active |
 | What does the player already have? | They have to enter or report it | Detected automatically by the addon |
 | What matters most to the player | Usually not recorded | Marked with a star per item |
-| Visible to the council | Separate spreadsheet or website | Right in the vote window (“★ important”, “in set”, “has it”) |
+| Visible to the council | Separate spreadsheet or website | Right in the vote window (“★ important”, “in set”, “upgrade”, “has it”) |
 | After a patch | Research the lists again | The raider adjusts their set in minutes |
 
 **What the council sees:** If player A still needs the item and marked it as important, while player B has it in the set but not marked, the decision is made quickly – no discussion, no follow-up questions.

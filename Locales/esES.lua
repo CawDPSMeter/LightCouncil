@@ -694,4 +694,11 @@ LC:RegisterLocale("esES", {
     ["Kein Item erkannt. Shift-Klick auf ein Item fügt den Link ein."] = "No se reconoce ningún objeto. Mayús+clic en un objeto inserta su enlace.",
     ["Deine Änderung (%s) wurde freigegeben:"] = "Tu cambio (%s) fue aprobado:",
     ["Deine Änderung (%s) wurde abgelehnt – die Reservierung bleibt:"] = "Tu cambio (%s) fue rechazado; la reserva se mantiene:",
+    ["%s ist jetzt das Upgrade für „%s“."] = "%s es ahora la mejora para «%s».",
+    ["Upgrade"] = "Mejora",
+    ["Dieses Item: Upgrade im Set (nicht das beste, aber besser als das jetzige), fehlt noch"] = "Este objeto: mejora en el set (no el mejor, pero mejor que el actual), aún falta",
+    ["Angehakt: zweite Wahl für diesen Slot – nicht so gut wie das beste Item im Set, aber besser als dein jetziges. Pro Slot ein Upgrade (Ringe und Schmuck: zwei)."] = "Marcado: segunda opción para esta ranura; no tan buena como el mejor objeto del set, pero mejor que la actual. Una mejora por ranura (anillos y abalorios: dos).",
+    ["Upgrade in deinem Set"] = "Mejora en tu set",
+    ["Pro Slot ein Item, darunter optional ein Upgrade (zweite Wahl). Der Stern markiert, was dir wichtig ist."] = "Un objeto por ranura y, opcionalmente, una mejora debajo (segunda opción). La estrella marca lo importante para ti.",
+    ["„Set“: bestes Item für den Slot (ein neues ersetzt das alte). „Upgrade“: zweite Wahl, besser als dein jetziges."] = "«Set»: mejor objeto para la ranura (uno nuevo sustituye al anterior). «Mejora»: segunda opción, mejor que la actual.",
 })

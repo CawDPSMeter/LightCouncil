@@ -467,10 +467,13 @@ local function RefreshMyRes()
             if chance then sub = H.good .. chance .. L[" %|r Drop   ·   "] .. sub end
             if LC:IsCouncilItem(id) then sub = sub .. "   ·   " .. H.accent .. L["Council-Item|r"] end
             local inSet = LC:IsInMySet(id)
-            if inSet then
+            local isUp = not inSet and LC:IsUpgradeInMySet(id)
+            if inSet or isUp then
                 local info = LC:GearSetRank(LC:PlayerName(), id)
                 local tag = (info and info.owned) and L["Set: hast du"]
-                    or ((info and info.important) and (LC.STAR .. " " .. L["Im Set"]) or L["Im Set"])
+                    or ((info and info.important) and (LC.STAR .. " " .. L["Im Set"]))
+                    or (isUp and (LC.UPGRADE .. L["Upgrade"]))
+                    or L["Im Set"]
                 sub = H.good .. tag .. "|r   ·   " .. sub
             end
             r.setBtn:SetText(inSet and L["Im Set"] or L["+ Set"])

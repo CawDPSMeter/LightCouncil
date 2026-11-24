@@ -5,18 +5,22 @@
 -- Ob man ein Item schon hat, erkennt das Addon selbst (angelegt, Taschen, Bank). Das aktive Set wird an
 -- alle Addon-Nutzer verteilt – so sieht jeder, wo ein Spieler im Gear steht.
 --
--- Daten: set = { slots = { [Slot] = itemID }, important = { [itemID] = true } }
+-- Daten: set = { slots = { [Slot] = itemID }, important = { [itemID] = true }, upgrades = { [Slot] = itemID } }
+--   upgrades: pro Slot eine zweite Wahl – nicht so gut wie das Item im Slot, aber besser als das jetzige.
+--   Upgrades zählen nicht beim Fortschritt („4 von 10“) und können nicht als wichtig markiert werden.
 --
 -- Nachrichten:
 --   GS~setname~id:h:w,…   alle -> Gilde/Raid (bzw. Whisper als Antwort): mein aktives Set
 --                         (h = 1: habe ich, w = 1: wichtig; ältere Versionen schicken nur id:h)
+--   GU~setname~id:h,…     direkt danach: die Upgrades des Sets (ältere Versionen ignorieren das)
 --   GQ                    alle -> Gilde/Raid: bitte aktive Sets schicken
 local _, LC = ...
 local L = LC.L
 
 local SEP = "~"
-local CMDS = { GS = true, GQ = true }
+local CMDS = { GS = true, GU = true, GQ = true }
 local MAX_ITEMS = 24          -- Obergrenze beim Empfang (ein Set hat höchstens 17 Slots)
+local MAX_UPGRADES = 24
 local MAX_OTHERS = 300
 local KEEP_OTHERS = 60 * 86400
 
@@ -177,8 +181,31 @@ local function Place(set, id)
     return pick, old
 end
 
+-- Ein Item als Upgrade in einen passenden Slot legen: freier Upgrade-Platz zuerst, sonst ersetzen
+local function PlaceUpgrade(set, id)
+    local cands = LC:GearSlotsFor(id)
+    if not cands then return nil end
+    set.upgrades = set.upgrades or {}
+    for _, key in ipairs(cands) do
+        if not set.upgrades[key] then
+            set.upgrades[key] = id
+            return key
+        end
+    end
+    local old = set.upgrades[cands[1]]
+    set.upgrades[cands[1]] = id
+    return cands[1], old
+end
+
+local function RemoveFrom(tbl, id)
+    for key, x in pairs(tbl or {}) do
+        if x == id then tbl[key] = nil return key end
+    end
+end
+
 -- Alte Sets (Liste in Reihenfolge, bis 0.18) auf Slots umstellen
 local function Migrate(set)
+    set.upgrades = set.upgrades or {}
     if set.slots then
         set.important = set.important or {}
         return
@@ -242,13 +269,24 @@ function LC:GearSetList(set)
     return out
 end
 
+-- Upgrades eines Sets in Slot-Reihenfolge: { { id, slot, upgrade = true } }
+function LC:GearSetUpgradeList(set)
+    local out = {}
+    if not set or not set.upgrades then return out end
+    for _, s in ipairs(SLOTS) do
+        local id = set.upgrades[s.key]
+        if id then out[#out + 1] = { id = id, slot = s.key, upgrade = true } end
+    end
+    return out
+end
+
 function LC:CreateGearSet(name)
     local d = MyData()
     name = CleanSetName(name)
     if name == "" then return false, L["Bitte einen Namen eingeben."] end
     if d.sets[name] then return false, L["Ein Set mit diesem Namen gibt es schon."] end
     if #d.order >= 10 then return false, L["Höchstens 10 Sets."] end
-    d.sets[name] = { slots = {}, important = {} }
+    d.sets[name] = { slots = {}, important = {}, upgrades = {} }
     d.order[#d.order + 1] = name
     d.active = name
     self:GearSetChanged()
@@ -287,22 +325,37 @@ end
 
 -- Items ins aktive Set legen (legt bei Bedarf „Set 1“ an). Ein Item pro Slot:
 -- ein neues Item ersetzt das bisherige im selben Slot.
-function LC:AddToGearSet(ids)
+-- asUpgrade = true: als Upgrade (zweite Wahl) des Slots statt als bestes Item
+function LC:AddToGearSet(ids, asUpgrade)
     local set, name = self:GetActiveSet()
     if not set then
         self:CreateGearSet(L["Set 1"])
         set, name = self:GetActiveSet()
     end
+    set.upgrades = set.upgrades or {}
     local added, lastText, notGear = 0, nil, 0
     for _, id in ipairs(ids or {}) do
         id = tonumber(id)
-        if id and not self:IsInMySet(id) then
-            local slot, old = Place(set, id)
+        local already = id and ((asUpgrade and self:IsUpgradeInMySet(id)) or (not asUpgrade and self:IsInMySet(id)))
+        if id and not already and self:GearSlotsFor(id) then
+            -- Ein Item ist entweder bestes Item oder Upgrade – nie beides
+            if asUpgrade then
+                RemoveFrom(set.slots, id)
+                set.important[id] = nil
+            else
+                RemoveFrom(set.upgrades, id)
+            end
+        end
+        if id and not already then
+            local slot, old
+            if asUpgrade then slot, old = PlaceUpgrade(set, id) else slot, old = Place(set, id) end
             if slot then
                 added = added + 1
                 self:ItemLink(id)
                 if old then
                     lastText = L("%s ersetzt %s.", self:ItemLink(id), self:ItemLink(old))
+                elseif asUpgrade then
+                    lastText = L("%s ist jetzt das Upgrade für „%s“.", self:ItemLink(id), self:GearSlotLabel(slot))
                 else
                     lastText = L("%s liegt jetzt im Slot „%s“.", self:ItemLink(id), self:GearSlotLabel(slot))
                 end
@@ -329,11 +382,23 @@ function LC:IsInMySet(itemID)
     return nil
 end
 
+-- Upgrade-Slot des Items im aktiven Set (nil = kein Upgrade)
+function LC:IsUpgradeInMySet(itemID)
+    local set = self:GetActiveSet()
+    if not set or not set.upgrades then return nil end
+    for key, id in pairs(set.upgrades) do
+        if id == itemID then return key end
+    end
+    return nil
+end
+
+-- Entfernt das Item aus dem aktiven Set – als bestes Item und als Upgrade
 function LC:RemoveFromGearSet(itemID)
     local set = self:GetActiveSet()
-    local key = self:IsInMySet(itemID)
-    if set and key then
-        set.slots[key] = nil
+    if not set then return end
+    local a = RemoveFrom(set.slots, itemID)
+    local b = RemoveFrom(set.upgrades, itemID)
+    if a or b then
         set.important[itemID] = nil
         self:GearSetChanged()
     end
@@ -355,14 +420,22 @@ function LC:GearSetItemsForRaid(raid)
     for _, boss in ipairs(raid.bosses or {}) do
         for _, id in ipairs(boss.items or {}) do inRaid[id] = true end
     end
-    local first, rest = {}, {}
+    local first, rest, upgrades = {}, {}, {}
     for _, it in ipairs(self:GearSetList(set)) do
         if inRaid[it.id] and not self:HaveItem(it.id) then
             local list = it.important and first or rest
             list[#list + 1] = it.id
         end
     end
+    -- Upgrades zuletzt – und nur, wenn das beste Item des Slots noch fehlt
+    for _, it in ipairs(self:GearSetUpgradeList(set)) do
+        local best = set.slots[it.slot]
+        if inRaid[it.id] and not self:HaveItem(it.id) and not (best and self:HaveItem(best)) then
+            upgrades[#upgrades + 1] = it.id
+        end
+    end
     for _, id in ipairs(rest) do first[#first + 1] = id end
+    for _, id in ipairs(upgrades) do first[#first + 1] = id end
     return first
 end
 
@@ -378,6 +451,9 @@ function LC:GetPlayerGearSet(name)
         for _, it in ipairs(self:GearSetList(set)) do
             items[#items + 1] = { id = it.id, have = self:HaveItem(it.id), important = it.important }
         end
+        for _, it in ipairs(self:GearSetUpgradeList(set)) do
+            items[#items + 1] = { id = it.id, have = self:HaveItem(it.id), upgrade = true }
+        end
         return { name = self:PlayerName(), set = setName, items = items, time = time() }
     end
     return (self:FindByName(self.db.otherSets or {}, name))
@@ -386,19 +462,24 @@ end
 -- Stand eines Items im Set eines Spielers.
 -- „Hat er schon“ gilt auch, wenn die Loot-Historie zeigt, dass er das Item bekommen hat –
 -- so kann sich niemand bedürftiger machen, indem er ein erhaltenes Item als fehlend meldet.
--- Rückgabe: { inSet (fehlt noch), important, owned, have, missing, total, set, time }
+-- Rückgabe: { inSet (fehlt noch), important, upgrade, owned, have, missing, total, set, time }
+-- have/missing/total zählen nur die besten Items, nicht die Upgrades.
 function LC:GearSetRank(name, itemID)
     local s = self:GetPlayerGearSet(name)
     if not s then return nil end
-    local info = { have = 0, missing = 0, total = #s.items, set = s.set, time = s.time }
+    local info = { have = 0, missing = 0, total = 0, set = s.set, time = s.time }
     for _, it in ipairs(s.items) do
         local got = it.have or WonByHistory(s.name, it.id)
-        if got then info.have = info.have + 1 else info.missing = info.missing + 1 end
-        if it.id == itemID then
+        if not it.upgrade then
+            info.total = info.total + 1
+            if got then info.have = info.have + 1 else info.missing = info.missing + 1 end
+        end
+        if it.id == itemID and not info.inSet and not info.owned then
             if got then info.owned = true
             else
                 info.inSet = true
-                info.important = it.important == true
+                info.important = (not it.upgrade and it.important == true) or nil
+                info.upgrade = it.upgrade == true or nil
             end
         end
     end
@@ -411,15 +492,19 @@ function LC:GearSetIsOld(info)
 end
 
 LC.STAR = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_1:13:13|t"
+LC.UPGRADE = "|TInterface\\Buttons\\Arrow-Up-Up:13:13:0:-2|t"
 
--- Kurztext für Listen: „★ wichtig“, „im Set“, „hat es“, „nicht im Set“ oder „kein Set“
+-- Kurztext für Listen: „★ wichtig“, „im Set“, „▲ Upgrade“, „hat es“, „nicht im Set“ oder „kein Set“
 function LC:GearSetRankText(name, itemID)
     local H = self.T.HEX
     local info = self:GearSetRank(name, itemID)
     if not info then return H.muted .. L["kein Set"] .. "|r" end
     if info.owned then return H.muted .. L["hat es"] .. "|r" end
     if not info.inSet then return H.muted .. L["nicht im Set"] .. "|r" end
-    local text = info.important and (self.STAR .. " " .. H.good .. L["wichtig"] .. "|r") or (H.accentLt .. L["im Set"] .. "|r")
+    local text
+    if info.important then text = self.STAR .. " " .. H.good .. L["wichtig"] .. "|r"
+    elseif info.upgrade then text = self.UPGRADE .. H.warn .. L["Upgrade"] .. "|r"
+    else text = H.accentLt .. L["im Set"] .. "|r" end
     if self:GearSetIsOld(info) then text = text .. H.muted .. L[" (alt)"] .. "|r" end
     return text
 end
@@ -436,7 +521,8 @@ function LC:AddGearSetTooltip(tooltip, name, itemID)
     end
     if itemID and info.inSet then
         tooltip:AddLine(info.important and L["Dieses Item: im Set, als wichtig markiert, fehlt noch"]
-            or L["Dieses Item: im Set, fehlt noch"], 0.8, 0.8, 0.8)
+            or (info.upgrade and L["Dieses Item: Upgrade im Set (nicht das beste, aber besser als das jetzige), fehlt noch"])
+            or L["Dieses Item: im Set, fehlt noch"], 0.8, 0.8, 0.8, true)
     elseif itemID and info.owned then
         tooltip:AddLine(L["Dieses Item ist schon vorhanden."], 0.8, 0.8, 0.8)
     elseif itemID then
@@ -475,14 +561,37 @@ local function EncodeMine()
     return head .. table.concat(parts, ",")
 end
 
+-- Upgrades als eigene Nachricht (nil, wenn das Set keine hat)
+local function EncodeUpgrades()
+    local set, name = LC:GetActiveSet()
+    local list = LC:GearSetUpgradeList(set)
+    if #list == 0 then return nil end
+    local head = strjoin(SEP, "GU", name, "")
+    local parts, len = {}, #head
+    for _, it in ipairs(list) do
+        local part = it.id .. ":" .. (LC:HaveItem(it.id) and "1" or "0")
+        if len + #part + 1 > 245 then break end
+        parts[#parts + 1] = part
+        len = len + #part + 1
+    end
+    return head .. table.concat(parts, ",")
+end
+
+-- Set (und Upgrades) an ein Ziel schicken; GU immer direkt nach GS, weil GS die Upgrades zurücksetzt
+local function SendMine(channel, target)
+    LC:SendLow(EncodeMine(), channel, target)
+    local up = EncodeUpgrades()
+    if up then LC:SendLow(up, channel, target) end
+end
+
 local lastSentSig
 function LC:BroadcastGearSet(force)
-    local msg = EncodeMine()
-    if not force and msg == lastSentSig then return end
-    lastSentSig = msg
-    if IsInGuild() then self:SendLow(msg, "GUILD") end
-    if IsInRaid() then self:SendLow(msg, "RAID")
-    elseif IsInGroup() then self:SendLow(msg, "PARTY") end
+    local sig = EncodeMine() .. "|" .. (EncodeUpgrades() or "")
+    if not force and sig == lastSentSig then return end
+    lastSentSig = sig
+    if IsInGuild() then SendMine("GUILD") end
+    if IsInRaid() then SendMine("RAID")
+    elseif IsInGroup() then SendMine("PARTY") end
 end
 
 -- Änderungen sammeln und nach kurzer Pause einmal senden
@@ -529,6 +638,26 @@ local function Receive(sender, setName, payload)
     LC:RefreshUI()
 end
 
+-- Upgrades kommen direkt nach dem Set (GS hat sie zurückgesetzt) – nur an ein Set mit gleichem Namen hängen
+local function ReceiveUpgrades(sender, setName, payload)
+    local key = LC:NameKey(sender)
+    local s = key and LC.db.otherSets and LC.db.otherSets[key]
+    if not s or s.set ~= LC:SafeText(setName, 30) then return end
+    local n = 0
+    for _, it in ipairs(s.items) do if it.upgrade then n = n + 1 end end
+    for id, h in (payload or ""):gmatch("(%d+):([01])") do
+        if n >= MAX_UPGRADES then break end
+        id = tonumber(id)
+        local dup = false
+        for _, it in ipairs(s.items) do if it.id == id then dup = true break end end
+        if not dup then
+            s.items[#s.items + 1] = { id = id, have = (h == "1"), upgrade = true }
+            n = n + 1
+        end
+    end
+    LC:RefreshUI()
+end
+
 local answered = {}
 local baseOnComm = LC.OnComm
 function LC:OnComm(msg, sender, channel)
@@ -540,11 +669,12 @@ function LC:OnComm(msg, sender, channel)
             local set = self:GetActiveSet()
             if key and set and #LC:GearSetList(set) > 0 and (GetTime() - (answered[key] or -999)) >= 60 then
                 answered[key] = GetTime()
-                C_Timer.After(1 + math.random() * 4, function() LC:SendLow(EncodeMine(), "WHISPER", sender) end)
+                C_Timer.After(1 + math.random() * 4, function() SendMine("WHISPER", sender) end)
             end
         else
             local setName, payload = rest:match("^([^~]*)~?(.*)$")
-            Receive(sender, setName, payload)
+            if cmd == "GU" then ReceiveUpgrades(sender, setName, payload)
+            else Receive(sender, setName, payload) end
         end
         return
     end
@@ -562,6 +692,7 @@ local function HaveChanged()
     if not LC.db then return end
     local set = LC:GetActiveSet()
     local list = LC:GearSetList(set)
+    for _, it in ipairs(LC:GearSetUpgradeList(set)) do list[#list + 1] = it end
     if #list == 0 then return end
     local sig = {}
     for i, it in ipairs(list) do sig[i] = LC:HaveItem(it.id) and "1" or "0" end
