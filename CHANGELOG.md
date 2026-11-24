@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.19.4
+Security fixes.
+
+- **First council list:** a raid lead is only accepted as the source of the first council list if they are in your guild. The lead of a pug raid can no longer set a fake council for new players (which then blocked the real council until `/lc councilreset`).
+- **Own reservation:** a council member can no longer change their own locked reservation via “Enter for a player” – like a change request, another council member decides.
+- **Privacy:** parse and engagement are only whispered to the raid lead if they are in your guild – no longer to the lead of a pug raid.
+- Loot window messages without a valid item number are ignored instead of causing a Lua error.
+
 ## 0.19.3
 Security fixes.
 

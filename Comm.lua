@@ -121,7 +121,8 @@ function LC:GetPrivateTargets()
             local rosterName, rank, _, _, _, _, _, online = GetRaidRosterInfo(i)
             if rosterName and online then
                 local full = self.isForever and self:UnitFullName("raid" .. i) or nil
-                if rank == 2 or Wanted(rosterName, full) then
+                -- Raidleiter nur aus der eigenen Gilde: Bewertungen sind vertraulich (nicht an fremde Raids)
+                if (rank == 2 and self:IsGuildMember(full or rosterName)) or Wanted(rosterName, full) then
                     Add(rosterName)
                     if full then seen[self:NameKey(full)] = true end
                 end

@@ -154,6 +154,8 @@ function LC:OnRaidComm(cmd, p, sender)
 
     local lid, idx = p[2], tonumber(p[3])
     local R = self.raid
+    -- Alles außer LS (dort steht die Anzahl) braucht eine gültige Item-Nummer
+    if cmd ~= "LS" and cmd ~= "LE" and not idx then return true end
 
     if cmd == "LS" then
         if not R or R.lid ~= lid then

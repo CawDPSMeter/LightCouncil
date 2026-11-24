@@ -96,11 +96,13 @@ function LC:IsTrustedCouncil(name)
 end
 
 -- Wer eine ERSTE Council-Liste schicken darf (solange noch keine bekannt ist):
--- Raidleiter, Gildenmeister oder Offiziere (Gildenrang 0 oder 1). Sonst könnte jeder
+-- Raidleiter aus der eigenen Gilde, Gildenmeister oder Offiziere (Gildenrang 0 oder 1). Sonst könnte jeder
 -- Gildenkollege zuerst eine falsche Liste schicken und der echte Council käme nicht mehr durch.
 function LC:IsTrustedFirstSource(sender)
+    -- Raidleiter nur aus der eigenen Gilde: sonst könnte der Leiter eines fremden Raids eine falsche
+    -- Council-Liste setzen, und der echte Council käme danach nicht mehr durch
     local m = self:FindExact(self:GetGroupMembers(), sender)
-    if m and (m.rank or 0) >= 2 then return true end
+    if m and (m.rank or 0) >= 2 and self:IsGuildMember(sender) then return true end
     if IsInGuild() and GetGuildRosterInfo and GetNumGuildMembers then
         for i = 1, (GetNumGuildMembers() or 0) do
             local name, _, rankIndex = GetGuildRosterInfo(i)
@@ -270,6 +272,10 @@ function LC:CouncilSetReservation(raid, name, items)
     if #items > self:MaxReserves() then return false, L["Höchstens "] .. self:MaxReserves() .. L[" Items pro Raid."] end
     local R = self:ResRaid(raid)
     local p, key = self:FindByName(R.players, name)
+    -- Die eigene gesperrte Reservierung ändert ein anderes Council-Mitglied (wie bei Änderungsanträgen)
+    if p and (p.rev or 0) > 0 and self:IsMe(p.name) then
+        return false, L["Deine gesperrte Reservierung ändert ein anderes Council-Mitglied – stell einen Änderungsantrag."]
+    end
     if not p then
         key = self:NameKey(name)
         p = { name = name, rev = 0 }

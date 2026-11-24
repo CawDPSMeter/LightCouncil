@@ -656,4 +656,5 @@ LC:RegisterLocale("esES", {
     ["Auswahl aus deinem Gear-Set übernommen (wichtige zuerst). Prüfen und speichern.|r"] = "Selección tomada de tu set (importantes primero). Revisa y guarda.|r",
     ["Wer ein Council-Item gewinnt, ist in dieser Woche und den folgenden so vielen Wochen bei Council-Items gesperrt. 0 = kein Cooldown."] = "Quien gana un objeto del consejo queda excluido de los objetos del consejo esa semana y las siguientes indicadas. 0 = sin espera.",
     ["Zeitraum für die Anwesenheit im Score (1–20 Wochen). Genau diesen Zeitraum gleicht der Council untereinander ab."] = "Periodo de asistencia en la puntuación (1–20 semanas). El consejo sincroniza exactamente este periodo.",
+    ["Deine gesperrte Reservierung ändert ein anderes Council-Mitglied – stell einen Änderungsantrag."] = "Otro miembro del consejo cambia tu reserva bloqueada: envía una solicitud de cambio.",
 })
