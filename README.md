@@ -73,7 +73,7 @@ flowchart LR
 
 ### For the council
 - **Anonymous voting** on important items: *Release*, *Restrict* or *Sit out* – majority of 3 or 5 votes.
-- **Everything in one window:** score (attendance, parse, engagement), whether the item is in the player's gear set (“★ important”, “in set”, “has it”), last item received, loot cooldown.
+- **Everything in one window:** score (attendance, parse, engagement), whether the item is in the player's gear set (“★ important”, “in set”, “has it”), what they currently wear in that slot (with item level), last item received, loot cooldown.
 - **Log** of every decision with votes and reasons – traceable if anyone asks.
 - **Change requests** from raiders can be approved or declined; reservations can be entered for players without the addon.
 

@@ -7,15 +7,60 @@ local H = T.HEX
 
 local frame
 local rows = {}
-local W = 720
+local W = 820
 local PAD = 16
 local ROW_H = 30
 local LIST_TOP = 138
-local COL = { name = 34, score = 250, att = 340, parse = 405, eng = 465, set = 525, last = 600 }
+local COL = { name = 34, score = 250, att = 340, parse = 405, eng = 465, set = 525, gear = 610, last = 705 }
 
 local function Val(v, suffix)
     if v == nil then return H.muted .. L["–|r"] end
     return tostring(v) .. (suffix or "")
+end
+
+-- Spalte „Angelegt“: was trägt der Kandidat im Slot des Items?
+local function SetGear(r, name, itemID)
+    local info = LC:GetEquippedFor(name, itemID)
+    for _, g in ipairs(r.gear) do g:Hide() g.lvl:SetText("") g.itemID, g.note = nil, nil end
+    r.gearText:SetText("")
+    if not info then
+        r.gearText:SetText(H.muted .. L["–|r"])   -- Item ohne Slot (z. B. Token)
+        return
+    end
+    if not info.known then
+        r.gearText:SetText(H.muted .. L["unbekannt"] .. "|r")
+        return
+    end
+    local note = info.stale and (L["veraltet"] .. " (" .. LC.EquippedAgeText(info.time) .. ")") or nil
+    for k, it in ipairs(info.items) do
+        local g = r.gear[k]
+        if not g then break end
+        g:Show()
+        g.itemID, g.note = it.id, note
+        if it.id then
+            g.tex:SetTexture(LC:ItemIcon(it.id))
+            g.tex:SetDesaturated(info.stale == true)
+            local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+            local qc = T:QualityColor(select(3, getInfo(it.id)))
+            g:SetBackdropBorderColor(qc[1], qc[2], qc[3], 1)
+            local lvl = LC:ItemLevelOf(it.id)
+            g.lvl:SetText(lvl and tostring(lvl) or "")
+            local lc = info.stale and C.muted or C.text
+            g.lvl:SetTextColor(lc[1], lc[2], lc[3])
+        else
+            g.tex:SetTexture(nil)
+            g:SetBackdropBorderColor(C.line[1], C.line[2], C.line[3], 1)
+            g.lvl:SetText(H.muted .. L["leer"] .. "|r")
+        end
+    end
+end
+
+-- Neue Ausrüstungsdaten angekommen: nur die Spalte im offenen Fenster neu zeichnen
+function LC:RefreshVoteEquipped()
+    if not frame or not frame:IsShown() or not self.voteSession then return end
+    for _, r in ipairs(rows) do
+        if r:IsShown() and r.candidate then SetGear(r, r.candidate.name, self.voteSession.itemID) end
+    end
 end
 
 local function CreateVoteFrame()
@@ -71,6 +116,7 @@ local function CreateVoteFrame()
     Head(L["PARSE"], COL.parse)
     Head(L["ENG."], COL.eng)
     Head(L["SET"], COL.set)
+    Head(L["ANGELEGT"], COL.gear)
     Head(L["LETZTES ITEM"], COL.last)
     local line = T:Line(frame, C.line)
     line:SetPoint("TOPLEFT", PAD, -LIST_TOP + 4)
@@ -147,8 +193,33 @@ local function GetRow(i)
     r.eng:SetPoint("LEFT", COL.eng, 0)
     r.set = T:Text(r, 11, C.text)
     r.set:SetPoint("LEFT", COL.set, 0)
-    r.set:SetWidth(COL.last - COL.set - 6)
+    r.set:SetWidth(COL.gear - COL.set - 6)
     r.set:SetWordWrap(false)
+    -- Angelegt: bis zu zwei Items (Ringe, Schmuck, Einhandwaffen) mit Itemlevel, Tooltip beim Drüberfahren
+    r.gear = {}
+    for k = 1, 2 do
+        local g = T:Icon(r, 18)
+        g:SetPoint("LEFT", COL.gear + (k - 1) * 46, 0)
+        g:EnableMouse(true)
+        g.lvl = T:Text(r, 10, C.muted)
+        g.lvl:SetPoint("LEFT", g, "RIGHT", 3, 0)
+        g:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            if self.itemID then
+                GameTooltip:SetHyperlink("item:" .. self.itemID)
+            else
+                GameTooltip:SetText(L["Angelegt"], 1, 1, 1)
+            end
+            if self.note then GameTooltip:AddLine(self.note, 1, 0.6, 0.3, true) end
+            GameTooltip:Show()
+        end)
+        g:SetScript("OnLeave", GameTooltip_Hide)
+        r.gear[k] = g
+    end
+    r.gearText = T:Text(r, 11, C.muted)
+    r.gearText:SetPoint("LEFT", COL.gear, 0)
+    r.gearText:SetWidth(COL.last - COL.gear - 6)
+    r.gearText:SetWordWrap(false)
     r.last = T:Text(r, 11, C.text)
     r.last:SetPoint("LEFT", COL.last, 0)
     r.last:SetWidth(W - 2 * PAD - COL.last - 8)
@@ -163,6 +234,7 @@ local function GetRow(i)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(self.candidate.name, 1, 1, 1)
         LC:AddGearSetTooltip(GameTooltip, self.candidate.name, LC.voteSession and LC.voteSession.itemID)
+        LC:AddEquippedTooltip(GameTooltip, self.candidate.name, LC.voteSession and LC.voteSession.itemID)
         LC:AddLootTooltip(GameTooltip, self.candidate.name, 6)
         GameTooltip:Show()
     end)
@@ -231,6 +303,7 @@ function LC:ShowVoteFrame(s, keep)
             r.eng:SetText(Val(c.eng, "/5"))
             -- Gear-Set: ist das Item im Set des Spielers (★ = wichtig)?
             r.set:SetText(self:GearSetRankText(c.name, s.itemID))
+            SetGear(r, c.name, s.itemID)
             -- Letztes Item: Council-Items lila hervorgehoben
             local loot = self:GetPlayerLoot(c.name)
             local last = loot[1]

@@ -7,6 +7,7 @@
 --   V~sid~DECISION~name,name~reason     Council -> Leitung (Whisper): Stimme
 --   E~sid~text                          Leitung -> Council: Abstimmung beendet
 --   D~P|E~name~value                    Council/Leitung -> Raid/Gilde: Parse/Engagement-Sync
+--   EQ~slot:id,… / EQQ                 alle -> Raid/Gruppe: angelegte Ausrüstung (siehe Equipped.lua)
 local _, LC = ...
 
 local SEP = "~"

@@ -140,6 +140,29 @@ local function GetLootRow(parent, i)
     r.info:SetPoint("TOPLEFT", 50, -27)
     r.info:SetWidth(LOOT_LW)
     r.info:SetWordWrap(false)
+    -- Maus über die Reservierer: was sie im Slot des Items angelegt haben
+    r.infoBtn = CreateFrame("Button", nil, r)
+    r.infoBtn:SetPoint("TOPLEFT", r.info, "TOPLEFT", 0, 2)
+    r.infoBtn:SetSize(LOOT_LW, 14)
+    r.infoBtn:SetScript("OnEnter", function(self)
+        local e = r.entry
+        if not e or e.test then return end
+        local res = LC:GetReservers(e.itemID)
+        if #res == 0 or not LC:EquipSlotsFor(e.itemID) then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(L["Angelegt im Slot"], 1, 1, 1)
+        for i, x in ipairs(res) do
+            if i > 10 then
+                GameTooltip:AddLine(L["… insgesamt "] .. #res, 0.6, 0.6, 0.6)
+                break
+            end
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddLine(x.name, 0.71, 0.55, 1)
+            LC:AddEquippedTooltip(GameTooltip, x.name, e.itemID)
+        end
+        GameTooltip:Show()
+    end)
+    r.infoBtn:SetScript("OnLeave", GameTooltip_Hide)
 
     r.council = T:Check(r, L["Council"], 14)
     r.council:SetPoint("LEFT", 62 + LOOT_LW, 8)

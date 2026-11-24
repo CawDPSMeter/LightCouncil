@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.20.0
+- **Vote window: equipped item.** A new “Equipped” column shows what each candidate currently wears in the item's slot (both slots for rings, trinkets and one-handers) with icon and item level; hovering shows the full item. Raid lead: hover the reservers in the loot window.
+- Players with the addon share their equipped items with the group (only when they change). For players without the addon, council and raid lead look them up in the background via inspect (out of combat, in range); otherwise it says “unknown”. Inspect data older than 30 minutes is marked as outdated.
+
 ## 0.19.5
 - **Settings are saved right away:** rules and score weights as soon as you leave a field or press Enter, the options as soon as you tick them. Before, changes were lost if you switched tabs without clicking “Save” (which is now only needed for the council names).
 - Settings: the “Number of members” label no longer overlaps the 3/5 buttons, and long labels in the rules section no longer run into the next field (“Score: performance (parse) %” is now “Score: parse %”).
