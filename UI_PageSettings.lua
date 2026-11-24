@@ -246,7 +246,7 @@ local function CreateSettingsPage(p)
     end
 
     -- OPTIONEN ---------------------------------------------------------
-    local c4 = Section(p, L["Optionen"], c2, 108)
+    local c4 = Section(p, L["Optionen"], c2, 136)
     local half = math.floor(CW / 2)
     local function CheckTip(cb, title, text)
         cb:HookScript("OnEnter", function(self)
@@ -277,6 +277,12 @@ local function CreateSettingsPage(p)
     CheckTip(p.raiderWindow, L["Loot-Fenster für Raider"], L["Öffnet sich, wenn Loot droppt: zeigt Items, Reservierungen und einen Würfel-Knopf für Berechtigte."])
     p.raiderWindow:SetScript("OnClick", function(self)
         LC.db.config.raiderWindow = self:GetChecked() and true or false
+    end)
+    p.whisperReserve = T:Check(c4, L["Reservieren per Flüstern (!lc)"])
+    p.whisperReserve:SetPoint("TOPLEFT", 16, -104)
+    CheckTip(p.whisperReserve, L["Reservieren per Flüstern"], L["Spieler ohne Addon flüstern dir „!lc [Item]“ und werden automatisch eingetragen; „!lc - [Item]“ entfernt, „!lc“ zeigt ihre Reservierungen. Gilt nur, wenn du im Council bist; als Raidleitung ohne Council-Sitz verweist das Addon auf den Council. Befehle und Antworten werden im Chat ausgeblendet."])
+    p.whisperReserve:SetScript("OnClick", function(self)
+        LC.db.config.whisperReserve = self:GetChecked() and true or false
     end)
 
     p.msg = T:Text(p, 12, C.muted)
@@ -321,6 +327,7 @@ local function RefreshSettings()
     p.raidWarning:SetChecked(cfg.raidWarning)
     p.minimap:SetChecked(not cfg.minimap.hide)
     p.raiderWindow:SetChecked(cfg.raiderWindow)
+    p.whisperReserve:SetChecked(cfg.whisperReserve ~= false)
 end
 
 

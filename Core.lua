@@ -36,6 +36,7 @@ local DEFAULTS = {
         tooltip = true,         -- Council-Item und Reservierer im Item-Tooltip anzeigen
         language = "auto",      -- Sprache: auto (Spielclient) / deDE / enUS / frFR / esES / ruRU
         jsonOnLogout = true,    -- JSON-Export beim Ausloggen in die SavedVariables schreiben (LightCouncilExport)
+        whisperReserve = true,  -- Spieler ohne Addon reservieren per Flüstern (!lc [Item]) – nur beim Council
     },
     reserves = {},      -- Reservierungen im Addon (siehe Reserve.lua)
     knownCouncil = {},  -- vom Council übermittelte Council-Liste (für Raider ohne eigene Einstellung)

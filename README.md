@@ -75,7 +75,7 @@ flowchart LR
 - **Anonymous voting** on important items: *Release*, *Restrict* or *Sit out* – majority of 3 or 5 votes.
 - **Everything in one window:** score (attendance, parse, engagement), whether the item is in the player's gear set (“★ important”, “in set”, “has it”), what they currently wear in that slot (with item level), last item received, loot cooldown.
 - **Log** of every decision with votes and reasons – traceable if anyone asks.
-- **Change requests** from raiders can be approved or declined; reservations can be entered for players without the addon.
+- **Change requests** from raiders can be approved or declined; reservations can be entered for players without the addon – or they whisper a council member `!lc [item]` and are entered automatically.
 
 ### For the raid lead
 - **Automatic awarding** to the winner while the loot window is open.
@@ -194,6 +194,16 @@ The language follows your game client; switch it with `/lc lang en` (or `de`, `f
 | `/lc councilreset` | Forget the stored council list and request it again |
 | `/lc help` | All commands |
 
+**Whisper commands for players without the addon** (whisper a council member; turn off under *Settings → Options*):
+
+| Whisper | What it does |
+|---|---|
+| `!lc [item] [item]` | Reserve the items for the raid they drop in (same limit as in the addon) |
+| `!lc - [item]` | Remove items from your reservation |
+| `!lc` | Show your reservations and the commands |
+
+If the reservation is already locked, the whisper becomes a change request; the player gets a whisper when the council decides. Commands and replies are hidden from the council member's chat.
+
 ---
 
 ## JSON export
@@ -226,7 +236,7 @@ Parse, engagement and the log are only included when a council member exports; v
 ## FAQ
 
 **Does everyone need the addon?**
-No. Without the addon, players roll as usual with `/roll` in raid chat, and the council can enter reservations for them. With the addon it is a lot faster, though.
+No. Without the addon, players roll as usual with `/roll` in raid chat. They reserve by whispering a council member `!lc [item]`, or the council enters reservations for them. With the addon it is a lot faster, though.
 
 **Do I have to create a gear set?**
 No. The set helps you and informs the council. You can reserve without a set.

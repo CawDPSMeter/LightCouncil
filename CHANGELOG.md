@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.21.0
+- **Reserve by whisper:** players without the addon whisper a council member `!lc [item]` and are entered automatically (same rules as in the addon: limit per raid, only items from a loot source). `!lc - [item]` removes, `!lc` shows their reservations and the commands.
+- If the reservation is already locked, the whisper becomes a change request; the player gets a whisper once the council decides.
+- Only council members process the commands; a raid lead without a council seat replies with the council names. Senders must be in your group or guild; at most one command every 3 seconds per player. Commands and replies are hidden from chat.
+- New option under *Settings → Options*: “Reserve by whisper (!lc)” (on by default).
+
 ## 0.20.0
 - **Vote window: equipped item.** A new “Equipped” column shows what each candidate currently wears in the item's slot (both slots for rings, trinkets and one-handers) with icon and item level; hovering shows the full item. Raid lead: hover the reservers in the loot window.
 - Players with the addon share their equipped items with the group (only when they change). For players without the addon, council and raid lead look them up in the background via inspect (out of combat, in range); otherwise it says “unknown”. Inspect data older than 30 minutes is marked as outdated.
