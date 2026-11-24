@@ -44,6 +44,8 @@ local function LabeledInput(card, label, width, x, y)
     local l = T:Text(card, 11, C.muted)
     l:SetPoint("TOPLEFT", x, -y)
     l:SetText(label)
+    l:SetWidth(width)          -- nie in das Nachbarfeld laufen (lange Übersetzungen werden gekürzt)
+    l:SetWordWrap(false)
     local e = T:Input(card, width, 28)
     e:SetPoint("TOPLEFT", l, "BOTTOMLEFT", 0, -5)
     return e
@@ -124,7 +126,8 @@ local function CreateSettingsPage(p)
             p.size = n
             p:UpdateCouncilSize()
         end)
-        if prev then b:SetPoint("LEFT", prev, "RIGHT", -1, 0) else b:SetPoint("TOPLEFT", 150, -SIZE_ROW) end
+        -- erster Knopf direkt hinter der Beschriftung (deren Länge hängt von der Sprache ab)
+        if prev then b:SetPoint("LEFT", prev, "RIGHT", -1, 0) else b:SetPoint("LEFT", sizeLabel, "RIGHT", 14, 0) end
         p.sizeButtons[n] = b
         prev = b
     end
@@ -194,11 +197,53 @@ local function CreateSettingsPage(p)
     InputTip(p.cooldown, L["Loot-Cooldown (Wochen)"], L["Wer ein Council-Item gewinnt, ist in dieser Woche und den folgenden so vielen Wochen bei Council-Items gesperrt. 0 = kein Cooldown."])
     InputTip(p.attWeeks, L["Anwesenheit (Wochen)"], L["Zeitraum für die Anwesenheit im Score (1–20 Wochen). Genau diesen Zeitraum gleicht der Council untereinander ab."])
     p.wAtt = LabeledInput(c2, L["Score: Anwesenheit %"], fw, 16, 104)
-    p.wParse = LabeledInput(c2, L["Score: Leistung (Parse) %"], fw, 16 + step, 104)
+    p.wParse = LabeledInput(c2, L["Score: Parse %"], fw, 16 + step, 104)
     p.wEng = LabeledInput(c2, L["Score: Engagement %"], fw, 16 + 2 * step, 104)
     p.maxRes = LabeledInput(c2, L["Reservierungen pro Raider"], fw, 16 + 3 * step, 104)
     p.wSum = T:Text(c2, 12, C.muted, "RIGHT")
     p.wSum:SetPoint("TOPRIGHT", -16, -16)
+
+    -- Regeln speichern sofort, sobald ein Feld verlassen oder Enter gedrückt wird
+    -- (bis 0.19.5 nur über „Speichern“ – nach einem Tabwechsel waren Änderungen dann verloren)
+    local function Num(box, min, max, default)
+        local v = tonumber(box:GetText())
+        if not v then return default end
+        return math.max(min, math.min(max, math.floor(v + 0.5)))
+    end
+    function p:ShowRules()
+        local cfg = LC.db.config
+        self.voteTimeout:SetText(tostring(cfg.voteTimeout))
+        self.rollTimeout:SetText(tostring(cfg.rollTimeout))
+        self.cooldown:SetText(tostring(cfg.cooldownWeeks))
+        self.attWeeks:SetText(tostring(cfg.attendanceWeeks))
+        self.wAtt:SetText(tostring(cfg.weights.attendance))
+        self.wParse:SetText(tostring(cfg.weights.parse))
+        self.wEng:SetText(tostring(cfg.weights.engagement))
+        self.maxRes:SetText(tostring(cfg.maxReserves or 2))
+        local sum = cfg.weights.attendance + cfg.weights.parse + cfg.weights.engagement
+        self.wSum:SetText(L["Summe: "] .. (sum == 100 and H.good or H.warn) .. sum .. " %|r")
+    end
+    function p:SaveRules()
+        local cfg = LC.db.config
+        local oldMax = cfg.maxReserves
+        cfg.voteTimeout = Num(self.voteTimeout, 10, 120, cfg.voteTimeout or 30)
+        cfg.rollTimeout = Num(self.rollTimeout, 5, 120, cfg.rollTimeout or 20)
+        cfg.cooldownWeeks = Num(self.cooldown, 0, 10, cfg.cooldownWeeks or 2)
+        cfg.attendanceWeeks = Num(self.attWeeks, 1, 20, cfg.attendanceWeeks or 8)
+        cfg.weights.attendance = Num(self.wAtt, 0, 100, cfg.weights.attendance or 40)
+        cfg.weights.parse = Num(self.wParse, 0, 100, cfg.weights.parse or 40)
+        cfg.weights.engagement = Num(self.wEng, 0, 100, cfg.weights.engagement or 20)
+        cfg.maxReserves = Num(self.maxRes, 1, 5, cfg.maxReserves or 2)
+        if cfg.maxReserves ~= oldMax then LC:BroadcastCouncilInfo() end   -- Raider bekommen die Höchstzahl
+        self:ShowRules()   -- korrigierte Werte (Grenzen) und Summe anzeigen
+    end
+    for _, box in ipairs({ p.voteTimeout, p.rollTimeout, p.cooldown, p.attWeeks, p.wAtt, p.wParse, p.wEng, p.maxRes }) do
+        box:HookScript("OnEditFocusLost", function()
+            p:SaveRules()
+            p.msg:SetText(H.good .. L["Gespeichert.|r"])
+        end)
+        box:HookScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    end
 
     -- OPTIONEN ---------------------------------------------------------
     local c4 = Section(p, L["Optionen"], c2, 108)
@@ -218,6 +263,9 @@ local function CreateSettingsPage(p)
     p.autoStart = T:Check(c4, L["Council automatisch starten"])
     p.autoStart:SetPoint("TOPLEFT", 16, -76)
     CheckTip(p.autoStart, L["Automatisch starten"], L["Liegt ein Council-Item im Loot, startet die Abstimmung von selbst, sobald du als Plündermeister die Leiche öffnest."])
+    -- Häkchen speichern sofort (wie Minimap und Loot-Fenster)
+    p.raidWarning:SetScript("OnClick", function(self) LC.db.config.raidWarning = self:GetChecked() and true or false end)
+    p.autoStart:SetScript("OnClick", function(self) LC.db.config.autoStart = self:GetChecked() and true or false end)
     p.minimap = T:Check(c4, L["Minimap-Button anzeigen"])
     p.minimap:SetPoint("TOPLEFT", half, -48)
     p.minimap:SetScript("OnClick", function(self)
@@ -245,22 +293,8 @@ local function CreateSettingsPage(p)
         end
         cfg.councilSize = p.size
         cfg.council = council
-        local function Num(box, min, max, default)
-            local v = tonumber(box:GetText())
-            if not v then return default end
-            return math.max(min, math.min(max, math.floor(v + 0.5)))
-        end
-        cfg.voteTimeout = Num(p.voteTimeout, 10, 120, 30)
-        cfg.rollTimeout = Num(p.rollTimeout, 5, 120, 20)
-        cfg.cooldownWeeks = Num(p.cooldown, 0, 10, 2)
-        cfg.attendanceWeeks = Num(p.attWeeks, 1, 20, 8)
-        cfg.weights.attendance = Num(p.wAtt, 0, 100, 40)
-        cfg.weights.parse = Num(p.wParse, 0, 100, 40)
-        cfg.weights.engagement = Num(p.wEng, 0, 100, 20)
-        cfg.maxReserves = Num(p.maxRes, 1, 5, 2)
+        p:SaveRules()
         LC:BroadcastCouncilInfo()   -- Raider bekommen Council-Liste und Höchstzahl
-        cfg.autoStart = p.autoStart:GetChecked() and true or false
-        cfg.raidWarning = p.raidWarning:GetChecked() and true or false
         local msg = H.good .. L["Gespeichert.|r"]
         if #council ~= p.size then msg = msg .. "  " .. H.warn .. L["Bitte alle "] .. p.size .. L[" Council-Felder ausfüllen.|r"] end
         p.msg:SetText(msg)
@@ -282,16 +316,7 @@ local function RefreshSettings()
     end
     p.size = LC:GetCouncilSize()
     p:UpdateCouncilSize()
-    p.voteTimeout:SetText(tostring(cfg.voteTimeout))
-    p.rollTimeout:SetText(tostring(cfg.rollTimeout))
-    p.cooldown:SetText(tostring(cfg.cooldownWeeks))
-    p.attWeeks:SetText(tostring(cfg.attendanceWeeks))
-    p.wAtt:SetText(tostring(cfg.weights.attendance))
-    p.wParse:SetText(tostring(cfg.weights.parse))
-    p.wEng:SetText(tostring(cfg.weights.engagement))
-    p.maxRes:SetText(tostring(cfg.maxReserves or 2))
-    local sum = cfg.weights.attendance + cfg.weights.parse + cfg.weights.engagement
-    p.wSum:SetText(L["Summe: "] .. (sum == 100 and H.good or H.warn) .. sum .. " %|r")
+    p:ShowRules()
     p.autoStart:SetChecked(cfg.autoStart)
     p.raidWarning:SetChecked(cfg.raidWarning)
     p.minimap:SetChecked(not cfg.minimap.hide)

@@ -471,7 +471,6 @@ LC:RegisterLocale("ruRU", {
     ["Loot-Cooldown (Wochen)"] = "Пауза добычи (недели)",
     ["Anwesenheit (Wochen)"] = "Посещаемость (недели)",
     ["Score: Anwesenheit %"] = "Рейтинг: посещаемость %",
-    ["Score: Leistung (Parse) %"] = "Рейтинг: результативность (parse) %",
     ["Score: Engagement %"] = "Рейтинг: активность %",
     ["Reservierungen pro Raider"] = "Резервов на рейдера",
     ["Optionen"] = "Параметры",
@@ -657,4 +656,5 @@ LC:RegisterLocale("ruRU", {
     ["Wer ein Council-Item gewinnt, ist in dieser Woche und den folgenden so vielen Wochen bei Council-Items gesperrt. 0 = kein Cooldown."] = "Кто выиграл предмет совета, не получает предметы совета в эту неделю и указанное число следующих недель. 0 = без ограничения.",
     ["Zeitraum für die Anwesenheit im Score (1–20 Wochen). Genau diesen Zeitraum gleicht der Council untereinander ab."] = "Период посещаемости в оценке (1–20 недель). Совет синхронизирует именно этот период.",
     ["Deine gesperrte Reservierung ändert ein anderes Council-Mitglied – stell einen Änderungsantrag."] = "Вашу закреплённую резервацию меняет другой член совета – подайте запрос на изменение.",
+    ["Score: Parse %"] = "Рейтинг: parse %",
 })

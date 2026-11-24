@@ -471,7 +471,6 @@ LC:RegisterLocale("frFR", {
     ["Loot-Cooldown (Wochen)"] = "Délai de butin (semaines)",
     ["Anwesenheit (Wochen)"] = "Présence (semaines)",
     ["Score: Anwesenheit %"] = "Score : présence %",
-    ["Score: Leistung (Parse) %"] = "Score : performance (parse) %",
     ["Score: Engagement %"] = "Score : engagement %",
     ["Reservierungen pro Raider"] = "Réservations par raideur",
     ["Optionen"] = "Options",
@@ -657,4 +656,5 @@ LC:RegisterLocale("frFR", {
     ["Wer ein Council-Item gewinnt, ist in dieser Woche und den folgenden so vielen Wochen bei Council-Items gesperrt. 0 = kein Cooldown."] = "Qui gagne un objet du conseil est exclu des objets du conseil cette semaine-là et pendant ce nombre de semaines suivantes. 0 = aucun délai.",
     ["Zeitraum für die Anwesenheit im Score (1–20 Wochen). Genau diesen Zeitraum gleicht der Council untereinander ab."] = "Période de présence prise en compte dans le score (1 à 20 semaines). Le conseil synchronise exactement cette période.",
     ["Deine gesperrte Reservierung ändert ein anderes Council-Mitglied – stell einen Änderungsantrag."] = "C'est un autre membre du conseil qui modifie votre réservation verrouillée – faites une demande de modification.",
+    ["Score: Parse %"] = "Score : parse %",
 })

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.19.5
+- **Settings are saved right away:** rules and score weights as soon as you leave a field or press Enter, the options as soon as you tick them. Before, changes were lost if you switched tabs without clicking “Save” (which is now only needed for the council names).
+- Settings: the “Number of members” label no longer overlaps the 3/5 buttons, and long labels in the rules section no longer run into the next field (“Score: performance (parse) %” is now “Score: parse %”).
+
 ## 0.19.4
 Security fixes.
 
