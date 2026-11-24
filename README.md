@@ -32,10 +32,10 @@ In most guilds, loot distribution takes more time than it needs to: posting rese
 | Without Light Council | With Light Council |
 |---|---|
 | Reservations via a website, post the link, import the list | Raiders reserve in the addon, the council receives everything automatically |
-| Officers maintain BiS lists per class, spec and biome | Every raider maintains **their own** gear set with their own priority |
-| The council discusses in voice chat who gets what | A short anonymous vote with score, attendance, set priority and last item |
+| Officers maintain BiS lists per class, spec and biome | Every raider maintains **their own** gear set and marks what matters most |
+| The council discusses in voice chat who gets what | A short anonymous vote with score, attendance, gear set and last item |
 | Loot history and attendance kept by hand in a spreadsheet | Both are recorded automatically and synced between everyone |
-| Raiders have no overview of who reserved what | Item tooltips show reservers, priority and sets – everywhere in the game |
+| Raiders have no overview of who reserved what | Item tooltips show reservers and sets – everywhere in the game |
 
 ---
 
@@ -64,10 +64,11 @@ flowchart LR
 
 ### For all raiders
 - **Reserve in the addon** – 1 to 5 items per raid (set by the council). Once saved, the choice is locked; changes go to the council as a request with a reason.
-- **Gear sets** – any number of named sets (e.g. one per biome), with items in your own priority order. The addon detects what you already have (equipped, bags, bank).
+- **Gear sets** – any number of named sets (e.g. one per biome), laid out by slot like the character window: one item per slot (two rings, two trinkets), important items marked with a star. Reserve straight from the set: each item has a “Reserve” tick for the raid it drops in. Pick items with a tick from a raid → boss → item overview. The addon detects what you already have (equipped, bags, bank).
+- **Item search** – type part of a name or an item ID and pick the item from the list. The search covers every raid in the loot source and jumps straight to the right raid and boss – no more clicking through bosses.
 - **Loot window with a roll button** – Main Spec and Off Spec with one click, everyone sees the rolls live.
 - **Raid day reminder** – a notice at login on your raid days if you haven't reserved yet.
-- **Item tooltips** – on every item: council item, priority, reservers and who has it in their set.
+- **Item tooltips** – on every item: council item, reservers and who has it in their set.
 - **Loot history** – who got which item and when, exportable for a spreadsheet or Discord.
 
 ### For the council
@@ -95,11 +96,11 @@ Light Council turns this around: **the guild leadership doesn't maintain lists f
 | Who maintains it? | Officers, for all classes and specs | Each raider for themselves |
 | Biomes / situations | One separate list per biome needed | Any number of sets, one is active |
 | What does the player already have? | They have to enter or report it | Detected automatically by the addon |
-| Player's own priority | Usually not recorded | Own order, 1 = most important |
-| Visible to the council | Separate spreadsheet or website | Right in the vote window (“#1 of 6”) |
+| What matters most to the player | Usually not recorded | Marked with a star per item |
+| Visible to the council | Separate spreadsheet or website | Right in the vote window (“★ important”, “in set”, “has it”) |
 | After a patch | Research the lists again | The raider adjusts their set in minutes |
 
-**What the council sees:** If an item is #1 of player A's missing items and #8 for player B, the decision is made quickly – no discussion, no follow-up questions.
+**What the council sees:** If player A still needs the item and marked it as important, while player B has it in the set but not marked, the decision is made quickly – no discussion, no follow-up questions.
 
 **And pugs?** Anyone without a set simply reserves as usual. Whether raiders may reserve straight from their set is switched on or off by the council. The number of reservation slots is the same for everyone.
 
@@ -112,7 +113,7 @@ Light Council turns this around: **the guild leadership doesn't maintain lists f
 | Reserve without a website | – | – | – | ✅ |
 | Reservation locked, changes by request | partly | – | – | ✅ |
 | Council voting in-game | – | ✅ | – | ✅ |
-| Personal priority per player | – | – | ✅ | ✅ |
+| Personal wishes per player (gear set, important marks) | – | – | ✅ | ✅ |
 | Detects automatically what you already have | – | partly | – | ✅ |
 | Works without BiS data | ✅ | ✅ | – | ✅ |
 | Roll button, Main/Off Spec | – | – | – | ✅ |
@@ -165,9 +166,9 @@ Light Council turns this around: **the guild leadership doesn't maintain lists f
 2. Start the game or type `/reload`.
 3. **Raid lead:** open `/lc` → **Getting started** walks you through everything:
    - enter the council members under **Settings** (first and last name),
-   - mark the important items as council items under **Raid loot**,
+   - mark the important items as council items under **Gear sets → Items** or **My reservation** (tick “Council”),
    - set the raid days under **Reservations → Raid days** and optionally turn on “Offer reserving from gear sets”.
-4. **Raiders:** `/lc` → create a set under **Gear sets**, then reserve under **My reservation**.
+4. **Raiders:** `/lc` → create a set under **Gear sets** and reserve right there (tick “Reserve”) or under **My reservation**.
 
 Optional loot sources: **AtlasLoot** (Classic/Forever) or **Naowh Forever**. Without a loot source everything works via shift-click or item ID.
 
@@ -203,7 +204,7 @@ WoW addons cannot connect to the internet, so Light Council writes its data to a
 - **As a file:** on logout or `/reload` the addon writes the same JSON to
   `WTF\Account\<account>\SavedVariables\LightCouncil.lua` as `LightCouncilExport.json`. An upload tool can pick it up from there. Turn it off with `/lc json auto`.
 
-Contents (`schema: 1`, times as Unix timestamps): `history`, `historyDeleted`, `attendance`, `sitouts`, `players` (wins), `councilItems`, `prio`, `reserves`, `gearSets`, `council`, `settings` and the decision `log`. Since the council syncs among itself, one council member's export is enough.
+Contents (`schema: 1`, times as Unix timestamps): `history`, `historyDeleted`, `attendance`, `sitouts`, `players` (wins), `councilItems`, `reserves`, `gearSets`, `council`, `settings` and the decision `log`. Since the council syncs among itself, one council member's export is enough.
 
 Parse, engagement and the log are only included when a council member exports; votes never contain voter names.
 
@@ -231,10 +232,10 @@ No. Without the addon, players roll as usual with `/roll` in raid chat, and the 
 No. The set helps you and informs the council. You can reserve without a set.
 
 **Can I use my gear set and normal reservations at the same time?**
-Yes. Your gear set is a priority list of up to 24 items that the council sees. Your reservation (e.g. 3 items per raid) decides what you roll for. “Take from gear set” only pre-fills your reservation – you can mix set items and other items freely. A set does not give you extra reservation slots.
+Yes. Your gear set holds one item per slot (with important ones marked) and the council sees it. Your reservation (e.g. 3 items per raid) decides what you roll for. “Take from gear set” only pre-fills your reservation – you can mix set items and other items freely. A set does not give you extra reservation slots.
 
-**Does my set priority count automatically when rolling?**
-No. Who may roll is decided by reservations and, for council items, by the vote. The council sees your set priority as decision support.
+**Does my gear set count automatically when rolling?**
+No. Who may roll is decided by reservations and, for council items, by the vote. The council sees your set and the important marks as decision support.
 
 **What about different biomes?**
 Just create one set per biome and switch the active set. The council always sees the active one.

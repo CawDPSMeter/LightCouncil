@@ -266,7 +266,188 @@ local function ItemIcons(items, size)
     return (#t > 0) and table.concat(t, "    ") or (H.muted .. L["–|r"])
 end
 
+------------------------------------------------------------------------
+-- Itemsuche: Liste unter einem Eingabefeld, Treffer nach Name oder Item-ID
+--   AttachItemSearch(edit, onPick, width) – onPick(treffer) mit { id, raidKey, raidIdx, bossIdx, … }
+--   Pfeiltasten wählen, Enter übernimmt, Escape schließt. Shift-Klick-Links bleiben wie bisher.
+------------------------------------------------------------------------
+local SEARCH_ROWS, SEARCH_ROW_H = 8, 34
+local openSearch          -- gerade offene Suchliste (für nachgeladene Itemnamen)
+
+local function AttachItemSearch(edit, onPick, width)
+    width = math.max(width or 0, edit:GetWidth(), 380)
+    local dd = CreateFrame("Frame", nil, edit, "BackdropTemplate")
+    T:Skin(dd, C.bgDark, C.accentDim)
+    dd:SetFrameStrata("FULLSCREEN_DIALOG")
+    dd:SetPoint("TOPLEFT", edit, "BOTTOMLEFT", 0, -2)
+    dd:SetWidth(width)
+    dd:Hide()
+    dd.rows, dd.results, dd.sel = {}, {}, 1
+    dd.foot = T:Text(dd, 11, C.muted, "LEFT")
+    dd.foot:SetPoint("BOTTOMLEFT", 10, 7)
+    dd.foot:SetWidth(width - 20)
+    dd.foot:SetWordWrap(false)
+
+    local function Paint()
+        for i, r in ipairs(dd.rows) do
+            local a = (i == dd.sel) and 0.22 or 0
+            r.bg:SetVertexColor(C.accent[1], C.accent[2], C.accent[3], a)
+        end
+    end
+
+    local function Pick(i)
+        local res = dd.results[i]
+        if not res then return end
+        dd:Hide()
+        edit:SetText("")
+        edit:ClearFocus()
+        onPick(res)
+    end
+
+    local function Row(i)
+        local r = dd.rows[i]
+        if r then return r end
+        r = CreateFrame("Button", nil, dd)
+        r:SetSize(width - 2, SEARCH_ROW_H)
+        r:SetPoint("TOPLEFT", 1, -1 - (i - 1) * SEARCH_ROW_H)
+        r.bg = r:CreateTexture(nil, "BACKGROUND")
+        r.bg:SetTexture(T.WHITE)
+        r.bg:SetAllPoints()
+        r.icon = r:CreateTexture(nil, "ARTWORK")
+        r.icon:SetSize(24, 24)
+        r.icon:SetPoint("LEFT", 8, 0)
+        r.name = T:Text(r, 12, C.text)
+        r.name:SetPoint("TOPLEFT", 40, -3)
+        r.name:SetWidth(width - 52)
+        r.name:SetWordWrap(false)
+        r.sub = T:Text(r, 10, C.muted)
+        r.sub:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -2)
+        r.sub:SetWidth(width - 52)
+        r.sub:SetWordWrap(false)
+        r:SetScript("OnEnter", function(self)
+            dd.sel = self.index
+            Paint()
+            GameTooltip:SetOwner(dd, "ANCHOR_NONE")
+            GameTooltip:SetPoint("TOPLEFT", dd, "TOPRIGHT", 4, 0)
+            GameTooltip:SetItemByID(self.itemID)
+            GameTooltip:Show()
+        end)
+        r:SetScript("OnLeave", GameTooltip_Hide)
+        r:SetScript("OnClick", function(self) Pick(self.index) end)
+        dd.rows[i] = r
+        return r
+    end
+
+    function dd:Run()
+        local text = edit:GetText() or ""
+        local q = strtrim(text)
+        -- Itemlinks (Shift-Klick) und Listen mehrerer IDs gehen den bisherigen Weg
+        local idList = q:match("^[%d%s,;]+$") and q:find("[,;%s]")
+        if q == "" or text:find("|H") or idList or (#q < 2 and not q:match("^%d+$")) then
+            self:Hide()
+            return
+        end
+        local results, total, waiting = LC:SearchItems(q, SEARCH_ROWS)
+        self.results = results
+        self.sel = math.min(self.sel, math.max(1, #results))
+        for i = 1, math.max(#results, #self.rows) do
+            local res = results[i]
+            if res then
+                local r = Row(i)
+                r.index, r.itemID = i, res.id
+                r.icon:SetTexture(LC:ItemIcon(res.id))
+                r.name:SetText(LC:ItemLink(res.id) .. H.muted .. "  #" .. res.id .. "|r")
+                if res.raidName then
+                    r.sub:SetText(res.raidName .. "  ·  " .. (res.boss or "?"))
+                else
+                    r.sub:SetText(L["nicht in der Loot-Quelle"])
+                end
+                r:Show()
+            elseif self.rows[i] then
+                self.rows[i]:Hide()
+            end
+        end
+        local foot
+        if #results == 0 then
+            foot = (waiting > 0) and L["Lade Itemnamen …"] or L["Kein Item gefunden."]
+        elseif total > #results then
+            foot = L("%d weitere Treffer – genauer suchen.", total - #results)
+        elseif waiting > 0 then
+            foot = L["Lade Itemnamen …"]
+        end
+        self.foot:SetText(foot or "")
+        local h = #results * SEARCH_ROW_H + 2 + (foot and 24 or 0)
+        self:SetHeight(math.max(h, 26))
+        Paint()
+        self:Show()
+        openSearch = self
+    end
+
+    local pending
+    edit:HookScript("OnTextChanged", function(self, userInput)
+        if not userInput then return end
+        dd.sel = 1
+        if pending then return end
+        pending = true
+        C_Timer.After(0.15, function()
+            pending = nil
+            if edit:HasFocus() then dd:Run() end
+        end)
+    end)
+    edit:HookScript("OnEditFocusGained", function() LC:WarmItemNames() end)
+    edit:HookScript("OnEditFocusLost", function()
+        -- kurz warten, damit ein Klick in die Liste noch ankommt
+        C_Timer.After(0.2, function()
+            if not edit:HasFocus() and not dd:IsMouseOver() then dd:Hide() end
+        end)
+    end)
+    edit:HookScript("OnEscapePressed", function() dd:Hide() end)
+    edit:HookScript("OnHide", function() dd:Hide() end)
+    if edit.SetAltArrowKeyMode then edit:SetAltArrowKeyMode(false) end
+    edit:HookScript("OnArrowPressed", function(_, key)
+        if not dd:IsShown() or #dd.results == 0 then return end
+        if key == "DOWN" then dd.sel = dd.sel % #dd.results + 1
+        elseif key == "UP" then dd.sel = (dd.sel - 2) % #dd.results + 1 end
+        Paint()
+    end)
+    -- Enter: Treffer übernehmen, sonst das bisherige Verhalten des Feldes
+    local origEnter = edit:GetScript("OnEnterPressed")
+    edit:SetScript("OnEnterPressed", function(self)
+        if dd:IsShown() and dd.results[dd.sel] then
+            Pick(dd.sel)
+        elseif origEnter then
+            origEnter(self)
+        end
+    end)
+    dd:SetScript("OnHide", function(self) if openSearch == self then openSearch = nil end end)
+    edit.searchList = dd
+    return dd
+end
+
+-- Nachgeladene Itemnamen: offene Suchliste aktualisieren
+local rerunPending
+LC:On("GET_ITEM_INFO_RECEIVED", function()
+    if not openSearch or rerunPending then return end
+    rerunPending = true
+    C_Timer.After(0.3, function()
+        rerunPending = nil
+        if openSearch and openSearch:IsShown() then openSearch:Run() end
+    end)
+end)
+
+-- Zeile in einer Scrollliste sichtbar machen (nach dem Aufbau der Liste)
+local function ScrollToRow(sf, index, rowH)
+    C_Timer.After(0, function()
+        if sf.UpdateRange then sf.UpdateRange() end
+        local range = math.max(0, sf:GetVerticalScrollRange())
+        local offset = math.max(0, math.min(range, (index - 1) * rowH - rowH))
+        sf:SetVerticalScroll(offset)
+        if sf.bar then sf.bar:SetValue(offset) end
+    end)
+end
+
 
 U.Card, U.PageHeader, U.Tip, U.AcceptLinks = Card, PageHeader, Tip, AcceptLinks
 U.SetupStatus, U.Segmented, U.ChipBar, U.SourceButton = SetupStatus, Segmented, ChipBar, SourceButton
 U.ReserveRaids, U.IdsFromText, U.ItemIcons = ReserveRaids, IdsFromText, ItemIcons
+U.AttachItemSearch, U.ScrollToRow = AttachItemSearch, ScrollToRow

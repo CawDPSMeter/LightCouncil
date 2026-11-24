@@ -33,7 +33,7 @@ local DEFAULTS = {
         maxReserves = 2,        -- Reservierungen pro Raider und Raid
         lootSource = "auto",    -- Loot-Quelle: auto / atlas / naowh (nur Raids)
         setReserve = false,     -- Raider dürfen aus ihrem Gear-Set reservieren (Council-Einstellung)
-        tooltip = true,         -- Council-Item, Prio und Reservierer im Item-Tooltip anzeigen
+        tooltip = true,         -- Council-Item und Reservierer im Item-Tooltip anzeigen
         language = "auto",      -- Sprache: auto (Spielclient) / deDE / enUS / frFR / esES / ruRU
         jsonOnLogout = true,    -- JSON-Export beim Ausloggen in die SavedVariables schreiben (LightCouncilExport)
     },
@@ -41,7 +41,6 @@ local DEFAULTS = {
     knownCouncil = {},  -- vom Council übermittelte Council-Liste (für Raider ohne eigene Einstellung)
     softres = {},       -- [itemID] = { { name = "Anna", note = "" }, ... } – wird aus den Reservierungen erzeugt
     softresMeta = {},   -- { time = ..., count = ... }
-    prio = {},          -- [itemID] = { "Anna", "Ben", ... } (Reihenfolge = Priorität)
     councilItems = {},  -- [itemID] = true
     players = {},       -- [key] = { name, parse, engagement, wins = { { week, itemID, time } } }
     attendance = {},    -- [week] = { [key] = "Name" }
@@ -430,6 +429,7 @@ LC:On("ADDON_LOADED", function(self, name)
     self.db = LightCouncilDB
     self:SetLanguage(self.db.config.language)
     self:MigrateCouncilNames()
+    self.db.prio = nil   -- Loot-Prio gibt es nicht mehr (bis 0.18)
     if self.OnInitialize then self:OnInitialize() end
 end)
 

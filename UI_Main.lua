@@ -17,7 +17,6 @@ local SelectTab -- vorwärts deklariert
 
 local CreateStartPage, RefreshStart = U.CreateStartPage, U.RefreshStart
 local CreateLootPage, RefreshLoot = U.CreateLootPage, U.RefreshLoot
-local CreateItemsPage, RefreshItems = U.CreateItemsPage, U.RefreshItems
 local CreateMyResPage, RefreshMyRes = U.CreateMyResPage, U.RefreshMyRes
 local CreateReservesPage, RefreshReserves = U.CreateReservesPage, U.RefreshReserves
 local CreatePlayersPage, RefreshPlayers = U.CreatePlayersPage, U.RefreshPlayers
@@ -34,14 +33,15 @@ local TABS = {
     { key = "myres", label = "Meine Reservierung", create = CreateMyResPage, refresh = RefreshMyRes },
     { key = "sets", label = "Gear-Sets", create = U.CreateSetsPage, refresh = U.RefreshSets },
     { key = "history", label = "Loot-Historie", create = CreateHistoryPage, refresh = RefreshHistory },
-    { key = "items", label = "Raid-Loot", create = CreateItemsPage, refresh = RefreshItems, group = "VORBEREITUNG" },
-    { key = "reserves", label = "Reservierungen", create = CreateReservesPage, refresh = RefreshReserves },
+    { key = "reserves", label = "Reservierungen", create = CreateReservesPage, refresh = RefreshReserves, group = "VORBEREITUNG" },
     { key = "players", label = "Spieler", create = CreatePlayersPage, refresh = RefreshPlayers, group = "COUNCIL" },
     { key = "log", label = "Protokoll", create = CreateLogPage, refresh = RefreshLog },
     { key = "settings", label = "Einstellungen", create = CreateSettingsPage, refresh = RefreshSettings, group = "ADDON" },
 }
 
 function SelectTab(key)
+    -- Raid-Loot ist seit 0.19 Teil der Gear-Sets (Ansicht „Items“)
+    if key == "items" then key, LC.wantSetsView = "sets", "items" end
     currentTab = key
     if key == "settings" then pages.settings.needsLoad = true end
     for _, t in ipairs(TABS) do
@@ -78,7 +78,7 @@ local function CreateMainFrame()
     -- Test-Abstimmung gibt es auf "Erste Schritte" und der leeren Loot-Seite – oben nicht doppelt
     main.btnRaid = T:Button(bar, L["Raider-Ansicht"], 140, 32, "ghost", function() LC:ToggleRaidFrame() end)
     main.btnRaid:SetPoint("RIGHT", main.close, "LEFT", -14, 0)
-    Tip(main.btnRaid, L["Raider-Ansicht"], L["Öffnet das Loot-Fenster, das Raider sehen: Items, Prio und Würfel-Knopf."])
+    Tip(main.btnRaid, L["Raider-Ansicht"], L["Öffnet das Loot-Fenster, das Raider sehen: Items, Reservierungen und Würfel-Knopf."])
     main.rolePill = Pill(bar)
     main.rolePill:SetPoint("RIGHT", main.btnRaid, "LEFT", -18, 0)
     main.statusPill = Pill(bar)
@@ -170,9 +170,6 @@ function LC:RefreshUI()
     end
     local n = #self.lootItems
     nav.loot.badge:SetText(n > 0 and tostring(n) or "")
-    local ci = 0
-    for _ in pairs(self.db.councilItems) do ci = ci + 1 end
-    nav.items.badge:SetText(ci > 0 and tostring(ci) or "")
     local st = SetupStatus()
     local open = 0
     for _, k in ipairs({ "council", "softres", "items" }) do

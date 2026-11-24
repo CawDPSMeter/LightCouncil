@@ -213,7 +213,7 @@ local function CreateSettingsPage(p)
     end)
     p.raiderWindow = T:Check(c4, L["Loot-Fenster für Raider anzeigen"])
     p.raiderWindow:SetPoint("TOPLEFT", half, -76)
-    CheckTip(p.raiderWindow, L["Loot-Fenster für Raider"], L["Öffnet sich, wenn Loot droppt: zeigt Items, Prio und einen Würfel-Knopf für Berechtigte."])
+    CheckTip(p.raiderWindow, L["Loot-Fenster für Raider"], L["Öffnet sich, wenn Loot droppt: zeigt Items, Reservierungen und einen Würfel-Knopf für Berechtigte."])
     p.raiderWindow:SetScript("OnClick", function(self)
         LC.db.config.raiderWindow = self:GetChecked() and true or false
     end)

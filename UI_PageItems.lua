@@ -1,29 +1,39 @@
--- Light Council – Hauptfenster, Seite: Raid-Loot
+-- Light Council – Item-Übersicht (im Tab „Gear-Sets“): Raids → Bosse → Items
+--
+-- Alle wählen hier per Häkchen Items für ihr aktives Gear-Set. Council und Raidleitung sehen zusätzlich
+-- das Häkchen „Council“; für sie gibt es außerdem die Ansicht „Council-Items“.
+-- (Bis 0.18 war das der eigene Tab „Raid-Loot“.)
 local _, LC = ...
 local L = LC.L
 local T = LC.T
 local C = T.C
 local H = T.HEX
 local U = LC.UI
-local pages, CW = U.pages, U.CW
-local Card, PageHeader, Tip, AcceptLinks = U.Card, U.PageHeader, U.Tip, U.AcceptLinks
-local SetupStatus, Segmented, ChipBar, SourceButton = U.SetupStatus, U.Segmented, U.ChipBar, U.SourceButton
-local ReserveRaids, IdsFromText, ItemIcons = U.ReserveRaids, U.IdsFromText, U.ItemIcons
+local CW = U.CW
+local Card, Tip, AcceptLinks, ChipBar = U.Card, U.Tip, U.AcceptLinks, U.ChipBar
+local AttachItemSearch, ScrollToRow = U.AttachItemSearch, U.ScrollToRow
 local ITEM_ROW, BOSS_W = U.ITEM_ROW, U.BOSS_W
-local function SelectTab(key) return U.SelectTab(key) end
+
+local browseRows, markedRows, bossButtons = {}, {}, {}
+
+-- Darf ich Council-Items markieren?
+-- Council, Raidleitung, Plündermeister – und wer selbst eine Council-Liste eingetragen hat (Leitung beim Einrichten).
+-- Council-Items gelten nur beim Plündermeister; für alle anderen sind sie nur eine Anzeige.
+function LC:CanManageLoot()
+    if self:AmICouncil() or self:IsMasterLooter() then return true end
+    if UnitIsGroupLeader and UnitIsGroupLeader("player") then return true end
+    return #self:GetCouncilList() > 0
+end
 
 ------------------------------------------------------------------------
--- Seite: Raid-Loot – Council-Items und Prio per Klick (Daten aus AtlasLoot)
+-- Item-Zeile
 ------------------------------------------------------------------------
-local browseRows, markedRows, bossButtons, raidChips = {}, {}, {}, {}
-local ITEM_ROW = 50
-local BOSS_W = 230
-
--- Item-Zeile: Icon, Name, Prio-Zusammenfassung, Council-Häkchen bzw. Entfernen, Prio-Knopf
-local function CreateItemRow(parent, width, withRemove)
+-- marked = Zeile der Liste „Council-Items“ (mit „Entfernen“), sonst Übersicht (Set-Häkchen, Council)
+local function CreateItemRow(parent, width, marked, setMsg)
     local r = CreateFrame("Button", nil, parent, "BackdropTemplate")
     r:SetSize(width, ITEM_ROW - 6)
     T:Skin(r, C.panel)
+    r.width = width
     r.icon = T:Icon(r, 34)
     r.icon:SetPoint("LEFT", 6, 0)
     r.name = T:Text(r, 13, C.text, "LEFT", nil, true)
@@ -33,19 +43,15 @@ local function CreateItemRow(parent, width, withRemove)
     r.sub:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -4)
     r.sub:SetWordWrap(false)
 
-    r.prio = T:Button(r, L["Prio festlegen"], 120, 30, "default", function() LC:OpenPrioEditor(r.itemID) end)
-    r.prio:SetPoint("RIGHT", -8, 0)
-    r.prio.tooltipTitle = L["Prio festlegen"]
-    r.prio.tooltip = L["Spieler in der gewünschten Reihenfolge anklicken. Die Prio wird im Loot-Fenster angezeigt und beim Würfeln angesagt."]
-    if withRemove then
-        r.remove = T:Button(r, L["Entfernen"], 96, 30, "ghost", function()
+    if marked then
+        r.remove = T:Button(r, L["Entfernen"], 96, 28, "ghost", function()
             LC:SetCouncilItem(r.itemID, false)
             LC:RefreshUI()
         end)
-        r.remove:SetPoint("RIGHT", r.prio, "LEFT", -6, 0)
+        r.remove:SetPoint("RIGHT", -8, 0)
     else
         r.council = T:Check(r, L["Council"])
-        r.council:SetPoint("RIGHT", r.prio, "LEFT", -92, 0)
+        r.council:SetPoint("RIGHT", -76, 0)
         r.council:SetScript("OnClick", function(self)
             LC:SetCouncilItem(r.itemID, self:GetChecked())
             LC:RefreshUI()
@@ -57,10 +63,27 @@ local function CreateItemRow(parent, width, withRemove)
             GameTooltip:Show()
         end)
         r.council:HookScript("OnLeave", GameTooltip_Hide)
+
+        -- Ins aktive Gear-Set (ein Item pro Slot – ein neues ersetzt das alte)
+        r.set = T:Check(r, L["Set"])
+        r.set:SetScript("OnClick", function(self)
+            if self:GetChecked() then
+                local ok, msg = LC:AddToGearSet({ r.itemID })
+                if msg then setMsg((ok and H.good or H.warn) .. msg .. "|r") end
+            else
+                LC:RemoveFromGearSet(r.itemID)
+                setMsg(nil)
+            end
+            LC:RefreshUI()
+        end)
+        r.set:HookScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(L["Gear-Set"], 1, 1, 1)
+            GameTooltip:AddLine(L["Angehakt: Das Item ist in deinem aktiven Set. Pro Slot ein Item – ein neues ersetzt das bisherige."], nil, nil, nil, true)
+            GameTooltip:Show()
+        end)
+        r.set:HookScript("OnLeave", GameTooltip_Hide)
     end
-    local textW = width - 50 - 250
-    r.name:SetWidth(textW)
-    r.sub:SetWidth(textW)
 
     r:SetScript("OnEnter", function(self)
         self:SetBackdropColor(C.panelAlt[1], C.panelAlt[2], C.panelAlt[3], 1)
@@ -85,142 +108,46 @@ local function FillItemRow(r, itemID, chance)
     local qc = T:QualityColor(quality)
     r.icon:SetBackdropBorderColor(qc[1], qc[2], qc[3], 1)
     r.name:SetText(LC:ItemLink(itemID))
-    local prio = LC:GetPrio(itemID)
+
+    local manage = LC:CanManageLoot()
     local nRes = #LC:GetReservers(itemID)
     local parts = {}
-    if prio and #prio > 0 then
-        parts[#parts + 1] = H.accentLt .. L["Prio:|r "] .. table.concat(prio, " > ")
-    else
-        parts[#parts + 1] = L["Keine Prio"]
-    end
+    local slots = LC:GearSlotsFor(itemID)
+    if slots then parts[#parts + 1] = (LC:ItemSlot(itemID)) end
+    if chance then parts[#parts + 1] = H.good .. chance .. L[" %|r Drop"] end
+    if LC:IsCouncilItem(itemID) and not r.remove then parts[#parts + 1] = H.accent .. L["Council-Item|r"] end
     if nRes > 0 then parts[#parts + 1] = nRes .. (nRes == 1 and L[" Reservierung"] or L[" Reservierungen"]) end
-    if chance then table.insert(parts, 1, H.good .. chance .. L[" %|r Drop"]) end
     r.sub:SetText(table.concat(parts, "   ·   "))
-    r.prio:SetText((prio and #prio > 0) and L["Prio ändern"] or L["Prio festlegen"])
-    if r.council then r.council:SetChecked(LC:IsCouncilItem(itemID)) end
-end
 
-local function CreateItemsPage(p)
-    local y = PageHeader(p, L["Raid-Loot"], L["Council-Items markieren und Prio festlegen – direkt aus AtlasLoot oder Naowh Forever, ohne IDs abzutippen."])
-    p.sourceBtn = SourceButton(p)
-    p.sourceBtn:SetPoint("TOPRIGHT", 0, 0)
-    p.mode = "browse"
-    p.seg = Segmented(p, {
-        { key = "browse", label = L["Loot durchsuchen"], width = 180 },
-        { key = "marked", label = L["Council-Items"], width = 170 },
-    }, function(key)
-        p.mode = key
-        LC:RefreshUI()
-    end)
-    p.seg.first:SetPoint("TOPLEFT", 0, -y)
-    p.msg = T:Text(p, 12, C.muted, "LEFT")
-    p.msg:SetPoint("LEFT", p.seg.buttons.marked, "RIGHT", 16, 0)
-    p.msg:SetWidth(CW - 360 - 20)
-    p.msg:SetWordWrap(false)
-    y = y + 32 + 16
-
-    ---------------- Ansicht 1: Raids durchsuchen ----------------
-    local browse = CreateFrame("Frame", nil, p)
-    browse:SetPoint("TOPLEFT", 0, -y)
-    browse:SetPoint("BOTTOMRIGHT")
-    p.browse = browse
-
-    p.chips = ChipBar(browse)
-    p.chips:SetPoint("TOPLEFT")
-
-    p.dbError = Card(browse, 120)
-    p.dbError:SetPoint("TOPLEFT")
-    p.dbError:SetWidth(CW)
-    p.dbError.text = T:Text(p.dbError, 12, C.text)
-    p.dbError.text:SetPoint("TOPLEFT", 18, -18)
-    p.dbError.text:SetWidth(CW - 36)
-    p.dbError.text:SetSpacing(3)
-
-    local bossCol = Card(browse)
-    bossCol:SetPoint("TOPLEFT", p.chips, "BOTTOMLEFT", 0, -14)
-    bossCol:SetPoint("BOTTOMLEFT")
-    bossCol:SetWidth(BOSS_W)
-    T:Skin(bossCol, C.bgDark)
-    local bt = T:Text(bossCol, 12, C.text, "LEFT", nil, true)
-    bt:SetPoint("TOPLEFT", 16, -14)
-    bt:SetText(L["Bosse"])
-    local bsf, bcontent = T:Scroll(bossCol)
-    bsf:SetPoint("TOPLEFT", 0, -40)
-    bsf:SetPoint("BOTTOMRIGHT", -12, 8)
-    p.bossCol, p.bossList = bossCol, bcontent
-
-    local isf, icontent = T:Scroll(browse)
-    isf:SetPoint("TOPLEFT", bossCol, "TOPRIGHT", 14, 0)
-    isf:SetPoint("BOTTOMRIGHT", -10, 0)
-    p.itemScroll, p.itemList = isf, icontent
-    p.itemsW = CW - BOSS_W - 14 - 12
-
-    -- Hinweis, wenn AtlasLoot für einen Boss noch keinen Loot hat (neue Forever-Raids)
-    p.itemsEmpty = Card(browse, 120)
-    p.itemsEmpty:SetPoint("TOPLEFT", bossCol, "TOPRIGHT", 14, 0)
-    p.itemsEmpty:SetWidth(p.itemsW)
-    local ie = T:Text(p.itemsEmpty, 14, C.text, "LEFT", nil, true)
-    ie:SetPoint("TOPLEFT", 18, -18)
-    ie:SetText(L["Loot folgt"])
-    local ies = T:Text(p.itemsEmpty, 12, C.muted)
-    ies:SetPoint("TOPLEFT", ie, "BOTTOMLEFT", 0, -8)
-    ies:SetWidth(p.itemsW - 36)
-    ies:SetSpacing(3)
-    ies:SetText(L["AtlasLoot hat für diesen Boss noch keine Items eingetragen. Sobald AtlasLoot aktualisiert wird, erscheinen sie hier automatisch.\n"]
-        .. L["Bis dahin: Unter „Council-Items“ ein gedroppetes Item per Shift-Klick hinzufügen."])
-
-    ---------------- Ansicht 2: markierte Council-Items ----------------
-    local marked = CreateFrame("Frame", nil, p)
-    marked:SetPoint("TOPLEFT", 0, -y)
-    marked:SetPoint("BOTTOMRIGHT")
-    p.marked = marked
-
-    local add = Card(marked, 76)
-    add:SetPoint("TOPLEFT")
-    add:SetWidth(CW)
-    local al = T:Text(add, 12, C.text, "LEFT", nil, true)
-    al:SetPoint("TOPLEFT", 16, -12)
-    al:SetText(L["Item manuell hinzufügen"])
-    p.input = T:Input(add, CW - 170, 30)
-    p.input:SetPoint("TOPLEFT", al, "BOTTOMLEFT", 0, -8)
-    p.input:SetPlaceholder(L["Shift-Klick auf ein Item oder Item-ID eintippen"])
-    AcceptLinks(p.input)
-    local function DoAdd()
-        local ok, msg = LC:AddCouncilItems(p.input:GetText())
-        p.msg:SetText((ok and H.good or H.bad) .. msg .. "|r")
-        if ok then p.input:SetText("") end
-        LC:RefreshUI()
+    local right   -- Breite der Knöpfe rechts
+    if r.remove then
+        right = 8 + 96 + 8
+    else
+        r.council:SetChecked(LC:IsCouncilItem(itemID))
+        r.council:SetShown(manage)
+        r.set:ClearAllPoints()
+        if manage then
+            r.set:SetPoint("RIGHT", r.council, "LEFT", -46, 0)
+            right = 76 + 18 + 46 + 18 + 30
+        else
+            r.set:SetPoint("RIGHT", -46, 0)
+            right = 46 + 18 + 30
+        end
+        r.set:SetChecked(LC:IsInMySet(itemID) ~= nil)
+        r.set:SetEnabled(slots ~= nil)
     end
-    p.input:SetScript("OnEnterPressed", function(self) DoAdd() self:ClearFocus() end)
-    local addBtn = T:Button(add, L["Hinzufügen"], 120, 30, "primary", DoAdd)
-    addBtn:SetPoint("LEFT", p.input, "RIGHT", 10, 0)
-
-    local msf, mcontent = T:Scroll(marked)
-    msf:SetPoint("TOPLEFT", add, "BOTTOMLEFT", 0, -14)
-    msf:SetPoint("BOTTOMRIGHT", -10, 46)
-    p.markedList = mcontent
-    p.markedEmpty = T:Text(marked, 12, C.muted, "CENTER")
-    p.markedEmpty:SetPoint("TOP", msf, "TOP", 0, -30)
-    p.markedEmpty:SetWidth(CW - 60)
-    p.markedEmpty:SetText(L["Noch keine Council-Items.\nIn „Raids durchsuchen“ einfach das Häkchen „Council“ beim Item setzen."])
-
-    local clear = T:Button(marked, L["Alle entfernen"], 140, 32, "danger", function() StaticPopup_Show("LIGHTCOUNCIL_CLEAR_ITEMS") end)
-    clear:SetPoint("BOTTOMRIGHT", 0, 0)
-    StaticPopupDialogs["LIGHTCOUNCIL_CLEAR_ITEMS"] = {
-        text = L["Light Council: Alle Council-Items entfernen?"],
-        button1 = YES, button2 = NO,
-        OnAccept = function()
-            for id in pairs(LC.db.councilItems) do LC:SetCouncilItem(id, false) end
-            LC:RefreshUI()
-        end,
-        timeout = 0, whileDead = true, hideOnEscape = true,
-    }
+    local textW = r.width - 50 - right
+    r.name:SetWidth(textW)
+    r.sub:SetWidth(textW)
 end
 
-local function GetBossButton(p, i)
+------------------------------------------------------------------------
+-- Ansicht „Items“: Raids durchsuchen
+------------------------------------------------------------------------
+local function GetBossButton(v, i)
     local b = bossButtons[i]
     if b then return b end
-    b = CreateFrame("Button", nil, p.bossList)
+    b = CreateFrame("Button", nil, v.bossList)
     b:SetSize(BOSS_W - 14, 32)
     b:SetPoint("TOPLEFT", 0, -(i - 1) * 32)
     b.bg = b:CreateTexture(nil, "BACKGROUND")
@@ -239,7 +166,7 @@ local function GetBossButton(p, i)
     b.count = T:Text(b, 11, C.accentLt, "RIGHT")
     b.count:SetPoint("RIGHT", -8, 0)
     b:SetScript("OnClick", function(self)
-        p.bossIdx = self.index
+        v.bossIdx = self.index
         LC:RefreshUI()
     end)
     b:SetScript("OnEnter", function(self) if not self.selected then self.bg:SetVertexColor(C.accent[1], C.accent[2], C.accent[3], 0.08) end end)
@@ -248,46 +175,119 @@ local function GetBossButton(p, i)
     return b
 end
 
-local function RefreshBrowse(p)
+-- v = leerer Rahmen in der Größe des Inhaltsbereichs; setMsg(text) zeigt eine Meldung der Seite
+function U.CreateItemsView(v, setMsg)
+    v.setMsg = setMsg
+    v.chips = ChipBar(v)
+    v.chips:SetPoint("TOPLEFT")
+
+    v.dbError = Card(v, 120)
+    v.dbError:SetPoint("TOPLEFT")
+    v.dbError:SetWidth(CW)
+    v.dbError.text = T:Text(v.dbError, 12, C.text)
+    v.dbError.text:SetPoint("TOPLEFT", 18, -18)
+    v.dbError.text:SetWidth(CW - 36)
+    v.dbError.text:SetSpacing(3)
+
+    local bossCol = Card(v)
+    bossCol:SetPoint("TOPLEFT", v.chips, "BOTTOMLEFT", 0, -14)
+    bossCol:SetPoint("BOTTOMLEFT", 0, 24)
+    bossCol:SetWidth(BOSS_W)
+    T:Skin(bossCol, C.bgDark)
+    -- Itemsuche über alle Raids (Name oder Item-ID)
+    v.search = T:Input(bossCol, BOSS_W - 24, 28)
+    v.search:SetPoint("TOPLEFT", 12, -10)
+    v.search:SetPlaceholder(L["Item suchen (Name oder ID)"])
+    local bsf, bcontent = T:Scroll(bossCol)
+    bsf:SetPoint("TOPLEFT", 0, -48)
+    bsf:SetPoint("BOTTOMRIGHT", -12, 8)
+    v.bossCol, v.bossList = bossCol, bcontent
+
+    local isf, icontent = T:Scroll(v)
+    isf:SetPoint("TOPLEFT", bossCol, "TOPRIGHT", 14, 0)
+    isf:SetPoint("BOTTOMRIGHT", -10, 24)
+    v.itemScroll, v.itemList = isf, icontent
+    v.itemsW = CW - BOSS_W - 14 - 12
+
+    -- Hinweis, wenn die Loot-Quelle für einen Boss noch keinen Loot hat (neue Forever-Raids)
+    v.itemsEmpty = Card(v, 120)
+    v.itemsEmpty:SetPoint("TOPLEFT", bossCol, "TOPRIGHT", 14, 0)
+    v.itemsEmpty:SetWidth(v.itemsW)
+    local ie = T:Text(v.itemsEmpty, 14, C.text, "LEFT", nil, true)
+    ie:SetPoint("TOPLEFT", 18, -18)
+    ie:SetText(L["Loot folgt"])
+    local ies = T:Text(v.itemsEmpty, 12, C.muted)
+    ies:SetPoint("TOPLEFT", ie, "BOTTOMLEFT", 0, -8)
+    ies:SetWidth(v.itemsW - 36)
+    ies:SetSpacing(3)
+    ies:SetText(L["Die Loot-Quelle hat für diesen Boss noch keine Items eingetragen. Sobald sie aktualisiert wird, erscheinen sie hier automatisch. Bis dahin: Items per Suche, Item-ID oder Shift-Klick hinzufügen."])
+
+    -- Suche: springt zu Raid und Boss und hebt das Item hervor
+    AttachItemSearch(v.search, function(res)
+        if res.raidIdx then
+            v.raidIdx, v.bossIdx = res.raidIdx, res.bossIdx
+            v.highlight, v.scrollTo = res.id, true
+        else
+            local ok, msg = LC:AddToGearSet({ res.id })
+            if msg then setMsg((ok and H.good or H.warn) .. msg .. "|r") end
+        end
+        LC:RefreshUI()
+    end, 420)
+end
+
+function U.RefreshItemsView(v)
     local raids, err = LC:GetLootDB()
     if raids and #raids == 0 then
         raids, err = nil, L["Die gewählte Quelle enthält keine Raids."]
     end
-    p.dbError:SetShown(raids == nil)
-    p.bossCol:SetShown(raids ~= nil)
-    p.itemScroll:SetShown(raids ~= nil)
-    if p.itemScroll.bar and raids == nil then p.itemScroll.bar:Hide() end
+    v.dbError:SetShown(raids == nil)
+    v.bossCol:SetShown(raids ~= nil)
+    v.itemScroll:SetShown(raids ~= nil)
+    if v.itemScroll.bar and raids == nil then v.itemScroll.bar:Hide() end
     if not raids then
-        p.itemsEmpty:Hide()
-        p.chips:SetItems({}, nil, nil)
-        p.dbError.text:SetText(H.warn .. (err or L["Keine Loot-Quelle gefunden."]) .. "|r\n\n"
-            .. L["Oben rechts unter „Quelle“ eine andere Quelle wählen – oder Council-Items unter „Council-Items“ per Shift-Klick bzw. Item-ID hinzufügen."])
+        v.itemsEmpty:Hide()
+        v.chips:SetItems({}, nil, nil)
+        v.dbError.text:SetText(H.warn .. (err or L["Keine Loot-Quelle gefunden."]) .. "|r\n\n"
+            .. L["Oben rechts unter „Quelle“ eine andere Quelle wählen – oder Items unter „Mein Set“ per Shift-Klick bzw. Item-ID hinzufügen."])
         return
     end
-    p.raidIdx = math.min(p.raidIdx or 1, #raids)
+    -- Im Raid: einmal automatisch diesen Raid zeigen
+    local current = LC:GetCurrentRaid()
+    if current and v.autoRaid ~= current.key then
+        v.autoRaid = current.key
+        for i, r in ipairs(raids) do
+            if r.key == current.key then v.raidIdx, v.bossIdx = i, 1 break end
+        end
+    end
+    v.raidIdx = math.min(v.raidIdx or 1, #raids)
     local labels = {}
     for i, r in ipairs(raids) do
         labels[i] = r.name .. (((r.itemCount or 0) == 0) and ("  " .. H.muted .. L["(Loot folgt)|r"]) or "")
     end
-    p.chips:SetItems(labels, p.raidIdx, function(i)
-        p.raidIdx, p.bossIdx = i, 1
+    v.chips:SetItems(labels, v.raidIdx, function(i)
+        v.raidIdx, v.bossIdx = i, 1
         LC:RefreshUI()
     end)
 
-    local raid = raids[p.raidIdx]
-    p.bossIdx = math.min(p.bossIdx or 1, #raid.bosses)
+    local manage = LC:CanManageLoot()
+    local raid = raids[v.raidIdx]
+    v.bossIdx = math.min(v.bossIdx or 1, #raid.bosses)
     for i = 1, math.max(#raid.bosses, #bossButtons) do
         local boss = raid.bosses[i]
         if boss then
-            local b = GetBossButton(p, i)
+            local b = GetBossButton(v, i)
             b.index = i
-            b.selected = (i == p.bossIdx)
+            b.selected = (i == v.bossIdx)
             b.text:SetText(boss.name)
-            local n = 0
+            -- Zähler: Items in meinem Set (für Council/Leitung zusätzlich Council-Items)
+            local nSet, nCouncil = 0, 0
             for _, id in ipairs(boss.items) do
-                if LC:IsCouncilItem(id) then n = n + 1 end
+                if LC:IsInMySet(id) then nSet = nSet + 1 end
+                if LC:IsCouncilItem(id) then nCouncil = nCouncil + 1 end
             end
-            b.count:SetText(n > 0 and tostring(n) or "")
+            local count = (nSet > 0) and (H.good .. nSet .. "|r") or ""
+            if manage and nCouncil > 0 then count = count .. ((count ~= "") and " " or "") .. nCouncil end
+            b.count:SetText(count)
             b.bar:SetShown(b.selected)
             b.bg:SetVertexColor(C.accent[1], C.accent[2], C.accent[3], b.selected and 0.16 or 0)
             local tc = b.selected and C.text or C.muted
@@ -297,38 +297,95 @@ local function RefreshBrowse(p)
             bossButtons[i]:Hide()
         end
     end
-    p.bossList:SetHeight(math.max(1, #raid.bosses * 32))
+    v.bossList:SetHeight(math.max(1, #raid.bosses * 32))
 
-    local boss = raid.bosses[p.bossIdx]
+    local boss = raid.bosses[v.bossIdx]
     local items = boss and boss.items or {}
     for i = 1, math.max(#items, #browseRows) do
         local id = items[i]
         local r = browseRows[i]
         if id then
             if not r then
-                r = CreateItemRow(p.itemList, p.itemsW, false)
+                r = CreateItemRow(v.itemList, v.itemsW, false, v.setMsg)
                 r:SetPoint("TOPLEFT", 0, -(i - 1) * ITEM_ROW)
                 browseRows[i] = r
             end
             FillItemRow(r, id, LC:GetDropChance(boss, id))
+            T:SetBorder(r, (id == v.highlight) and C.accent or C.border)
+            if id == v.highlight and v.scrollTo then
+                v.scrollTo = nil
+                ScrollToRow(v.itemScroll, i, ITEM_ROW)
+            end
             r:Show()
         elseif r then
             r:Hide()
         end
     end
-    p.itemList:SetHeight(math.max(1, #items * ITEM_ROW))
-    p.itemsEmpty:SetShown(#items == 0)
+    v.itemList:SetHeight(math.max(1, #items * ITEM_ROW))
+    v.itemsEmpty:SetShown(#items == 0)
 end
 
-local function RefreshMarked(p)
+------------------------------------------------------------------------
+-- Ansicht „Council-Items“ (Council und Raidleitung)
+------------------------------------------------------------------------
+function U.CreateCouncilView(v, setMsg)
+    local add = Card(v, 76)
+    add:SetPoint("TOPLEFT")
+    add:SetWidth(CW)
+    local al = T:Text(add, 12, C.text, "LEFT", nil, true)
+    al:SetPoint("TOPLEFT", 16, -12)
+    al:SetText(L["Item manuell hinzufügen"])
+    v.input = T:Input(add, CW - 170, 30)
+    v.input:SetPoint("TOPLEFT", al, "BOTTOMLEFT", 0, -8)
+    v.input:SetPlaceholder(L["Shift-Klick auf ein Item, Item-ID oder Namen eintippen"])
+    AcceptLinks(v.input)
+    local function DoAdd()
+        local ok, msg = LC:AddCouncilItems(v.input:GetText())
+        setMsg((ok and H.good or H.bad) .. msg .. "|r")
+        if ok then v.input:SetText("") end
+        LC:RefreshUI()
+    end
+    v.input:SetScript("OnEnterPressed", function(self) DoAdd() self:ClearFocus() end)
+    local addBtn = T:Button(add, L["Hinzufügen"], 120, 30, "primary", DoAdd)
+    addBtn:SetPoint("LEFT", v.input, "RIGHT", 10, 0)
+    -- Treffer der Suche direkt als Council-Item übernehmen
+    AttachItemSearch(v.input, function(res)
+        local ok, msg = LC:AddCouncilItems(tostring(res.id))
+        setMsg((ok and H.good or H.bad) .. msg .. "|r")
+        LC:RefreshUI()
+    end)
+
+    local msf, mcontent = T:Scroll(v)
+    msf:SetPoint("TOPLEFT", add, "BOTTOMLEFT", 0, -14)
+    msf:SetPoint("BOTTOMRIGHT", -10, 62)
+    v.markedList = mcontent
+    v.markedEmpty = T:Text(v, 12, C.muted, "CENTER")
+    v.markedEmpty:SetPoint("TOP", msf, "TOP", 0, -30)
+    v.markedEmpty:SetWidth(CW - 60)
+    v.markedEmpty:SetText(L["Noch keine Council-Items.\nUnter „Items“ einfach das Häkchen „Council“ beim Item setzen."])
+
+    local clear = T:Button(v, L["Alle entfernen"], 140, 32, "danger", function() StaticPopup_Show("LIGHTCOUNCIL_CLEAR_ITEMS") end)
+    clear:SetPoint("BOTTOMRIGHT", 0, 24)
+    StaticPopupDialogs["LIGHTCOUNCIL_CLEAR_ITEMS"] = {
+        text = L["Light Council: Alle Council-Items entfernen?"],
+        button1 = YES, button2 = NO,
+        OnAccept = function()
+            for id in pairs(LC.db.councilItems) do LC:SetCouncilItem(id, false) end
+            LC:RefreshUI()
+        end,
+        timeout = 0, whileDead = true, hideOnEscape = true,
+    }
+end
+
+function U.RefreshCouncilView(v)
     local list = LC:GetCouncilItemList()
-    p.markedEmpty:SetShown(#list == 0)
+    v.markedEmpty:SetShown(#list == 0)
     for i = 1, math.max(#list, #markedRows) do
         local it = list[i]
         local r = markedRows[i]
         if it then
             if not r then
-                r = CreateItemRow(p.markedList, CW - 12, true)
+                r = CreateItemRow(v.markedList, CW - 12, true)
                 r:SetPoint("TOPLEFT", 0, -(i - 1) * ITEM_ROW)
                 markedRows[i] = r
             end
@@ -338,20 +395,5 @@ local function RefreshMarked(p)
             r:Hide()
         end
     end
-    p.markedList:SetHeight(math.max(1, #list * ITEM_ROW))
+    v.markedList:SetHeight(math.max(1, #list * ITEM_ROW))
 end
-
-local function RefreshItems()
-    local p = pages.items
-    p.seg:Set(p.mode)
-    p.sourceBtn:Update()
-    local n = 0
-    for _ in pairs(LC.db.councilItems) do n = n + 1 end
-    p.seg.buttons.marked:SetText(L["Council-Items ("] .. n .. ")")
-    p.browse:SetShown(p.mode == "browse")
-    p.marked:SetShown(p.mode == "marked")
-    if p.mode == "browse" then RefreshBrowse(p) else RefreshMarked(p) end
-end
-
-
-U.CreateItemsPage, U.RefreshItems = CreateItemsPage, RefreshItems

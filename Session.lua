@@ -433,10 +433,6 @@ function LC:StartNormal(entry)
     local test = entry.test
     local cand = self:BuildCandidates(entry)
     local rollers = NamesOf(cand, function(c) return c.present end)
-    local prio = self:GetPrio(entry.itemID)
-    if prio and #prio > 0 then
-        self:Announce(L["Prio für "] .. entry.link .. ": " .. table.concat(prio, " > "), test)
-    end
     local log = self:AddLog({
         itemID = entry.itemID, link = entry.link, test = test,
         result = (#rollers > 0) and L["Reservierer würfeln"] or L["keine Reservierung – freies Würfeln"],
@@ -462,7 +458,7 @@ function LC:StartRoll(entry, rollers, logEntry, offspecTie)
         for _, n in ipairs(rollers) do allowed[self:NameKey(n)] = n end
     end
     local t = self.db.config.rollTimeout or 20
-    -- Freies Würfeln (keine Reservierung/Prio): Main Spec = /roll, Off Spec = /roll 99
+    -- Freies Würfeln (keine Reservierung): Main Spec = /roll, Off Spec = /roll 99
     self.roll = { entry = entry, allowed = allowed, rollers = rollers, rolls = {}, count = 0, log = logEntry,
         endsAt = GetTime() + t, free = (rollers == nil), offspecTie = offspecTie or nil }
     entry.status = L["Würfeln"]

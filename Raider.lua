@@ -5,7 +5,6 @@
 --   LS~lid~anzahl                         neue Lootliste
 --   LI~lid~idx~itemID~council~namen       Item mit Reservierern (Namen mit Komma)
 --   LR~lid~idx~namen                      weitere Reservierer
---   LP~lid~idx~a>b>c                      Prio-Liste
 --   LE~lid                                Liste vollständig -> Fenster öffnen
 --   CS~lid~idx                            Council entscheidet
 --   RS~lid~idx~sek~namen|*                Würfelrunde: berechtigte Spieler (* = alle)
@@ -73,11 +72,6 @@ function LC:NetLoot(entries, test)
         local chunks = Chunks(names, 180)
         self:Broadcast(test, "LI", lid, tostring(i), tostring(e.itemID), e.isCouncil and "1" or "0", chunks[1] or "")
         for c = 2, #chunks do self:Broadcast(test, "LR", lid, tostring(i), chunks[c]) end
-        local prio = self:GetPrio(e.itemID)
-        if prio and #prio > 0 then
-            local prioText = self:CleanText(table.concat(prio, ">"), 200)
-            self:Broadcast(test, "LP", lid, tostring(i), prioText)
-        end
     end
     self:Broadcast(test, "LE", lid)
 end
@@ -174,9 +168,6 @@ function LC:OnRaidComm(cmd, p, sender)
         return true
     elseif cmd == "LR" then
         SplitNames(p[4], it.reservers)
-    elseif cmd == "LP" then
-        it.prio = {}
-        for n in (p[4] or ""):gmatch("[^>]+") do it.prio[#it.prio + 1] = strtrim(n) end
     elseif cmd == "CS" then
         it.state = "council"
     elseif cmd == "RS" then

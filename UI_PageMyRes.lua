@@ -9,6 +9,7 @@ local pages, CW = U.pages, U.CW
 local Card, PageHeader, Tip, AcceptLinks = U.Card, U.PageHeader, U.Tip, U.AcceptLinks
 local SetupStatus, Segmented, ChipBar, SourceButton = U.SetupStatus, U.Segmented, U.ChipBar, U.SourceButton
 local ReserveRaids, IdsFromText, ItemIcons = U.ReserveRaids, U.IdsFromText, U.ItemIcons
+local AttachItemSearch, ScrollToRow = U.AttachItemSearch, U.ScrollToRow
 local ITEM_ROW, BOSS_W = U.ITEM_ROW, U.BOSS_W
 local function SelectTab(key) return U.SelectTab(key) end
 
@@ -17,12 +18,70 @@ local function SelectTab(key) return U.SelectTab(key) end
 ------------------------------------------------------------------------
 local myBossButtons, myItemRows = {}, {}
 
+------------------------------------------------------------------------
+-- Auswahl pro Raid (gemeinsam für „Meine Reservierung“ und „Gear-Sets → Mein Set“)
+------------------------------------------------------------------------
+U.resSel = U.resSel or {}
+
+-- Aktuelle (noch nicht gespeicherte) Auswahl eines Raids; startet mit der gespeicherten bzw. beantragten Reservierung
+local function ResSel(raidKey)
+    local sel = U.resSel[raidKey]
+    if not sel then
+        local rec = LC:GetReservation(raidKey)
+        local init = (rec and rec.pending and rec.pending.items) or (rec and rec.items) or {}
+        sel = { unpack(init) }
+        U.resSel[raidKey] = sel
+    end
+    return sel
+end
+
+local function ResSelected(raidKey, id)
+    for _, s in ipairs(ResSel(raidKey)) do if s == id then return true end end
+    return false
+end
+
+-- Item an-/abwählen. Rückgabe: ok, Meldung (nur bei Problemen)
+local function ResToggle(raidKey, id, on)
+    local sel = ResSel(raidKey)
+    for k, s in ipairs(sel) do
+        if s == id then
+            if not on then table.remove(sel, k) end
+            return true
+        end
+    end
+    if not on then return true end
+    if #sel >= LC:MaxReserves() then
+        return false, H.warn .. L["Du kannst höchstens "] .. LC:MaxReserves() .. L[" Items pro Raid reservieren.|r"]
+    end
+    sel[#sel + 1] = id
+    return true
+end
+
+-- Zustand: changed (Auswahl weicht ab), locked (schon gespeichert), pending (Änderung beantragt)
+local function ResState(raidKey)
+    local rec = LC:GetReservation(raidKey)
+    local sel = ResSel(raidKey)
+    local locked = rec and (rec.rev or 0) > 0
+    local changed = not (rec and LC.SameItems(rec.items or {}, sel))
+    if not rec and #sel == 0 then changed = false end
+    return changed, locked, rec and rec.pending ~= nil, rec
+end
+
+-- Erstes Speichern: Bestätigungsdialog. from = Seite, auf der die Meldung erscheint
+local function ResConfirm(raidKey, from)
+    local items = ResSel(raidKey)
+    local dlg = StaticPopup_Show("LIGHTCOUNCIL_CONFIRM_RESERVE", LC:ItemListText(items))
+    if dlg then dlg.data = { raid = raidKey, items = { unpack(items) }, from = from or "myres" } end
+end
+
+U.ResSel, U.ResSelected, U.ResToggle, U.ResState, U.ResConfirm = ResSel, ResSelected, ResToggle, ResState, ResConfirm
+
 local function CreateMyResPage(p)
     local _, title, desc = PageHeader(p, L["Meine Reservierung"], L["Wähle bis zu "] .. LC:MaxReserves() .. L[" Items pro Raid. Nach dem Speichern ist deine Wahl gesperrt – Änderungen nur mit Freigabe des Councils."])
     desc:SetWidth(CW - 420)   -- rechts sitzen „Aus Gear-Set übernehmen“ und „Quelle“
     local y = math.ceil(title:GetStringHeight() + 5 + desc:GetStringHeight() + 16)
     p.desc = desc
-    p.sel = {}
+    p.sel = U.resSel
 
     p.sourceBtn = SourceButton(p)
     p.sourceBtn:SetPoint("TOPRIGHT", 0, 0)
@@ -35,10 +94,10 @@ local function CreateMyResPage(p)
         if #want == 0 then
             p.msgText = H.warn .. L["In deinem aktiven Gear-Set fehlt dir nichts, was in diesem Raid droppt.|r"]
         else
-            local sel = p.sel[raid.key]
+            local sel = ResSel(raid.key)
             wipe(sel)
             for i = 1, math.min(#want, LC:MaxReserves()) do sel[i] = want[i] end
-            p.msgText = H.good .. L["Auswahl aus deinem Gear-Set übernommen (höchste Prio zuerst). Prüfen und speichern.|r"]
+            p.msgText = H.good .. L["Auswahl aus deinem Gear-Set übernommen (wichtige zuerst). Prüfen und speichern.|r"]
         end
         LC:RefreshUI()
     end)
@@ -77,11 +136,12 @@ local function CreateMyResPage(p)
     bossCol:SetPoint("BOTTOMLEFT", 0, 58)
     bossCol:SetWidth(BOSS_W)
     T:Skin(bossCol, C.bgDark)
-    local bt = T:Text(bossCol, 12, C.text, "LEFT", nil, true)
-    bt:SetPoint("TOPLEFT", 16, -14)
-    bt:SetText(L["Bosse"])
+    -- Itemsuche über alle Raids (Name oder Item-ID)
+    p.search = T:Input(bossCol, BOSS_W - 24, 28)
+    p.search:SetPoint("TOPLEFT", 12, -10)
+    p.search:SetPlaceholder(L["Item suchen (Name oder ID)"])
     local bsf, bcontent = T:Scroll(bossCol)
-    bsf:SetPoint("TOPLEFT", 0, -40)
+    bsf:SetPoint("TOPLEFT", 0, -48)
     bsf:SetPoint("BOTTOMRIGHT", -12, 8)
     p.bossCol, p.bossList = bossCol, bcontent
 
@@ -101,12 +161,12 @@ local function CreateMyResPage(p)
     p.manualText:SetSpacing(3)
     p.manualInput = T:Input(p.manual, p.itemsW - 170, 30)
     p.manualInput:SetPoint("BOTTOMLEFT", 18, 18)
-    p.manualInput:SetPlaceholder(L["Shift-Klick auf ein Item oder Item-ID"])
+    p.manualInput:SetPlaceholder(L["Shift-Klick, Item-ID oder Name"])
     AcceptLinks(p.manualInput)
     local addBtn = T:Button(p.manual, L["Auswählen"], 120, 30, "default", function()
         local raid = p.raid
         if not raid then return end
-        local sel = p.sel[raid.key]
+        local sel = ResSel(raid.key)
         for _, id in ipairs(IdsFromText(p.manualInput:GetText())) do
             if #sel < LC:MaxReserves() then
                 local dup = false
@@ -127,13 +187,13 @@ local function CreateMyResPage(p)
     p.reason:SetPlaceholder(L["Begründung für die Änderung (Pflicht)"])
     p.reason:SetMaxLetters(120)
     p.clearSel = T:Button(p, L["Auswahl leeren"], 130, 34, "ghost", function()
-        if p.raid then wipe(p.sel[p.raid.key]) end
+        if p.raid then wipe(ResSel(p.raid.key)) end
         LC:RefreshUI()
     end)
     p.action = T:Button(p, L["Reservierung speichern"], 190, 34, "primary", function()
         local raid = p.raid
         if not raid then return end
-        local items = p.sel[raid.key]
+        local items = ResSel(raid.key)
         local rec = LC:GetReservation(raid.key)
         if rec and (rec.rev or 0) > 0 then
             local ok, msg = LC:RequestReservationChange(raid.key, items, p.reason:GetText())
@@ -141,8 +201,7 @@ local function CreateMyResPage(p)
             if ok then p.reason:SetText("") end
             LC:RefreshUI()
         else
-            local dlg = StaticPopup_Show("LIGHTCOUNCIL_CONFIRM_RESERVE", LC:ItemListText(items))
-            if dlg then dlg.data = { raid = raid.key, items = { unpack(items) } } end
+            ResConfirm(raid.key, "myres")
         end
     end)
     p.action:SetPoint("BOTTOMRIGHT", 0, 8)
@@ -152,12 +211,41 @@ local function CreateMyResPage(p)
     p.msg:SetWidth(CW)
     p.msg:SetWordWrap(false)
 
+    -- Suche: springt zu Raid und Boss und hebt das Item hervor (Reservieren dann per Häkchen).
+    -- Items, die in keiner Loot-Quelle stehen, kommen direkt in die Auswahl des aktuellen Raids.
+    local function AddToSelection(id)
+        local raid = p.raid
+        if not raid then return end
+        local sel = ResSel(raid.key)
+        for _, s in ipairs(sel) do if s == id then return end end
+        if #sel >= LC:MaxReserves() then
+            p.msgText = H.warn .. L["Du kannst höchstens "] .. LC:MaxReserves() .. L[" Items pro Raid reservieren.|r"]
+        else
+            sel[#sel + 1] = id
+            p.msgText = H.good .. L("%s ausgewählt – mit „Reservierung speichern“ bestätigen.", LC:ItemLink(id)) .. "|r"
+        end
+    end
+    AttachItemSearch(p.search, function(res)
+        if res.raidIdx then
+            p.raidIdx, p.bossIdx = res.raidIdx, res.bossIdx
+            p.highlight, p.scrollTo = res.id, true
+        else
+            AddToSelection(res.id)
+        end
+        LC:RefreshUI()
+    end, 420)
+    AttachItemSearch(p.manualInput, function(res)
+        AddToSelection(res.id)
+        LC:RefreshUI()
+    end)
+
     StaticPopupDialogs["LIGHTCOUNCIL_CONFIRM_RESERVE"] = {
         text = L["Light Council: Diese Items reservieren?\n\n%s\n\nDanach ist deine Reservierung gesperrt. Änderungen gehen nur noch mit Freigabe des Councils."],
         button1 = L["Reservieren"], button2 = CANCEL,
         OnAccept = function(self, data)
             local ok, msg = LC:SubmitReservation(data.raid, data.items)
-            pages.myres.msgText = (ok and H.good or H.bad) .. msg .. "|r"
+            local pg = pages[data.from or "myres"] or pages.myres
+            pg.msgText = (ok and H.good or H.bad) .. msg .. "|r"
             LC:RefreshUI()
         end,
         timeout = 0, whileDead = true, hideOnEscape = true,
@@ -213,9 +301,8 @@ local function GetMyItemRow(p, i)
     r.check:SetPoint("RIGHT", -190, 0)
     -- Ins aktive Gear-Set aufnehmen bzw. wieder entfernen
     r.setBtn = T:Button(r, L["+ Set"], 76, 26, "ghost", function()
-        local idx = LC:IsInMySet(r.itemID)
-        if idx then
-            LC:RemoveFromGearSet(idx)
+        if LC:IsInMySet(r.itemID) then
+            LC:RemoveFromGearSet(r.itemID)
         else
             local ok, msg = LC:AddToGearSet({ r.itemID })
             if msg then p.msgText = (ok and H.good or H.warn) .. msg .. "|r" end
@@ -224,9 +311,23 @@ local function GetMyItemRow(p, i)
     end)
     r.setBtn:SetPoint("RIGHT", -8, 0)
     r.setBtn.tooltipTitle = L["Gear-Set"]
-    r.setBtn.tooltip = L["Nimmt das Item ans Ende deines aktiven Gear-Sets auf (oder entfernt es wieder). Die Reihenfolge legst du unter „Gear-Sets“ fest."]
+    r.setBtn.tooltip = L["Angehakt: Das Item ist in deinem aktiven Set. Pro Slot ein Item – ein neues ersetzt das bisherige."]
+
+    -- Nur Council/Leitung: Council-Item (zweite Reihe rechts)
+    r.council = T:Check(r, L["Council"])
+    r.council:SetScript("OnClick", function(self)
+        LC:SetCouncilItem(r.itemID, self:GetChecked())
+        LC:RefreshUI()
+    end)
+    r.council:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L["Council-Item"], 1, 1, 1)
+        GameTooltip:AddLine(L["Angehakt: Bei diesem Item entscheidet der Council, wer würfeln darf."], nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    r.council:HookScript("OnLeave", GameTooltip_Hide)
     r.check:SetScript("OnClick", function(self)
-        local sel = p.sel[p.raid.key]
+        local sel = ResSel(p.raid.key)
         if self:GetChecked() then
             if #sel >= LC:MaxReserves() then
                 self:SetChecked(false)
@@ -291,11 +392,7 @@ local function RefreshMyRes()
     -- eigene Reservierung + Auswahl
     local rec = LC:GetReservation(raid.key)
     local locked = rec and (rec.rev or 0) > 0
-    if not p.sel[raid.key] then
-        local init = (rec and rec.pending and rec.pending.items) or (rec and rec.items) or {}
-        p.sel[raid.key] = { unpack(init) }
-    end
-    local sel = p.sel[raid.key]
+    local sel = ResSel(raid.key)
     local selSet = {}
     for _, id in ipairs(sel) do selSet[id] = true end
 
@@ -369,18 +466,36 @@ local function RefreshMyRes()
             local chance = LC:GetDropChance(boss, id)
             if chance then sub = H.good .. chance .. L[" %|r Drop   ·   "] .. sub end
             if LC:IsCouncilItem(id) then sub = sub .. "   ·   " .. H.accent .. L["Council-Item|r"] end
-            local prio = LC:GetPrio(id)
-            if prio and #prio > 0 then sub = sub .. "   ·   " .. H.accentLt .. L["Prio:|r "] .. table.concat(prio, " > ") end
             local inSet = LC:IsInMySet(id)
             if inSet then
                 local info = LC:GearSetRank(LC:PlayerName(), id)
-                local tag = (info and info.rank) and L("Set #%d", info.rank) or L["Set: hast du"]
+                local tag = (info and info.owned) and L["Set: hast du"]
+                    or ((info and info.important) and (LC.STAR .. " " .. L["Im Set"]) or L["Im Set"])
                 sub = H.good .. tag .. "|r   ·   " .. sub
             end
             r.setBtn:SetText(inSet and L["Im Set"] or L["+ Set"])
+            -- Layout: normal eine Reihe; für Council/Leitung zwei (Reservieren + Set / Council)
+            local manage = LC:CanManageLoot()
+            local dy = manage and 11 or 0
+            r.check:ClearAllPoints()
+            r.check:SetPoint("RIGHT", -190, dy)
+            r.setBtn:ClearAllPoints()
+            r.setBtn:SetPoint("RIGHT", -8, dy)
+            r.setBtn:SetHeight(manage and 20 or 26)
+            r.council:SetShown(manage)
+            if manage then
+                r.council:ClearAllPoints()
+                r.council:SetPoint("RIGHT", -190, -11)
+                r.council:SetChecked(LC:IsCouncilItem(id))
+            end
             r.sub:SetText(sub)
             r.check:SetChecked(selSet[id] == true)
             r.check:SetEnabled(selSet[id] == true or not full)
+            T:SetBorder(r, (id == p.highlight) and C.accent or C.border)
+            if id == p.highlight and p.scrollTo then
+                p.scrollTo = nil
+                ScrollToRow(p.itemScroll, i, ITEM_ROW)
+            end
             r:Show()
         elseif myItemRows[i] then
             myItemRows[i]:Hide()

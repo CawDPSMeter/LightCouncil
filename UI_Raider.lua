@@ -142,19 +142,17 @@ function LC:RefreshRaidFrame()
             r.icon:SetBackdropBorderColor(qc[1], qc[2], qc[3], 1)
             r.link:SetText(self:ItemLink(it.itemID) .. (it.council and ("  " .. H.accent .. L["Council|r"]) or ""))
 
-            -- Wer hat Prio / reserviert?
+            -- Wer hat reserviert?
             local who
-            if it.prio and #it.prio > 0 then
-                who = H.accentLt .. L["Prio:|r "] .. table.concat(it.prio, " > ")
-            elseif it.reservers and #it.reservers > 0 then
+            if it.reservers and #it.reservers > 0 then
                 who = H.accentLt .. L["Reserviert:|r "] .. table.concat(it.reservers, ", ")
             else
                 who = H.good .. L["Keine Reservierung – jeder darf würfeln|r"]
             end
-            -- In meinem Gear-Set? Dann den Platz in meiner Prio vorne anzeigen
+            -- In meinem Gear-Set? Dann vorne anzeigen (★ = wichtig)
             local mineInfo = self:IsInMySet(it.itemID) and self:GearSetRank(self:PlayerName(), it.itemID)
-            if mineInfo and mineInfo.rank then
-                who = H.good .. L("Dein Set #%d", mineInfo.rank) .. "|r   " .. who
+            if mineInfo and mineInfo.inSet then
+                who = (mineInfo.important and (self.STAR .. " ") or "") .. H.good .. L["In deinem Set"] .. "|r   " .. who
             end
             r.who:SetText(who)
 

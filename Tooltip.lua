@@ -1,4 +1,4 @@
--- Light Council – Item-Tooltips: Council-Item, Prio und Reservierer überall anzeigen
+-- Light Council – Item-Tooltips: Council-Item, Reservierer und Gear-Sets überall anzeigen
 -- (Lootfenster, Taschen, Chat-Links, AtlasLoot …). Abschaltbar mit /lc tooltip.
 local _, LC = ...
 local L = LC.L
@@ -21,31 +21,30 @@ local function AddInfo(tooltip, itemID)
     if not itemID or not LC.db or LC.db.config.tooltip == false then return end
     if tooltip.lcItemID == itemID then return end   -- nicht doppelt eintragen
     local council = LC:IsCouncilItem(itemID)
-    local prio = LC:GetPrio(itemID)
     local reservers = {}
     for _, r in ipairs(LC:GetReservers(itemID)) do reservers[#reservers + 1] = r.name end
-    -- Wer hat das Item in seinem aktiven Gear-Set (und braucht es noch)? Sortiert nach Platz in der Prio
+    -- Wer hat das Item in seinem aktiven Gear-Set (und braucht es noch)? Als wichtig markiert zuerst
     local wanted = {}
     if LC.GetAllGearSets then
         for _, s in ipairs(LC:GetAllGearSets()) do
             local info = LC:GearSetRank(s.name, itemID)
-            if info and info.rank then wanted[#wanted + 1] = { name = s.name, rank = info.rank } end
+            if info and info.inSet then wanted[#wanted + 1] = { name = s.name, important = info.important } end
         end
-        table.sort(wanted, function(a, b) return a.rank < b.rank end)
+        table.sort(wanted, function(a, b)
+            if a.important ~= b.important then return a.important == true end
+            return a.name < b.name
+        end)
     end
-    if not council and not (prio and #prio > 0) and #reservers == 0 and #wanted == 0 then return end
+    if not council and #reservers == 0 and #wanted == 0 then return end
     tooltip.lcItemID = itemID
     tooltip:AddLine(" ")
     tooltip:AddLine(LC.COLOR .. "Light Council|r" .. (council and ("  ·  " .. L["Council-Item"]) or ""), 1, 1, 1)
-    if prio and #prio > 0 then
-        tooltip:AddLine(L["Prio:|r "]:gsub("|r", "") .. table.concat(prio, " > "), 0.82, 0.71, 1, true)
-    end
     if #reservers > 0 then
         tooltip:AddLine(L("Reserviert (%d): %s", #reservers, NameList(reservers)), 0.8, 0.8, 0.8, true)
     end
     if #wanted > 0 then
         local names = {}
-        for _, w in ipairs(wanted) do names[#names + 1] = w.name .. " #" .. w.rank end
+        for _, w in ipairs(wanted) do names[#names + 1] = w.important and (LC.STAR .. w.name) or w.name end
         tooltip:AddLine(L("Im Gear-Set (%d): %s", #wanted, NameList(names)), 0.6, 0.85, 0.6, true)
     end
     tooltip:Show()

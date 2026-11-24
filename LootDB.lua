@@ -273,14 +273,113 @@ function LC:GetDropChance(boss, itemID)
     return boss and boss.chance and boss.chance[itemID]
 end
 
--- Prio speichern (Liste von Namen in Reihenfolge) – leere Liste entfernt die Prio
-function LC:SetPrio(itemID, names)
-    if not itemID then return end
-    if names and #names > 0 then
-        local copy = {}
-        for i, n in ipairs(names) do copy[i] = n end
-        self.db.prio[itemID] = copy
-    else
-        self.db.prio[itemID] = nil
+------------------------------------------------------------------------
+-- Itemsuche (Name oder Item-ID) über alle Raids der Loot-Quelle
+------------------------------------------------------------------------
+-- Kleinschreibung auch für Umlaute/Akzente (Latin-1) und Kyrillisch, damit „Ä“ = „ä“ und „Щ“ = „щ“
+local function Lower(s)
+    s = s:lower()
+    s = s:gsub("\195([\128-\158])", function(c)
+        local b = c:byte()
+        if b ~= 151 then return "\195" .. string.char(b + 32) end   -- 151 = × bleibt
+    end)
+    s = s:gsub("\208\129", "\209\145")                                -- Ё → ё
+    s = s:gsub("\208([\144-\175])", function(c)
+        local b = c:byte()
+        if b < 160 then return "\208" .. string.char(b + 32) end      -- А–П → а–п
+        return "\209" .. string.char(b - 32)                          -- Р–Я → р–я
+    end)
+    return s
+end
+LC.LowerText = Lower
+
+local nameCache = {}    -- [itemID] = Name in Kleinbuchstaben
+local requested = {}    -- Itemdaten schon beim Server angefragt
+
+local function SearchName(id)
+    local n = nameCache[id]
+    if n then return n end
+    local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    local name = getInfo(id)
+    if name then
+        n = Lower(name)
+        nameCache[id] = n
+        return n
     end
+    if not requested[id] and C_Item and C_Item.RequestLoadItemDataByID then
+        requested[id] = true
+        pcall(C_Item.RequestLoadItemDataByID, id)
+    end
+end
+
+-- Alle Items der Quelle (je Item der erste Fundort): { id, raidKey, raidName, boss, bossIdx, raidIdx }
+local function AllItems()
+    local raids = LC:GetLootDB()
+    local cache = LC.lootCache
+    if cache and cache.searchList and cache.searchFor == raids then return cache.searchList end
+    local list, seen = {}, {}
+    for ri, r in ipairs(raids or {}) do
+        for bi, b in ipairs(r.bosses or {}) do
+            for _, id in ipairs(b.items or {}) do
+                if not seen[id] then
+                    seen[id] = true
+                    list[#list + 1] = { id = id, raidKey = r.key, raidName = r.name, boss = b.name, raidIdx = ri, bossIdx = bi }
+                end
+            end
+        end
+    end
+    if cache then cache.searchList, cache.searchFor = list, raids end
+    return list
+end
+
+-- Namen aller Items vorab anfragen, damit die Suche nach Namen sofort alles findet
+function LC:WarmItemNames()
+    for _, e in ipairs(AllItems()) do SearchName(e.id) end
+end
+
+-- Treffer (höchstens max): exakte ID, dann Namensanfang, dann Rest – jeweils alphabetisch.
+-- Rückgabe: Liste, Anzahl aller Treffer, Anzahl Items ohne geladenen Namen
+function LC:SearchItems(query, max)
+    query = strtrim(query or "")
+    max = max or 8
+    local out = {}
+    if query == "" then return out, 0, 0 end
+    local numeric = query:match("^%d+$")
+    local q = Lower(query)
+    local exact, starts, inside, waiting = {}, {}, {}, 0
+    for _, e in ipairs(AllItems()) do
+        local name = SearchName(e.id)
+        if not name then waiting = waiting + 1 end
+        if numeric then
+            local s = tostring(e.id)
+            if s == query then exact[#exact + 1] = e
+            elseif s:sub(1, #query) == query then starts[#starts + 1] = e end
+        elseif name then
+            local pos = name:find(q, 1, true)
+            if pos == 1 then starts[#starts + 1] = e
+            elseif pos then inside[#inside + 1] = e end
+        end
+    end
+    -- Eingetippte ID, die in keiner Loot-Quelle steht (z. B. Quest- oder Welt-Item)
+    if numeric and #exact == 0 and #query >= 3 then
+        local id = tonumber(query)
+        local instant = C_Item and C_Item.GetItemInfoInstant or GetItemInfoInstant
+        if instant and instant(id) then exact[1] = { id = id } end
+    end
+    local function ByName(a, b)
+        local na, nb = nameCache[a.id], nameCache[b.id]
+        if na and nb and na ~= nb then return na < nb end
+        if (na ~= nil) ~= (nb ~= nil) then return na ~= nil end
+        return a.id < b.id
+    end
+    table.sort(starts, ByName)
+    table.sort(inside, ByName)
+    local total = #exact + #starts + #inside
+    for _, group in ipairs({ exact, starts, inside }) do
+        for _, e in ipairs(group) do
+            if #out >= max then return out, total, waiting end
+            out[#out + 1] = e
+        end
+    end
+    return out, total, waiting
 end

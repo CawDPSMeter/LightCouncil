@@ -8,7 +8,7 @@
 --
 -- Schema (schema = 1), alle Zeiten als Unix-Zeitstempel (Sekunden, Serverzeit):
 --   format, schema, addonVersion, exported, exportedBy, guild, council[], settings{},
---   history[], historyDeleted[], attendance[], sitouts[], players[], councilItems[], prio[],
+--   history[], historyDeleted[], attendance[], sitouts[], players[], councilItems[],
 --   reserves[], gearSets{ mine[], others[] }, log[]
 local _, LC = ...
 local L = LC.L
@@ -198,16 +198,7 @@ local function BuildItems(db)
         if on and tonumber(id) then council[#council + 1] = tonumber(id) end
     end
     table.sort(council)
-    local prio = Arr()
-    for id, names in pairs(db.prio or {}) do
-        if tonumber(id) and type(names) == "table" then
-            local p = Arr()
-            for _, n in ipairs(names) do p[#p + 1] = n end
-            prio[#prio + 1] = { itemID = tonumber(id), item = ItemName(id), players = p }
-        end
-    end
-    table.sort(prio, function(a, b) return a.itemID < b.itemID end)
-    return council, prio
+    return council
 end
 
 local function BuildReserves(db)
@@ -234,7 +225,18 @@ local function BuildGearSets(db)
         local sets = Arr()
         for _, name in ipairs(g.order or {}) do
             local s = g.sets and g.sets[name]
-            if s then sets[#sets + 1] = { name = name, active = (g.active == name), items = IdList(s.items) } end
+            if s then
+                local items = Arr()
+                if s.slots then
+                    for _, it in ipairs(LC:GearSetList(s)) do
+                        items[#items + 1] = { itemID = it.id, slot = it.slot, important = it.important }
+                    end
+                else
+                    -- Set eines anderen Charakters im alten Format (wird beim Einloggen umgestellt)
+                    for _, id in ipairs(s.items or {}) do items[#items + 1] = { itemID = id } end
+                end
+                sets[#sets + 1] = { name = name, active = (g.active == name), items = items }
+            end
         end
         mine[#mine + 1] = { character = char, sets = sets }
     end
@@ -243,7 +245,7 @@ local function BuildGearSets(db)
     for _, o in pairs(db.otherSets or {}) do
         local items = Arr()
         for _, it in ipairs(o.items or {}) do
-            items[#items + 1] = { itemID = it.id, have = it.have and true or false }
+            items[#items + 1] = { itemID = it.id, have = it.have and true or false, important = it.important == true }
         end
         others[#others + 1] = { name = o.name, set = o.set, time = o.time, items = items }
     end
@@ -278,7 +280,7 @@ function LC:BuildExport()
     local isCouncil = self:AmICouncil()
     local history, deleted = BuildHistory(db)
     local attendance, sitouts = BuildAttendance(db)
-    local councilItems, prio = BuildItems(db)
+    local councilItems = BuildItems(db)
     local mine, others = BuildGearSets(db)
     local council = Arr()
     for _, n in ipairs(self:GetTrustedCouncil()) do council[#council + 1] = n end
@@ -297,7 +299,7 @@ function LC:BuildExport()
         history = history, historyDeleted = deleted,
         attendance = attendance, sitouts = sitouts,
         players = BuildPlayers(db, isCouncil),
-        councilItems = councilItems, prio = prio,
+        councilItems = councilItems,
         reserves = BuildReserves(db),
         gearSets = { mine = mine, others = others },
         log = isCouncil and BuildLog(db) or Arr(),

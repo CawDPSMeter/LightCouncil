@@ -18,7 +18,7 @@ local function SelectTab(key) return U.SelectTab(key) end
 local STEPS = {
     { key = "council", title = "Council festlegen", tab = "settings", button = "Eintragen", desc = "3 oder 5 Council-Mitglieder mit Vor- und Nachnamen." },
     { key = "softres", title = "Reservierungen sammeln", tab = "reserves", button = "Übersicht", desc = "Raider reservieren selbst im Addon; der Council bestätigt automatisch." },
-    { key = "items", title = "Council-Items markieren", tab = "items", button = "Raid-Loot öffnen", desc = "Im Raid-Loot per Häkchen – nur bei diesen Items entscheidet der Council." },
+    { key = "items", title = "Council-Items markieren", tab = "items", button = "Items öffnen", desc = "Unter Gear-Sets → Items per Häkchen „Council“ – nur bei diesen Items entscheidet der Council." },
     { key = "ml", title = "Master Loot aktivieren", desc = "Voraussetzung, damit das Addon den Loot sieht und vergeben kann." },
 }
 

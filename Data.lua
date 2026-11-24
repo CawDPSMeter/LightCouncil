@@ -53,10 +53,6 @@ function LC:GetReservers(itemID)
     return self.db.softres[itemID] or {}
 end
 
-function LC:GetPrio(itemID)
-    return self.db.prio[itemID]
-end
-
 function LC:IsCouncilItem(itemID)
     return itemID and self.db.councilItems[itemID] == true
 end

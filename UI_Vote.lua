@@ -219,7 +219,7 @@ function LC:ShowVoteFrame(s)
             r.att:SetText(Val(c.att, "%"))
             r.parse:SetText(Val(c.parse))
             r.eng:SetText(Val(c.eng, "/5"))
-            -- Gear-Set: Platz dieses Items in der Prio des Spielers
+            -- Gear-Set: ist das Item im Set des Spielers (★ = wichtig)?
             r.set:SetText(self:GearSetRankText(c.name, s.itemID))
             -- Letztes Item: Council-Items lila hervorgehoben
             local loot = self:GetPlayerLoot(c.name)

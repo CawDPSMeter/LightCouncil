@@ -265,8 +265,6 @@ local function RefreshLoot()
             local names = {}
             for _, x in ipairs(res) do names[#names + 1] = x.name end
             local info = (#names > 0) and (L["Reserviert: "] .. table.concat(names, ", ")) or L["Keine Reservierung – freies Würfeln"]
-            local prio = LC:GetPrio(e.itemID)
-            if prio then info = H.accentLt .. L["Prio:|r "] .. table.concat(prio, " > ") .. "   " .. info end
             r.info:SetText(info)
 
             r.council:SetChecked(e.isCouncil)
