@@ -20,7 +20,7 @@ local function Field(name)
     return (LC:CleanText(name or "", 40):gsub(",", ""))
 end
 
--- Reihenfolgeunabhängige Prüfsumme über die Spieler einer Woche
+-- Reihenfolgeunabhängige Prüfsumme über die Spieler einer Woche (16 Bit, damit 20 Wochen in eine Nachricht passen)
 local function WeekSum(list)
     local n, s = 0, 0
     for key in pairs(list or {}) do
@@ -29,7 +29,7 @@ local function WeekSum(list)
         for i = 1, #key do h = (h * 31 + key:byte(i)) % 16777213 end
         s = (s + h) % 16777213
     end
-    return n, s
+    return n, s % 65521
 end
 
 local function SyncFrom()
@@ -38,12 +38,17 @@ local function SyncFrom()
 end
 
 local function Digest(from)
-    local parts = {}
-    for w = from, LC:CurrentWeek() do
+    -- Von der neuesten Woche rückwärts, höchstens ~220 Zeichen (Addon-Nachrichten haben maximal 255 Byte).
+    -- Fehlt eine alte Woche im Digest, schickt der Council sie einfach mit.
+    local parts, len = {}, 0
+    for w = LC:CurrentWeek(), from, -1 do
         local list = LC.db.attendance[w]
         if list and next(list) then
             local n, s = WeekSum(list)
-            parts[#parts + 1] = string.format("%d:%d:%x", w - from, n, s)
+            local part = string.format("%d:%d:%x", w - from, n, s)
+            if len + #part + 1 > 220 then break end
+            table.insert(parts, 1, part)
+            len = len + #part + 1
         end
     end
     return table.concat(parts, ",")

@@ -50,7 +50,14 @@ local function Chunks(names, maxLen)
     return chunks
 end
 
-local lootIds, lootCounter = {}, 0
+local lootIds, lootNext, lootCounter = {}, {}, 0
+
+-- Kurze Prüfsumme des eigenen Namens (macht die Loot-ID zwischen Plündermeistern eindeutig)
+local function NameHash(name)
+    local h = 0
+    for i = 1, #(name or "") do h = (h * 31 + name:byte(i)) % 4096 end
+    return h
+end
 
 function LC:NetLoot(entries, test)
     if #entries == 0 then return end
@@ -59,13 +66,22 @@ function LC:NetLoot(entries, test)
     local src = entries[1].test and key or (key:match("^(.-):") or key)
     local lid = lootIds[src]
     if not lid then
+        -- eindeutig: volle Serverzeit, Zähler dieser Sitzung und Plündermeister
         lootCounter = lootCounter + 1
-        lid = string.format("%d%d", time() % 100000, lootCounter)
+        lid = string.format("%d-%d-%03x", time(), lootCounter, NameHash(self:NameKey(self:PlayerName()) or ""))
         lootIds[src] = lid
+        lootNext[lid] = 0
     end
-    self:Broadcast(test, "LS", lid, tostring(#entries))
-    for i, e in ipairs(entries) do
-        e.lid, e.idx = lid, i
+    -- Jedes Item behält seine Nummer, auch wenn die Leiche erneut geöffnet wird und Slots aufrücken
+    for _, e in ipairs(entries) do
+        if e.lid ~= lid or not e.idx then
+            lootNext[lid] = lootNext[lid] + 1
+            e.lid, e.idx = lid, lootNext[lid]
+        end
+    end
+    self:Broadcast(test, "LS", lid, tostring(lootNext[lid]))
+    for _, e in ipairs(entries) do
+        local i = e.idx
         local res = e.test and e.testReservers or self:GetReservers(e.itemID)
         local names = {}
         for _, r in ipairs(res) do names[#names + 1] = self:CleanText(r.name, 40) end
@@ -147,7 +163,7 @@ function LC:OnRaidComm(cmd, p, sender)
     end
     if not R or R.lid ~= lid then return true end
     -- Änderungen an einer Lootliste nur von dem, der sie angelegt hat
-    if R.owner and not self:NamesMatch(R.owner, sender) then return true end
+    if R.owner and not self:SameName(R.owner, sender) then return true end
 
     if cmd == "LE" then
         if self.db.config.raiderWindow then self:ShowRaidFrame() end
@@ -157,8 +173,10 @@ function LC:OnRaidComm(cmd, p, sender)
 
     local it = idx and R.items[idx]
     if cmd == "LI" then
-        if not it then
-            it = { itemID = tonumber(p[4]), state = "wait", rolls = {} }
+        -- Neues Item (oder unter dieser Nummer liegt jetzt ein anderes): frisch anlegen
+        local newID = tonumber(p[4])
+        if not it or it.itemID ~= newID then
+            it = { itemID = newID, state = "wait", rolls = {} }
             R.items[idx] = it
         end
         it.council = (p[5] == "1")
@@ -214,7 +232,7 @@ function LC:OnRaidComm(cmd, p, sender)
         if R.activeIdx == idx then R.activeIdx = nil end
         -- Historie: die Leitung trägt selbst ein (auch Tests kommen nur lokal an und werden so übersprungen).
         -- Nur vom Council oder vom Plündermeister übernehmen, nicht von jedem Raid-Assistenten.
-        local sm = self:FindByName(self:GetGroupMembers(), sender)
+        local sm = self:FindExact(self:GetGroupMembers(), sender)
         if not self:IsMe(sender) and (self:IsTrustedCouncil(sender) or (sm and sm.isML)) then
             self:AddHistory({
                 id = lid .. "#" .. idx, itemID = it.itemID, winner = it.winner, roll = it.winRoll,

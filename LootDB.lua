@@ -110,17 +110,22 @@ local function ReadAtlas(out)
             local isDungeon = ctName:find("dungeon") or ctName:find("instanz")
             local isRaid = not isDungeon and (ctName:find("raid") or ctName:find("schlacht") or ctName:find("%d%d"))
             if isRaid then
-                local name
+                -- Schlüssel sprachunabhängig: englischer Name aus den Daten bzw. der Tabellenschlüssel ("MoltenCore").
+                -- (Bis 0.19.0 kam er aus dem übersetzten Namen – dann landeten Reservierungen aus Clients
+                -- verschiedener Sprachen unter getrennten Raids, kyrillische Namen sogar unter "".)
+                local keyName = (type(inst.name) == "string" and inst.name ~= "") and inst.name or nil
+                if not keyName then
+                    keyName = key:gsub("(%l)(%u)", "%1 %2")
+                    keyName = keyName:gsub("(%l)of ", "%1 of "):gsub(" Ahn Qiraj", " Ahn'Qiraj")
+                end
+                -- Anzeige in der Sprache des Clients
+                local display
                 if type(inst.GetName) == "function" then
                     local ok, n = pcall(inst.GetName, inst, true)
-                    if ok and type(n) == "string" and n ~= "" and n ~= key then name = n end
+                    if ok and type(n) == "string" and n ~= "" and n ~= key then display = n end
                 end
-                if not name and type(inst.name) == "string" and inst.name ~= "" then name = inst.name end
-                if not name then
-                    name = key:gsub("(%l)(%u)", "%1 %2")
-                    name = name:gsub("(%l)of ", "%1 of "):gsub(" Ahn Qiraj", " Ahn'Qiraj")
-                end
-                local entry = { name = CleanName(name),
+                local entry = { name = CleanName(keyName), display = CleanName(display or keyName),
+                    instanceID = tonumber(inst.InstanceID),
                     forever = ctName:find("forever") ~= nil, bosses = {} }
                 for _, boss in ipairs(inst.items) do
                     if type(boss) == "table" then
@@ -185,11 +190,15 @@ local function Merge(lists)
             local m = byKey[key]
             if not m then
                 m = { key = key, name = inst.display or inst.name, forever = inst.forever,
-                    bosses = {}, bossIndex = {}, sources = {}, itemCount = 0 }
+                    bosses = {}, bossIndex = {}, sources = {}, itemCount = 0, alt = {} }
                 byKey[key] = m
                 order[#order + 1] = m
             end
             m.sources[src.key] = true
+            -- Weitere Schlüssel zum Wiedererkennen: übersetzter Name (aktueller Raid, alte Reservierungen) und Instanz-ID
+            local alt = NormKey(inst.display or inst.name)
+            if alt ~= "" and alt ~= key then m.alt[alt] = true end
+            if inst.instanceID then m.instanceID = inst.instanceID end
             if inst.forever then m.forever = true end
             for _, boss in ipairs(inst.bosses) do
                 local bk = NormBoss(boss.name)
@@ -235,6 +244,7 @@ function LC:GetLootDB()
             end
         end
         self.lootCache = { source = source, all = Merge(lists) }
+        self:MigrateRaidKeys(self.lootCache.all)
     end
     if #self.lootCache.all == 0 then
         return nil, L["Keine Loot-Quelle gefunden. Installiere AtlasLoot Forever oder Naowh Forever."]
@@ -244,11 +254,14 @@ end
 
 -- Raid, in dem ich gerade bin (Eintrag aus der Loot-Datenbank) oder nil
 function LC:GetCurrentRaid()
-    local name, instanceType = GetInstanceInfo()
+    local name, instanceType, _, _, _, _, _, instanceID = GetInstanceInfo()
     if instanceType ~= "raid" or not name or name == "" then return nil end
     local key = NormKey(name)
     for _, r in ipairs(self:GetLootDB() or {}) do
-        if r.key == key or NormKey(r.name) == key then return r end
+        if (instanceID and r.instanceID == instanceID)
+            or (key ~= "" and (r.key == key or NormKey(r.name) == key or (r.alt and r.alt[key]))) then
+            return r
+        end
     end
     return nil
 end
@@ -382,4 +395,32 @@ function LC:SearchItems(query, max)
         end
     end
     return out, total, waiting
+end
+
+------------------------------------------------------------------------
+-- Reservierungen unter alten, übersetzten Raid-Schlüsseln (bis 0.19.0) auf den neuen Schlüssel umziehen
+------------------------------------------------------------------------
+function LC:MigrateRaidKeys(raids)
+    local reserves = self.db and self.db.reserves
+    if not reserves or not raids then return end
+    local known, byAlt = {}, {}
+    for _, r in ipairs(raids) do
+        known[r.key] = true
+        for alt in pairs(r.alt or {}) do byAlt[alt] = r.key end
+    end
+    local moves = {}
+    for oldKey in pairs(reserves) do
+        local newKey = not known[oldKey] and byAlt[oldKey]
+        if newKey then moves[oldKey] = newKey end
+    end
+    local moved = false
+    for oldKey, newKey in pairs(moves) do
+        if not reserves[newKey] then
+            reserves[newKey] = reserves[oldKey]
+            reserves[oldKey] = nil
+            if self.db.config.reminderRaid == oldKey then self.db.config.reminderRaid = newKey end
+            moved = true
+        end
+    end
+    if moved and self.RebuildReservers then self:RebuildReservers() end
 end

@@ -19,7 +19,9 @@ end
 
 local function AddInfo(tooltip, itemID)
     if not itemID or not LC.db or LC.db.config.tooltip == false then return end
-    if tooltip.lcItemID == itemID then return end   -- nicht doppelt eintragen
+    -- Nicht doppelt eintragen: nur wenn unser Block noch drinsteht. Wurde der Tooltip inzwischen geleert und
+    -- neu gefüllt (Vergleichs-Tooltips melden das Leeren nicht immer), ist er kürzer als nach unserem Eintrag.
+    if tooltip.lcItemID == itemID and tooltip.NumLines and tooltip:NumLines() >= (tooltip.lcLines or 0) then return end
     local council = LC:IsCouncilItem(itemID)
     local reservers = {}
     for _, r in ipairs(LC:GetReservers(itemID)) do reservers[#reservers + 1] = r.name end
@@ -47,6 +49,7 @@ local function AddInfo(tooltip, itemID)
         for _, w in ipairs(wanted) do names[#names + 1] = w.important and (LC.STAR .. w.name) or w.name end
         tooltip:AddLine(L("Im Gear-Set (%d): %s", #wanted, NameList(names)), 0.6, 0.85, 0.6, true)
     end
+    tooltip.lcLines = tooltip.NumLines and tooltip:NumLines() or 0
     tooltip:Show()
 end
 
@@ -58,6 +61,7 @@ end
 
 local function OnClear(tooltip)
     tooltip.lcItemID = nil
+    tooltip.lcLines = nil
 end
 
 LC:On("PLAYER_LOGIN", function(self)
@@ -66,7 +70,7 @@ LC:On("PLAYER_LOGIN", function(self)
         TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
             if tooltip and tooltip.AddLine then AddInfo(tooltip, data and data.id) end
         end)
-        for _, tt in ipairs({ GameTooltip, ItemRefTooltip }) do
+        for _, tt in ipairs({ GameTooltip, ItemRefTooltip, ShoppingTooltip1, ShoppingTooltip2 }) do
             if tt then tt:HookScript("OnTooltipCleared", OnClear) end
         end
     else

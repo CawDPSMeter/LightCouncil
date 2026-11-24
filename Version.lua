@@ -96,7 +96,7 @@ function LC:OnComm(msg, sender, channel)
         if cmd == "VQ" then
             -- Nur auf Anfragen aus der eigenen Gruppe, höchstens alle 30 Sekunden und leicht verzögert –
             -- sonst könnte jemand den ganzen Raid ständig antworten lassen
-            if self:FindByName(self:GetGroupMembers(), sender) and GetTime() - lastAnswer >= 30 then
+            if self:FindExact(self:GetGroupMembers(), sender) and GetTime() - lastAnswer >= 30 then
                 lastAnswer = GetTime()
                 local ch = GroupChannel()
                 if ch then

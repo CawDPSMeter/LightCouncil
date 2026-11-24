@@ -90,7 +90,7 @@ end
 
 function LC:IsTrustedCouncil(name)
     for _, n in ipairs(self:GetTrustedCouncil()) do
-        if self:NamesMatch(n, name) then return true end
+        if self:SameName(n, name) then return true end
     end
     return false
 end
@@ -99,19 +99,15 @@ end
 -- Raidleiter, Gildenmeister oder Offiziere (Gildenrang 0 oder 1). Sonst könnte jeder
 -- Gildenkollege zuerst eine falsche Liste schicken und der echte Council käme nicht mehr durch.
 function LC:IsTrustedFirstSource(sender)
-    local m = self:FindByName(self:GetGroupMembers(), sender)
+    local m = self:FindExact(self:GetGroupMembers(), sender)
     if m and (m.rank or 0) >= 2 then return true end
     if IsInGuild() and GetGuildRosterInfo and GetNumGuildMembers then
-        local key = self:NameKey(sender)
-        local fallback
         for i = 1, (GetNumGuildMembers() or 0) do
             local name, _, rankIndex = GetGuildRosterInfo(i)
             if name then
-                if self:NameKey(name) == key then return (rankIndex or 99) <= 1 end
-                if fallback == nil and self:NamesMatch(name, sender) then fallback = (rankIndex or 99) <= 1 end
+                if self:SameName(name, sender) then return (rankIndex or 99) <= 1 end
             end
         end
-        if fallback then return true end
     end
     return false
 end
@@ -122,7 +118,7 @@ local firstSeen = {}   -- [Liste] = { [Absender] = true }
 function LC:FirstListConfirmed(list, sender)
     local inList = false
     for _, n in ipairs(list) do
-        if self:NamesMatch(n, sender) then inList = true break end
+        if self:SameName(n, sender) then inList = true break end
     end
     if not inList then return false end
     local keys = {}
@@ -177,6 +173,14 @@ function LC:ResSend(...)
     if IsInRaid() then self:Send(msg, "RAID") sent = true
     elseif IsInGroup() then self:Send(msg, "PARTY") sent = true end
     return sent
+end
+
+-- Nachrangig an alle (Abgleich): blockiert keine Abstimmungen und Würfelrunden
+function LC:ResSendLow(...)
+    local msg = strjoin(SEP, ...)
+    if IsInGuild() then self:SendLow(msg, "GUILD") end
+    if IsInRaid() then self:SendLow(msg, "RAID")
+    elseif IsInGroup() then self:SendLow(msg, "PARTY") end
 end
 
 local function Changed()
@@ -306,15 +310,16 @@ function LC:RequestResSync(force)
     for raid, R in pairs(self.db.reserves or {}) do
         local rec = self:FindByName(R.players, me)
         if rec and (rec.rev or 0) == 0 and rec.items and #rec.items > 0 then
-            self:ResSend("YR", raid, tostring(R.epoch), "0", ItemsString(rec.items))
+            self:ResSendLow("YR", raid, tostring(R.epoch), "0", ItemsString(rec.items))
         end
     end
 end
 
 -- Antwort auf einen Abgleich: Council-Liste, alle Einträge und offene Anträge
+-- (nachrangig: ein Abgleich hat viele Nachrichten und darf Stimmen nicht ausbremsen)
 function LC:SendResSync(target)
     local function Out(...)
-        if target then self:SendTo(target, ...) else self:ResSend(...) end
+        if target then self:SendLow(strjoin(SEP, ...), "WHISPER", target) else self:ResSendLow(...) end
     end
     local names = {}
     for _, n in ipairs(self:GetCouncilList()) do names[#names + 1] = self:CleanText(n, 40) end
@@ -418,7 +423,7 @@ function LC:ResHandle(cmd, p, sender)
         end
         local items = ParseItems(cmd == "YR" and p[5] or p[4])
         while #items > self:MaxReserves() do table.remove(items) end
-        local rec, key = self:FindByName(R.players, sender)
+        local rec, key = self:FindExact(R.players, sender)
         if cmd == "YR" then
             if not rec or (rec.rev or 0) == 0 then
                 -- neue Reservierung: bestätigen und sperren

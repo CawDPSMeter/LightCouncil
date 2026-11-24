@@ -26,8 +26,22 @@ end
 ------------------------------------------------------------------------
 -- Loot erkennen (Plündermeister)
 ------------------------------------------------------------------------
+-- Zustand eines Items in einer Leiche finden: Schlüssel ohne Slot (beim erneuten Öffnen rücken die Slots auf).
+-- Liegt dasselbe Item mehrfach dort, bekommt jedes eine laufende Nummer; ein schon vergebenes wird übersprungen.
+local function PickEntry(self, base, used)
+    local n = 1
+    while true do
+        local key = base .. ":" .. n
+        local e = self.itemState[key]
+        if not e then return nil, key end
+        if not used[e] and not e.awarded then return e, key end
+        n = n + 1
+    end
+end
+
 function LC:ScanLoot()
     wipe(self.lootItems)
+    local used = {}
     local threshold = (GetLootThreshold and GetLootThreshold()) or 2
     for slot = 1, GetNumLootItems() do
         local link = GetLootSlotLink(slot)
@@ -37,8 +51,9 @@ function LC:ScanLoot()
             local relevant = (quality or 0) >= threshold or self:IsCouncilItem(itemID) or #self:GetReservers(itemID) > 0
             if relevant then
                 local guid = GetLootSourceInfo and GetLootSourceInfo(slot) or "?"
-                local key = tostring(guid) .. ":" .. itemID .. ":" .. slot
-                local entry = self.itemState[key] or { key = key, itemID = itemID, status = "offen" }
+                local found, key = PickEntry(self, tostring(guid) .. ":" .. itemID, used)
+                local entry = found or { key = key, itemID = itemID, status = "offen" }
+                used[entry] = true
                 entry.link, entry.slot, entry.quality = link, slot, quality
                 entry.isCouncil = self:IsCouncilItem(itemID)
                 entry.looted = nil
@@ -288,7 +303,7 @@ end
 function LC:OnVote(sender, sid, decision, names, reason)
     local a = self.active
     if not a or a.sid ~= sid then return end
-    local voter, key = self:FindByName(a.voters, sender)
+    local voter, key = self:FindExact(a.voters, sender)
     if not voter or a.votes[key] then return end
     if decision ~= "OPEN" and decision ~= "LIMIT" and decision ~= "SKIP" then return end
     if decision ~= "OPEN" and #names == 0 then return end
@@ -579,8 +594,9 @@ local rollPattern
 local function GetRollPattern()
     if rollPattern then return rollPattern end
     local p = RANDOM_ROLL_RESULT or "%s rolls %d (%d-%d)"
+    -- Positions-Platzhalter ("%1$s") zuerst vereinfachen – nach dem Maskieren wären sie nicht mehr zu erkennen
+    p = p:gsub("%%%d%$([sd])", "%%%1")
     p = p:gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1")
-    p = p:gsub("%%%d%$s", "(.+)"):gsub("%%%d%$d", "(%%d+)")
     p = p:gsub("%%s", "(.+)"):gsub("%%d", "(%%d+)")
     rollPattern = "^" .. p .. "$"
     return rollPattern
@@ -797,7 +813,7 @@ function LC:VoteSessionCandidates(sender, sid, payload)
         })
     end
     -- Kommt die Liste erst nach dem Popup an (verlorene Reihenfolge im Netz), Fenster neu aufbauen
-    if s.expires then self:ShowVoteFrame(s) end
+    if s.expires then self:ShowVoteFrame(s, true) end
 end
 
 function LC:VoteSessionShow(sender, sid)

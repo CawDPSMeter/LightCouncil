@@ -5,6 +5,8 @@
 --   HE~eintrag;eintrag;…    Council -> Anfragender (Whisper) bzw. Gilde (neu vergebenes Item)
 --     eintrag = id^itemID^gewinner^zeit^raid^wurf^flags   (flags: c = Council-Item, r = reserviert, o = Off Spec)
 --   HD~id;id;…              Council -> Gilde/Anfragender: diese Einträge wurden gelöscht
+--   HN~zeit                 Council -> Anfragender: es gibt noch mehr Einträge ab „zeit“ (nächste Seite)
+--   HQ~seit~p               Anfragender -> Council (Whisper): nächste Seite abholen
 --
 -- Nur Einträge von Council-Mitgliedern werden übernommen, damit niemand die Historie fälschen kann.
 -- Der Abgleich läuft nachrangig: während Abstimmungen und Würfelrunden wird nichts davon gesendet.
@@ -12,7 +14,7 @@ local _, LC = ...
 local L = LC.L
 
 local SEP = "~"
-local CMDS = { HQ = true, HE = true, HD = true }
+local CMDS = { HQ = true, HE = true, HD = true, HN = true }
 local DELETED_KEEP = 180 * 86400  -- gelöschte Kennungen so lange merken
 
 -- Kennungen in Nachrichten unter 240 Zeichen packen
@@ -97,20 +99,24 @@ function LC:RequestHistorySync(manual)
     return sent
 end
 
-local answered = {}   -- [Anfragender] = Zeit, damit Mehrfach-Anfragen nicht mehrfach beantwortet werden
+local answered, answeredPage = {}, {}   -- [Anfragender] = Zeit, damit Mehrfach-Anfragen nicht mehrfach beantwortet werden
 
-local function Answer(requester, since)
+-- Schickt ab „since“ die ÄLTESTEN Einträge (höchstens MAX_SEND). Gibt es mehr, folgt „HN“ mit dem Zeitpunkt
+-- für die nächste Seite – so kommen auch große Lücken nach und nach an.
+local function Answer(requester, since, paged)
     if not LC:AmICouncil() then return end
     local key = LC:NameKey(requester)
-    if answered[key] and time() - answered[key] < 60 then return end
-    answered[key] = time()
-    local list = {}
-    local h = LC.db.history
-    for i = #h, 1, -1 do
+    local seen = paged and answeredPage or answered
+    if seen[key] and time() - seen[key] < (paged and 5 or 60) then return end
+    seen[key] = time()
+    local list, more = {}, false
+    local h = LC.db.history   -- nach Zeit aufsteigend sortiert
+    for i = 1, #h do
         local e = h[i]
-        if (e.time or 0) < since then break end
-        if e.id then table.insert(list, 1, e) end
-        if #list >= MAX_SEND then break end
+        if (e.time or 0) >= since and e.id then
+            if #list >= MAX_SEND then more = true break end
+            list[#list + 1] = e
+        end
     end
     -- Gelöschte Einträge im selben Zeitraum mitschicken (zuerst, damit sie nicht neu angelegt werden)
     local ids = {}
@@ -124,6 +130,9 @@ local function Answer(requester, since)
     if #list == 0 then return end
     for _, m in ipairs(Pack(list)) do
         LC:SendLow(strjoin(SEP, "HE", m), "WHISPER", requester)
+    end
+    if more then
+        LC:SendLow(strjoin(SEP, "HN", tostring(list[#list].time or since)), "WHISPER", requester)
     end
 end
 
@@ -200,8 +209,19 @@ function LC:OnComm(msg, sender, channel)
     if cmd and CMDS[cmd] then
         if self:IsMe(sender) then return end
         if cmd == "HQ" then
-            local since = tonumber(rest) or 0
-            C_Timer.After(2 + math.random() * 6, function() Answer(sender, since) end)
+            local sinceText, flag = strsplit(SEP, rest)
+            local since = tonumber(sinceText) or 0
+            if flag == "p" then
+                Answer(sender, since, true)   -- nächste Seite: sofort, nur an den, der gefragt hat
+            else
+                C_Timer.After(2 + math.random() * 6, function() Answer(sender, since) end)
+            end
+        elseif cmd == "HN" then
+            -- Der Council hat noch mehr: nächste Seite bei genau diesem Council-Mitglied abholen
+            local t = tonumber(rest)
+            if t and LC:IsTrustedCouncil(sender) then
+                LC:SendLow(strjoin(SEP, "HQ", tostring(t), "p"), "WHISPER", sender)
+            end
         elseif cmd == "HD" then
             ReceiveDelete(sender, rest)
         else

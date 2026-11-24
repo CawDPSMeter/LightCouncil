@@ -654,4 +654,6 @@ LC:RegisterLocale("esES", {
     ["Öffnet sich, wenn Loot droppt: zeigt Items, Reservierungen und einen Würfel-Knopf für Berechtigte."] = "Se abre cuando cae botín: muestra objetos, reservas y un botón de tirada para quienes pueden tirar.",
     ["Öffnet das Loot-Fenster, das Raider sehen: Items, Reservierungen und Würfel-Knopf."] = "Abre la ventana de botín que ven los jugadores: objetos, reservas y botón de tirada.",
     ["Auswahl aus deinem Gear-Set übernommen (wichtige zuerst). Prüfen und speichern.|r"] = "Selección tomada de tu set (importantes primero). Revisa y guarda.|r",
+    ["Wer ein Council-Item gewinnt, ist in dieser Woche und den folgenden so vielen Wochen bei Council-Items gesperrt. 0 = kein Cooldown."] = "Quien gana un objeto del consejo queda excluido de los objetos del consejo esa semana y las siguientes indicadas. 0 = sin espera.",
+    ["Zeitraum für die Anwesenheit im Score (1–20 Wochen). Genau diesen Zeitraum gleicht der Council untereinander ab."] = "Periodo de asistencia en la puntuación (1–20 semanas). El consejo sincroniza exactamente este periodo.",
 })

@@ -171,9 +171,21 @@ local function GetRow(i)
     return r
 end
 
-function LC:ShowVoteFrame(s)
+-- keep = true: dieselbe Abstimmung nur neu aufbauen (Spielerliste kam später) – Eingaben bleiben erhalten
+function LC:ShowVoteFrame(s, keep)
     if not frame then CreateVoteFrame() end
-    frame.expiredShown = nil
+    local keepChecks
+    if keep and frame.sid == s.sid and frame:IsShown() then
+        keepChecks = {}
+        for _, r in ipairs(rows) do
+            if r.candidate and r.check:GetChecked() then keepChecks[r.candidate.name] = true end
+        end
+    else
+        frame.expiredShown = nil
+        frame.reason:SetText("")
+        frame.status:SetText("")
+    end
+    frame.sid = s.sid
     frame.subtitle:SetText(string.format(L["Mehrheit %d von %d  ·  Score nur für den Council sichtbar"], s.need or 2, s.size or 3))
     local link = s.link or (L["Item #"] .. tostring(s.itemID))
     frame.itemText:SetText(link)
@@ -182,8 +194,6 @@ function LC:ShowVoteFrame(s)
     local _, _, quality = getInfo(s.itemID or 0)
     local qc = T:QualityColor(quality)
     frame.icon:SetBackdropBorderColor(qc[1], qc[2], qc[3], 1)
-    frame.reason:SetText("")
-    frame.status:SetText("")
 
     local n = #s.candidates
     for i = 1, math.max(n, #rows) do
@@ -192,7 +202,7 @@ function LC:ShowVoteFrame(s)
             local r = GetRow(i)
             r:ClearAllPoints()
             r:SetPoint("TOPLEFT", PAD, -LIST_TOP - (i - 1) * ROW_H)
-            r.check:SetChecked(false)
+            r.check:SetChecked(keepChecks and keepChecks[c.name] or false)
             local flags = c.flags or ""
             local eligible = flags:find("E") ~= nil
             r.name:SetText(c.name)

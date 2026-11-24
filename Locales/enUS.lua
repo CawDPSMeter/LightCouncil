@@ -654,4 +654,6 @@ LC:RegisterLocale("enUS", {
     ["Öffnet sich, wenn Loot droppt: zeigt Items, Reservierungen und einen Würfel-Knopf für Berechtigte."] = "Opens when loot drops: shows items, reservations and a roll button for eligible players.",
     ["Öffnet das Loot-Fenster, das Raider sehen: Items, Reservierungen und Würfel-Knopf."] = "Opens the loot window raiders see: items, reservations and roll button.",
     ["Auswahl aus deinem Gear-Set übernommen (wichtige zuerst). Prüfen und speichern.|r"] = "Selection taken from your gear set (important ones first). Check and save.|r",
+    ["Wer ein Council-Item gewinnt, ist in dieser Woche und den folgenden so vielen Wochen bei Council-Items gesperrt. 0 = kein Cooldown."] = "Whoever wins a council item is locked out of council items for that week and this many following weeks. 0 = no cooldown.",
+    ["Zeitraum für die Anwesenheit im Score (1–20 Wochen). Genau diesen Zeitraum gleicht der Council untereinander ab."] = "Period for attendance in the score (1–20 weeks). The council syncs exactly this period among itself.",
 })

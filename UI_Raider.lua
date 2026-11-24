@@ -167,7 +167,7 @@ function LC:RefreshRaidFrame()
             r.state:SetShown(not canRoll)
             local st, sc = "", C.muted
             if it.state == "wait" then
-                st = "wartet"
+                st = L["wartet"]
             elseif it.state == "council" then
                 st, sc = L["Council entscheidet …"], C.accentLt
             elseif it.state == "prep" or it.state == "roll" then

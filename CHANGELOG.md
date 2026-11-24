@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.19.1
+Fixes from a code review.
+
+- **Security:** permissions (council, raid lead, list owner, votes) no longer match names written without a space – a character called “Ann Amüller” could pass as “Anna Müller”.
+- **Re-opening a corpse:** items keep their number in the raider window and their state (winner, council vote), even when loot slots move up. No more second council vote for an item that was already decided, and awards are no longer lost in the loot history.
+- **Loot history:** every loot list gets a unique ID (full server time, counter and master looter), so awards from different raids can't collide and get dropped.
+- **Raid evening:** syncing reservations no longer delays council votes – sync answers now use the low-priority queue.
+- **Raid keys:** reservations are stored under a language-independent raid key (AtlasLoot). Players with clients in different languages now share the same raid, Russian clients can reserve with AtlasLoot, and the current raid is also recognized by instance ID. Existing reservations are moved over automatically.
+- Tooltips: the Light Council block now also shows up again in comparison tooltips.
+- Loot cooldown 0 weeks now really means no cooldown; the settings explain the cooldown and attendance period.
+- Attendance: the sync request always fits into one message; the period is limited to 20 weeks (what the council syncs).
+- Loot history sync fetches large gaps page by page instead of always sending the same 90 entries.
+- Vote window: a player list that arrives late no longer clears your ticks and reason.
+- Parse/engagement entered by a raid lead without a council seat now reach the council.
+- Roll detection handles positional placeholders in the client's roll message; “waiting” in the raider window is translated.
+
 ## 0.19.0
 - **Gear sets reworked:** sets are laid out by slot like the character window (armor, jewelry, weapons) with “4 of 10” per group and a green mark for items you already have. One item per slot (two rings, two trinkets) – a new item replaces the old one.
 - Instead of ordering with arrows, mark important items with a star. The council sees “★ important”, “in set” or “has it” in the vote window and tooltips.

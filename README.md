@@ -73,7 +73,7 @@ flowchart LR
 
 ### For the council
 - **Anonymous voting** on important items: *Release*, *Restrict* or *Sit out* – majority of 3 or 5 votes.
-- **Everything in one window:** score (attendance, parse, engagement), the item's place in the player's gear set, last item received, loot cooldown.
+- **Everything in one window:** score (attendance, parse, engagement), whether the item is in the player's gear set (“★ important”, “in set”, “has it”), last item received, loot cooldown.
 - **Log** of every decision with votes and reasons – traceable if anyone asks.
 - **Change requests** from raiders can be approved or declined; reservations can be entered for players without the addon.
 
@@ -102,7 +102,7 @@ Light Council turns this around: **the guild leadership doesn't maintain lists f
 
 **What the council sees:** If player A still needs the item and marked it as important, while player B has it in the set but not marked, the decision is made quickly – no discussion, no follow-up questions.
 
-**And pugs?** Anyone without a set simply reserves as usual. Whether raiders may reserve straight from their set is switched on or off by the council. The number of reservation slots is the same for everyone.
+**And pugs?** Anyone without a set simply reserves as usual. Every raider can tick “Reserve” right in their set; the council only decides whether the “Take from gear set” button is offered. The number of reservation slots is the same for everyone.
 
 ---
 

@@ -119,7 +119,7 @@ end
 
 -- Anwesenheit in % über die letzten N Wochen (nur Wochen, in denen geraidet wurde)
 function LC:GetAttendance(name)
-    local weeks = self.db.config.attendanceWeeks or 8
+    local weeks = math.min(self.db.config.attendanceWeeks or 8, 20)   -- wie der Abgleich (Attendance.lua)
     local current = self:CurrentWeek()
     local raided, present = 0, 0
     for w = current - weeks + 1, current do
@@ -165,6 +165,8 @@ function LC:IsOnCooldown(name)
     if not p then return false end
     local week = self:CurrentWeek()
     local cd = self.db.config.cooldownWeeks or 2
+    -- 0 = kein Cooldown. Sonst gesperrt: die Gewinnwoche und die folgenden cd Wochen
+    if cd <= 0 then return false end
     local untilWeek
     for _, win in ipairs(p.wins) do
         if week >= win.week and week <= win.week + cd then

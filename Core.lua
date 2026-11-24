@@ -126,6 +126,7 @@ end
 
 -- Zwei Namen gelten als gleich, wenn sie identisch sind oder einer nur der Vorname des anderen ist
 -- (der Council kann für Spieler ohne Addon auch nur den Vornamen eintragen).
+-- Nur für eingetippte Namen und die Anzeige – Berechtigungen prüfen mit SameName/FindExact.
 function LC:NamesMatch(a, b)
     local ka, kb = self:NameKey(a), self:NameKey(b)
     if not ka or not kb then return false end
@@ -138,7 +139,7 @@ function LC:NamesMatch(a, b)
 end
 
 function LC:IsMe(name)
-    return self:NamesMatch(name, self:PlayerName())
+    return self:SameName(name, self:PlayerName())
 end
 
 -- Sucht einen Namen in einer Tabelle [key] = { name = ... }: erst exakt, dann eindeutiger Vornamen-Treffer
@@ -150,6 +151,37 @@ function LC:FindByName(tbl, name)
     for k, v in pairs(tbl) do
         if self:NamesMatch(k, key) then
             if found then return nil end -- mehrdeutig
+            found, foundKey = v, k
+        end
+    end
+    return found, foundKey
+end
+
+-- Für Berechtigungen und Absender von Nachrichten: gleicher Name (Groß-/Kleinschreibung und Leerzeichen
+-- vereinheitlicht). Anders als NamesMatch ohne den Vergleich „ohne Leerzeichen“ – sonst könnte sich
+-- „Ann Amüller“ als „Anna Müller“ ausgeben. Die Vornamen-Regel greift nur, wenn ein Name gar keinen
+-- Nachnamen hat (z. B. von Hand eingetragen); in Forever hat jeder Charakter einen.
+local function SameKey(ka, kb)
+    if not ka or not kb then return false end
+    if ka == kb then return true end
+    if not ka:find(" ") and kb:find(" ") then return kb:match("^(%S+)") == ka end
+    if not kb:find(" ") and ka:find(" ") then return ka:match("^(%S+)") == kb end
+    return false
+end
+
+function LC:SameName(a, b)
+    return SameKey(self:NameKey(a), self:NameKey(b))
+end
+
+-- Eintrag in einer Tabelle [NameKey] = …: exakt, sonst ein eindeutiger Treffer nach SameName
+function LC:FindExact(tbl, name)
+    local key = self:NameKey(name)
+    if not key or not tbl then return nil end
+    if tbl[key] then return tbl[key], key end
+    local found, foundKey
+    for k, v in pairs(tbl) do
+        if SameKey(k, key) then
+            if found then return nil end   -- mehrdeutig
             found, foundKey = v, k
         end
     end
@@ -300,7 +332,7 @@ end
 -- würde die Stimmen des Councils an den Fälscher schicken.)
 function LC:IsTrustedLeader(sender)
     if self:IsMe(sender) then return true end
-    local m = self:FindByName(self:GetGroupMembers(), sender)
+    local m = self:FindExact(self:GetGroupMembers(), sender)
     return m ~= nil and ((m.rank or 0) >= 2 or m.isML == true)
 end
 
@@ -326,7 +358,7 @@ end
 
 function LC:IsCouncilMember(name)
     for _, n in ipairs(self:GetCouncilList()) do
-        if self:NamesMatch(n, name) then return true end
+        if self:SameName(n, name) then return true end
     end
     return false
 end

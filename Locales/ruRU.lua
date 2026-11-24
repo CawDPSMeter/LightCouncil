@@ -654,4 +654,6 @@ LC:RegisterLocale("ruRU", {
     ["Öffnet sich, wenn Loot droppt: zeigt Items, Reservierungen und einen Würfel-Knopf für Berechtigte."] = "Открывается при выпадении добычи: показывает предметы, резервы и кнопку броска для допущенных.",
     ["Öffnet das Loot-Fenster, das Raider sehen: Items, Reservierungen und Würfel-Knopf."] = "Открывает окно добычи рейдеров: предметы, резервы и кнопка броска.",
     ["Auswahl aus deinem Gear-Set übernommen (wichtige zuerst). Prüfen und speichern.|r"] = "Выбор взят из вашего набора (важные первыми). Проверьте и сохраните.|r",
+    ["Wer ein Council-Item gewinnt, ist in dieser Woche und den folgenden so vielen Wochen bei Council-Items gesperrt. 0 = kein Cooldown."] = "Кто выиграл предмет совета, не получает предметы совета в эту неделю и указанное число следующих недель. 0 = без ограничения.",
+    ["Zeitraum für die Anwesenheit im Score (1–20 Wochen). Genau diesen Zeitraum gleicht der Council untereinander ab."] = "Период посещаемости в оценке (1–20 недель). Совет синхронизирует именно этот период.",
 })

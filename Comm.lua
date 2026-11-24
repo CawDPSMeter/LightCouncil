@@ -103,7 +103,7 @@ function LC:GetPrivateTargets()
             local n = select(i, ...)
             if n then
                 for _, c in ipairs(council) do
-                    if self:NamesMatch(c, n) then return true end
+                    if self:SameName(c, n) then return true end
                 end
             end
         end
@@ -174,7 +174,8 @@ function LC:OnComm(msg, sender, channel)
         self:OnVote(sender, parts[2], parts[3], names, parts[5] or "")
     elseif cmd == "D" then
         if self:IsMe(sender) then return end
-        if not self:IsCouncilMember(sender) then return end
+        -- Vom Council oder von der Raidleitung (die ohne Council-Sitz auch Werte einträgt)
+        if not (self:IsCouncilMember(sender) or self:IsTrustedLeader(sender)) then return end
         if parts[2] == "P" then self:SetParse(parts[3], parts[4], false)
         elseif parts[2] == "E" then self:SetEngagement(parts[3], parts[4], false) end
         self:RefreshUI()
