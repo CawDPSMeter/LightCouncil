@@ -429,7 +429,7 @@ LC:On("ADDON_LOADED", function(self, name)
     self.db = LightCouncilDB
     self:SetLanguage(self.db.config.language)
     self:MigrateCouncilNames()
-    self.db.prio = nil   -- Loot-Prio gibt es nicht mehr (bis 0.18)
+    self.db.prio = nil   -- alte, nicht mehr genutzte Daten entfernen
     if self.OnInitialize then self:OnInitialize() end
 end)
 
