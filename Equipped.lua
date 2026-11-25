@@ -16,16 +16,33 @@ local SEP = "~"
 local STALE = 30 * 60           -- Inspect-Daten älter als 30 Min. bzw. Addon-Daten von Spielern, die nicht mehr in der Gruppe sind: veraltet
 local INSPECT_AGE = 10 * 60     -- Inspect-Daten frühestens nach 10 Min. erneuern
 local MAX_ENTRIES = 80
+local RETRY = 90                -- nach einem Inspect ohne Ergebnis: so lange (Sek.) andere zuerst
+-- Eigener Fernkampf-Slot (18) gibt es nur im alten Client; im aktuellen liegen Bögen & Co. in der Waffenhand
+local RANGED_SLOT
+do
+    local ok, id = pcall(GetInventorySlotInfo, "RANGEDSLOT")
+    if ok and id == 18 then RANGED_SLOT = 18 end
+end
 -- Inventar-Slots, die zählen (ohne Hemd 4 und Wappenrock 19)
-local INV_SLOTS = { 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 }
+local INV_SLOTS = { 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17 }
+if RANGED_SLOT then INV_SLOTS[#INV_SLOTS + 1] = RANGED_SLOT end
 local VALID_SLOT = {}
 for _, s in ipairs(INV_SLOTS) do VALID_SLOT[s] = true end
 -- Set-Slot (GearSets.lua) -> Inventar-Slot
 local KEY_INV = {
     HEAD = 1, NECK = 2, SHOULDER = 3, CHEST = 5, WAIST = 6, LEGS = 7, FEET = 8, WRIST = 9, HANDS = 10,
     FINGER1 = 11, FINGER2 = 12, TRINKET1 = 13, TRINKET2 = 14, BACK = 15,
-    MAINHAND = 16, OFFHAND = 17, RANGED = 18,
+    MAINHAND = 16, OFFHAND = 17, RANGED = RANGED_SLOT or 16,
 }
+
+-- Gruppenliste kurz cachen: die Abstimmung fragt sie pro Zeile und pro eingehender Nachricht ab
+local groupCache, groupAt = nil, -999
+local function Group()
+    if not groupCache or GetTime() - groupAt > 2 then
+        groupCache, groupAt = LC:GetGroupMembers(), GetTime()
+    end
+    return groupCache
+end
 
 local equipped = {}
 LC.equipped = equipped
@@ -92,6 +109,9 @@ local function Receive(sender, payload)
             if n >= #INV_SLOTS then break end
         end
     end
+    -- Inspect-Eintrag desselben Spielers unter anderem Namensformat entfernen (Addon-Daten haben Vorrang)
+    local other, otherKey = LC:FindExact(equipped, sender)
+    if other and otherKey ~= key and other.src == "inspect" then equipped[otherKey] = nil end
     Store(key, LC:ShortName(sender), items, "addon")
     LC:RefreshVoteEquipped()
 end
@@ -162,7 +182,7 @@ function LC:GetEquippedFor(name, itemID)
     if not e then return out end
     out.time, out.src = e.time, e.src
     -- Addon-Nutzer melden jede Änderung selbst: aktuell, solange sie in der Gruppe sind
-    local inGroup = self:IsMe(name) or self:FindExact(self:GetGroupMembers(), name) ~= nil
+    local inGroup = self:IsMe(name) or self:FindExact(Group(), name) ~= nil
     out.stale = (time() - e.time) > STALE and not (e.src == "addon" and inGroup)
     for _, s in ipairs(slots) do
         out.items[#out.items + 1] = { slot = s, id = e.items[s] }
@@ -208,7 +228,8 @@ end
 ------------------------------------------------------------------------
 -- Inspect für Spieler ohne Addon (nur Council / Raidleitung, außerhalb des Kampfes)
 ------------------------------------------------------------------------
-local inspecting   -- { guid, unit, key, name, at }
+local inspecting   -- { guid, unit, key, name, full, at }
+local tried = {}   -- [key] = Zeitpunkt des letzten Inspect-Versuchs (Pause, damit einer nicht alle blockiert)
 
 local function MayInspect()
     if not IsInRaid() and not IsInGroup() then return false end
@@ -220,13 +241,14 @@ end
 
 local function NextTarget()
     local now = time()
-    for key, m in pairs(LC:GetGroupMembers()) do
+    for key, m in pairs(Group()) do
         local unit = m.unit
-        if unit and m.online and not UnitIsUnit(unit, "player") then
-            local e = equipped[key]
+        if unit and m.online and not UnitIsUnit(unit, "player") and now - (tried[key] or 0) >= RETRY then
+            -- Addon-Daten können unter einem anderen Namensformat stehen – darum per Namensvergleich suchen
+            local e = LC:FindExact(equipped, m.fullName or m.name)
             local fresh = e and (e.src == "addon" or now - e.time < INSPECT_AGE)
             if not fresh and CanInspect(unit) and (not CheckInteractDistance or CheckInteractDistance(unit, 1)) then
-                return unit, key, m.name
+                return unit, key, m.name, m.fullName or m.name
             end
         end
     end
@@ -235,9 +257,10 @@ end
 local function InspectTick()
     if inspecting and GetTime() - inspecting.at > 5 then inspecting = nil end   -- keine Antwort
     if inspecting or not MayInspect() then return end
-    local unit, key, name = NextTarget()
+    local unit, key, name, full = NextTarget()
     if not unit then return end
-    inspecting = { guid = UnitGUID(unit), unit = unit, key = key, name = name, at = GetTime() }
+    tried[key] = time()
+    inspecting = { guid = UnitGUID(unit), unit = unit, key = key, name = name, full = full, at = GetTime() }
     NotifyInspect(unit)
 end
 
@@ -253,7 +276,7 @@ LC:On("INSPECT_READY", function(self, guid)
     end
     if not (InspectFrame and InspectFrame:IsShown()) and ClearInspectPlayer then ClearInspectPlayer() end
     if n == 0 then return end   -- Daten noch nicht geladen – später nochmal
-    local e = equipped[job.key]
+    local e = LC:FindExact(equipped, job.full)
     if e and e.src == "addon" then return end   -- Addon-Daten haben Vorrang
     Store(job.key, job.name, items, "inspect")
     self:RefreshVoteEquipped()
@@ -266,6 +289,7 @@ LC:On("PLAYER_EQUIPMENT_CHANGED", EquipChanged)
 
 local wasInGroup = false
 LC:On("GROUP_ROSTER_UPDATE", function(self)
+    groupCache = nil
     local inGroup = IsInGroup()
     if inGroup and not wasInGroup then
         C_Timer.After(10 + math.random() * 8, function()

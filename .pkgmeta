@@ -9,4 +9,3 @@ manual-changelog:
 # Nicht ins Addon-Paket
 ignore:
   - tools
-  - RELEASE_NOTES.md

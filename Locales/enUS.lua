@@ -701,4 +701,5 @@ LC:RegisterLocale("enUS", {
     ["Upgrade in deinem Set"] = "Upgrade in your set",
     ["Pro Slot ein Item, darunter optional ein Upgrade (zweite Wahl). Der Stern markiert, was dir wichtig ist."] = "One item per slot, optionally an upgrade below it (second choice). The star marks what matters to you.",
     ["„Set“: bestes Item für den Slot (ein neues ersetzt das alte). „Upgrade“: zweite Wahl, besser als dein jetziges."] = "“Set”: best item for the slot (a new one replaces the old). “Upgrade”: second choice, better than your current one.",
+    ["Es ist schon ein Änderungsantrag offen – warte, bis der Council entschieden hat."] = "A change request is already open – please wait until the council has decided.",
 })

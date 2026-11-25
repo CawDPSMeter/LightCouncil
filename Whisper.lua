@@ -115,11 +115,20 @@ local function Contains(list, id)
     return false
 end
 
--- Absender auflösen: in der Gruppe der volle Name aus dem Roster, sonst Gildenmitglied
+-- Absender auflösen: in der Gruppe der volle Name aus dem Roster, sonst Gildenmitglied.
+-- Kurz gecacht: Chatfilter (pro Chatfenster) und Ereignis fragen für dieselbe Nachricht mehrfach.
+local resolved, nResolved = {}, 0
 local function Resolve(sender)
+    if nResolved > 200 then wipe(resolved) nResolved = 0 end
+    local c = resolved[sender]
+    if c and GetTime() - c.at < 10 then return c.name end
+    local name
     local m = LC:FindExact(LC:GetGroupMembers(), sender)
-    if m then return m.fullName or m.name end
-    if LC:IsGuildMember(sender) then return LC:CleanText(sender, 40) end
+    if m then name = m.fullName or m.name
+    elseif LC:IsGuildMember(sender) then name = LC:CleanText(sender, 40) end
+    if not resolved[sender] then nResolved = nResolved + 1 end
+    resolved[sender] = { name = name, at = GetTime() }
+    return name
 end
 
 ------------------------------------------------------------------------
@@ -165,8 +174,12 @@ local function Change(sender, name, ids, remove)
     local R = LC:ResRaid(raid)
     local rec = LC:FindExact(R.players, name)
     local locked = rec and (rec.rev or 0) > 0
-    -- Grundlage: ein offener Antrag, sonst die aktuelle Reservierung
-    local base = (rec and rec.pending and rec.pending.items) or (rec and rec.items) or {}
+    -- Ein offener Antrag wird erst entschieden – sonst hätten die Council-Mitglieder verschiedene Stände
+    if locked and rec.pending then
+        Reply(sender, L["Es ist schon ein Änderungsantrag offen – warte, bis der Council entschieden hat."])
+        return
+    end
+    local base = (rec and rec.items) or {}
     local new = {}
     for _, id in ipairs(base) do new[#new + 1] = id end
 

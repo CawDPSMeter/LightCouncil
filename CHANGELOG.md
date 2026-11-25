@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.22.1
+Fixes from a code review.
+
+- **Reserve by whisper:** while a change request is still open, `!lc` replies that the council has to decide first. Before, a second request only reached one council member, and another member could approve the old one.
+- **Equipped item:** a player who doesn't answer inspect no longer blocks everyone else – they are retried after 90 seconds. Ranged weapons are shown from the main hand on clients without a separate ranged slot. Addon data always wins over inspect data, even if the name arrives in a different format.
+- Smoother vote window while a raid forms; whisper commands no longer scan the guild roster several times per message.
+
 ## 0.22.0
 - **Upgrade per slot:** next to the best item, every slot in a gear set can hold an **upgrade** – a second choice that is not as good, but still better than what you wear now. Tick “Upgrade” in the “Items” view; it shows up under the slot in “My set” and can be reserved there as well.
 - The council sees “upgrade” in the vote window and tooltips (best items first: ★ important, in set, then upgrade). The raider loot window and “My reservation” show it too.
