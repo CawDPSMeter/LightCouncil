@@ -1,7 +1,7 @@
 # Changelog
 
-## 0.22.1
-Fixes from a code review.
+## 0.22.2
+Fixes from a code review (also released as 0.22.1 on GitHub only).
 
 - **Reserve by whisper:** while a change request is still open, `!lc` replies that the council has to decide first. Before, a second request only reached one council member, and another member could approve the old one.
 - **Equipped item:** a player who doesn't answer inspect no longer blocks everyone else – they are retried after 90 seconds. Ranged weapons are shown from the main hand on clients without a separate ranged slot. Addon data always wins over inspect data, even if the name arrives in a different format.

@@ -1,43 +1,29 @@
 # Automatisch auf CurseForge veröffentlichen
 #
-# Läuft bei jedem Push auf main, der LightCouncil.toc ändert. Steht dort eine neue Version
-# (## Version: …), für die es noch keinen Tag gibt, wird das Addon gebaut, auf CurseForge
-# hochgeladen und danach der Tag v<Version> gesetzt. Ohne neue Version passiert nichts.
+# Läuft, sobald ein Tag v<Version> gepusht wird (z. B. v0.22.1). Die Version im Tag muss mit
+# „## Version:“ in LightCouncil.toc übereinstimmen. Das Addon wird gebaut und mit dem passenden
+# Abschnitt aus CHANGELOG.md auf CurseForge hochgeladen.
+#
+#   git tag v0.22.1
+#   git push origin main v0.22.1
 #
 # Benötigt das Repository-Secret CF_API_KEY (CurseForge → Account → API Tokens).
 name: Release
 
 on:
   push:
-    branches: [main]
-    paths: [LightCouncil.toc]
-  workflow_dispatch:
+    tags: ["v*"]
 
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write   # Tag setzen
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Version lesen
+      - name: Token und Version prüfen
         id: ver
-        run: |
-          v=$(grep -m1 '^## Version:' LightCouncil.toc | sed 's/^## Version:[[:space:]]*//' | tr -d '\r[:space:]')
-          echo "Version: $v"
-          echo "version=$v" >> "$GITHUB_OUTPUT"
-          if git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then
-            echo "Tag v$v gibt es schon – nichts zu tun."
-            echo "new=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "new=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Token prüfen
-        if: steps.ver.outputs.new == 'true'
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
         run: |
@@ -45,27 +31,30 @@ jobs:
             echo "::error::Secret CF_API_KEY fehlt (GitHub → Settings → Secrets and variables → Actions)."
             exit 1
           fi
+          tag="${GITHUB_REF_NAME#v}"
+          toc=$(grep -m1 '^## Version:' LightCouncil.toc | sed 's/^## Version:[[:space:]]*//' | tr -d '\r[:space:]')
+          echo "Tag: $tag  ·  toc: $toc"
+          if [ "$tag" != "$toc" ]; then
+            echo "::error::Tag v$tag passt nicht zur Version $toc in LightCouncil.toc."
+            exit 1
+          fi
+          echo "version=$toc" >> "$GITHUB_OUTPUT"
 
       - name: Changelog der Version
-        if: steps.ver.outputs.new == 'true'
         run: |
           awk -v v="${{ steps.ver.outputs.version }}" '
+            { sub(/\r$/, "") }
             /^## / { if (on) exit; on = ($2 == v) }
-            on { sub(/\r$/, ""); print }
+            on { print }
           ' CHANGELOG.md > RELEASE_NOTES.md
           [ -s RELEASE_NOTES.md ] || echo "## ${{ steps.ver.outputs.version }}" > RELEASE_NOTES.md
           cat RELEASE_NOTES.md
 
-      - name: Tag lokal setzen
-        if: steps.ver.outputs.new == 'true'
-        run: git tag "v${{ steps.ver.outputs.version }}"
-
       - name: Bauen und auf CurseForge hochladen
-        if: steps.ver.outputs.new == 'true'
         uses: BigWigsMods/packager@v2
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
 
-      - name: Tag pushen
-        if: steps.ver.outputs.new == 'true'
-        run: git push origin "v${{ steps.ver.outputs.version }}"
+      - name: Prüfen, ob gebaut wurde
+        run: |
+          ls .release/*.zip >/dev/null 2>&1 || { echo "::error::Der Packager hat keine Datei gebaut – Log oben prüfen."; exit 1; }
