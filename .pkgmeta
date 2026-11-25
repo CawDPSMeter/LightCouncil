@@ -1,0 +1,12 @@
+# BigWigs Packager: baut das Addon-Paket und lädt es auf CurseForge hoch (siehe .github/workflows/release.yml)
+package-as: LightCouncil
+
+# Changelog der aktuellen Version (erzeugt der Workflow aus CHANGELOG.md)
+manual-changelog:
+  filename: RELEASE_NOTES.md
+  markup-type: markdown
+
+# Nicht ins Addon-Paket
+ignore:
+  - tools
+  - RELEASE_NOTES.md

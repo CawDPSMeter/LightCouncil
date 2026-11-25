@@ -8,6 +8,7 @@
 ## Notes-ruRU: Light Council: резервы в аддоне и распределение добычи советом из 3 или 5 человек для важных предметов. Рейдеры бросают одной кнопкой. /lc
 ## Version: 0.22.0
 ## Author: Gilde
+## X-Curse-Project-ID: 1827961
 ## SavedVariables: LightCouncilDB, LightCouncilExport
 ## IconTexture: Interface\AddOns\LightCouncil\Media\Logo64
 ## AddonCompartmentFunc: LightCouncil_OnAddonCompartmentClick
