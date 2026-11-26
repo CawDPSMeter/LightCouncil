@@ -305,6 +305,20 @@ local function CreateSettingsPage(p)
     p.ScaleText = ScaleText
     Tip(p.scaleBtn, L["Fenstergröße"], L["Klick schaltet weiter: 100, 110, 120 oder 130 %. Ist der Bildschirm zu klein, wird das Fenster automatisch passend verkleinert."])
 
+    -- Winterdeko: Klick schaltet Auto → An → Aus
+    p.festiveBtn = T:Button(c4, "", 200, 26, "default", function(self)
+        local cur, modes = LC.db.config.festive or "auto", T.FESTIVE_MODES
+        local nextM = modes[1]
+        for i, m in ipairs(modes) do
+            if m == cur then nextM = modes[i % #modes + 1] end
+        end
+        LC.db.config.festive = nextM
+        self:SetText(T:FestiveText())
+        T:RefreshFestive()
+    end)
+    p.festiveBtn:SetPoint("LEFT", p.scaleBtn, "RIGHT", 10, 0)
+    Tip(p.festiveBtn, L["Winterdeko"], L["Schneeflocken und eine bunte Lichterkette am Fensterrand. Auto: vom 20. November bis zum 6. Januar."])
+
     p.msg = T:Text(p, 12, C.muted)
     p.msg:SetPoint("BOTTOMLEFT", 156, 10)
     p.msg:SetWidth(CW - 156)
@@ -349,6 +363,7 @@ local function RefreshSettings()
     p.raiderWindow:SetChecked(cfg.raiderWindow)
     p.whisperReserve:SetChecked(cfg.whisperReserve ~= false)
     p.scaleBtn:SetText(p.ScaleText())
+    p.festiveBtn:SetText(T:FestiveText())
 end
 
 

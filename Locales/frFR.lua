@@ -745,4 +745,10 @@ LC:RegisterLocale("frFR", {
     ["Fenstergröße: %d %%"] = "Taille de la fenêtre : %d %%",
     ["Fenstergröße"] = "Taille de la fenêtre",
     ["Klick schaltet weiter: 100, 110, 120 oder 130 %. Ist der Bildschirm zu klein, wird das Fenster automatisch passend verkleinert."] = "Cliquez pour changer : 100, 110, 120 ou 130 %. Si l'écran est trop petit, la fenêtre est réduite automatiquement.",
+    ["Auto"] = "Auto",
+    ["An"] = "Activé",
+    ["Aus"] = "Désactivé",
+    ["Winterdeko: %s"] = "Décor d'hiver : %s",
+    ["Winterdeko"] = "Décor d'hiver",
+    ["Schneeflocken und eine bunte Lichterkette am Fensterrand. Auto: vom 20. November bis zum 6. Januar."] = "Flocons de neige et guirlande lumineuse colorée sur le bord de la fenêtre. Auto : du 20 novembre au 6 janvier.",
 })

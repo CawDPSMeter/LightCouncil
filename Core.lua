@@ -38,6 +38,7 @@ local DEFAULTS = {
         jsonOnLogout = true,    -- JSON-Export beim Ausloggen in die SavedVariables schreiben (LightCouncilExport)
         whisperReserve = true,  -- Spieler ohne Addon reservieren per Flüstern (!lc [Item]) – nur beim Council
         uiScale = 1.2,          -- Fenstergröße (1 = 100 %), wird an den Bildschirm angepasst
+        festive = "auto",      -- Winterdeko: "auto" (20. Nov. bis 6. Jan.), "on" oder "off"
     },
     reserves = {},      -- Reservierungen im Addon (siehe Reserve.lua)
     knownCouncil = {},  -- vom Council übermittelte Council-Liste (für Raider ohne eigene Einstellung)

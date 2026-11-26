@@ -745,4 +745,10 @@ LC:RegisterLocale("enUS", {
     ["Fenstergröße: %d %%"] = "Window size: %d %%",
     ["Fenstergröße"] = "Window size",
     ["Klick schaltet weiter: 100, 110, 120 oder 130 %. Ist der Bildschirm zu klein, wird das Fenster automatisch passend verkleinert."] = "Click to switch: 100, 110, 120 or 130 %. If your screen is too small, the window shrinks to fit automatically.",
+    ["Auto"] = "Auto",
+    ["An"] = "On",
+    ["Aus"] = "Off",
+    ["Winterdeko: %s"] = "Winter decor: %s",
+    ["Winterdeko"] = "Winter decor",
+    ["Schneeflocken und eine bunte Lichterkette am Fensterrand. Auto: vom 20. November bis zum 6. Januar."] = "Snowflakes and colorful string lights along the window edge. Auto: from November 20 to January 6.",
 })

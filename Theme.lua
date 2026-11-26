@@ -116,6 +116,8 @@ function T:CloseButton(parent, onClick)
     return b
 end
 
+local FESTIVE = { LightCouncilMainFrame = true, LightCouncilVoteFrame = true, LightCouncilRaidFrame = true }
+
 -- Fenster mit Titelleiste (Logo, Titel, Schließen-Knopf), verschiebbar
 function T:Window(name, width, height, title, subtitle, barHeight)
     barHeight = barHeight or 36
@@ -184,6 +186,8 @@ function T:Window(name, width, height, title, subtitle, barHeight)
     f.close = self:CloseButton(bar, function() f:Hide() end)
     f.close:SetPoint("RIGHT", -8, 0)
     f:HookScript("OnShow", function(self) T:ApplyScale(self) end)
+    -- Winterdeko (Schnee + Lichterkette) nur für die großen Fenster
+    if FESTIVE[name] and self.Festive then self:Festive(f, barHeight) end
     return f
 end
 

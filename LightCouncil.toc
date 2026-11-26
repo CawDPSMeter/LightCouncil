@@ -20,6 +20,7 @@ Locales\esES.lua
 Locales\ruRU.lua
 Core.lua
 Theme.lua
+Festive.lua
 Data.lua
 Comm.lua
 Session.lua

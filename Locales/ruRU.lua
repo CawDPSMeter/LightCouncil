@@ -745,4 +745,10 @@ LC:RegisterLocale("ruRU", {
     ["Fenstergröße: %d %%"] = "Размер окна: %d %%",
     ["Fenstergröße"] = "Размер окна",
     ["Klick schaltet weiter: 100, 110, 120 oder 130 %. Ist der Bildschirm zu klein, wird das Fenster automatisch passend verkleinert."] = "Нажмите, чтобы переключить: 100, 110, 120 или 130 %. Если экран мал, окно уменьшится автоматически.",
+    ["Auto"] = "Авто",
+    ["An"] = "Вкл.",
+    ["Aus"] = "Выкл.",
+    ["Winterdeko: %s"] = "Зимний декор: %s",
+    ["Winterdeko"] = "Зимний декор",
+    ["Schneeflocken und eine bunte Lichterkette am Fensterrand. Auto: vom 20. November bis zum 6. Januar."] = "Снежинки и разноцветная гирлянда по краю окна. Авто: с 20 ноября по 6 января.",
 })
