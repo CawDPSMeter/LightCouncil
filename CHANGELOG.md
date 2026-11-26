@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.24.0
 - **Winter decor:** snowflakes and colorful twinkling string lights along the edge of the main, vote and raider windows. *Settings → Options → Winter decor*: Auto (November 20 to January 6), On or Off.
 
 ## 0.23.0
