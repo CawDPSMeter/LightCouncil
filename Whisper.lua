@@ -130,6 +130,8 @@ local function Resolve(sender)
     resolved[sender] = { name = name, at = GetTime() }
     return name
 end
+-- Gruppe geändert: neu auflösen, damit ein frisch Eingeladener nicht 10 Sek. als „unbekannt“ gilt
+LC:On("GROUP_ROSTER_UPDATE", function() wipe(resolved) nResolved = 0 end)
 
 ------------------------------------------------------------------------
 -- Befehle

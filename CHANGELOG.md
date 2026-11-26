@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.23.0
+Calmer, more guided main window – step 1 of the UI overhaul.
+
+- **Menu by role:** raiders only see *My gear*, *Loot history* and *Settings*. Council, master looter and raid lead (and anyone while no council is set up yet) also see *Getting started*, *Loot*, *Reservations*, *Players* and *Log*.
+- **My gear** replaces “Gear sets” and looks like the character window: a 3D model of your character with the slots around it (armor left, hands to trinkets right, weapons below). The model wears your set – drag to rotate, wheel to zoom, “Now” shows what you wear today. Next to it, a list of all slots with boss and reserve dice.
+- **Reserve with the dice** in the list (like “Need” when looting); the slot in the character sheet shows a small dice once it is picked. Clicking a slot opens its options: important, reserve the upgrade, remove the upgrade, choose another item, remove.
+- **Next step:** one line at the top says what to do now (pick items, reserve with the dice, save, change request pending …) with at most one main button. It replaces the description, the summary line, the hint at the bottom and the reservation bar.
+- Switching, creating, renaming and deleting sets moved into one drop-down. *My reservation* no longer has its own menu entry – it opens from the hint (“View”, “Full raid list”).
+- **Bigger windows:** the main window is wider, and all Light Council windows are shown at 120 % by default (*Settings → Options → Window size*: 100–130 %; never larger than your screen). Rows in *My gear* are taller with bigger icons; an upgrade is shown in the list with an arrow next to its icon (no longer in the character sheet).
+
 ## 0.22.2
 Fixes from a code review (also released as 0.22.1 on GitHub only).
 

@@ -183,7 +183,18 @@ function T:Window(name, width, height, title, subtitle, barHeight)
 
     f.close = self:CloseButton(bar, function() f:Hide() end)
     f.close:SetPoint("RIGHT", -8, 0)
+    f:HookScript("OnShow", function(self) T:ApplyScale(self) end)
     return f
+end
+
+-- Fenstergröße aus den Einstellungen (1 = 100 %), aber nie größer als der Bildschirm
+T.SCALES = { 1.0, 1.1, 1.2, 1.3 }
+function T:ApplyScale(f)
+    local s = (LC.db and LC.db.config and LC.db.config.uiScale) or 1.2
+    local w, h = f:GetWidth(), f:GetHeight()
+    if not w or w <= 0 or not h or h <= 0 then return end
+    local fit = math.min(UIParent:GetWidth() * 0.96 / w, UIParent:GetHeight() * 0.94 / h)
+    f:SetScale(math.max(0.6, math.min(s, fit)))
 end
 
 ------------------------------------------------------------------------

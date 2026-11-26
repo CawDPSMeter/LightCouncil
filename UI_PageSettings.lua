@@ -285,6 +285,26 @@ local function CreateSettingsPage(p)
         LC.db.config.whisperReserve = self:GetChecked() and true or false
     end)
 
+    -- Fenstergröße: Klick schaltet weiter (100 / 110 / 120 / 130 %), gilt sofort für alle Fenster
+    local function ScaleText()
+        return L("Fenstergröße: %d %%", math.floor((LC.db.config.uiScale or 1.2) * 100 + 0.5))
+    end
+    p.scaleBtn = T:Button(c4, "", 190, 26, "default", function(self)
+        local cur, nextS = LC.db.config.uiScale or 1.2, T.SCALES[1]
+        for i, s in ipairs(T.SCALES) do
+            if math.abs(s - cur) < 0.01 then nextS = T.SCALES[i % #T.SCALES + 1] end
+        end
+        LC.db.config.uiScale = nextS
+        self:SetText(ScaleText())
+        for _, name in ipairs({ "LightCouncilMainFrame", "LightCouncilVoteFrame", "LightCouncilRaidFrame" }) do
+            local f = _G[name]
+            if f then T:ApplyScale(f) end
+        end
+    end)
+    p.scaleBtn:SetPoint("TOPLEFT", half, -102)
+    p.ScaleText = ScaleText
+    Tip(p.scaleBtn, L["Fenstergröße"], L["Klick schaltet weiter: 100, 110, 120 oder 130 %. Ist der Bildschirm zu klein, wird das Fenster automatisch passend verkleinert."])
+
     p.msg = T:Text(p, 12, C.muted)
     p.msg:SetPoint("BOTTOMLEFT", 156, 10)
     p.msg:SetWidth(CW - 156)
@@ -328,6 +348,7 @@ local function RefreshSettings()
     p.minimap:SetChecked(not cfg.minimap.hide)
     p.raiderWindow:SetChecked(cfg.raiderWindow)
     p.whisperReserve:SetChecked(cfg.whisperReserve ~= false)
+    p.scaleBtn:SetText(p.ScaleText())
 end
 
 

@@ -27,26 +27,72 @@ local CreateSettingsPage, RefreshSettings = U.CreateSettingsPage, U.RefreshSetti
 ------------------------------------------------------------------------
 -- Fenster & Navigation
 ------------------------------------------------------------------------
+-- lead = nur für Council, Plündermeister und Raidleitung sichtbar
+-- navParent = Seite ohne eigenen Menüeintrag; markiert wird dann der genannte Eintrag
 local TABS = {
-    { key = "start", label = "Erste Schritte", create = CreateStartPage, refresh = RefreshStart, group = "ÜBERSICHT" },
-    { key = "loot", label = "Loot", create = CreateLootPage, refresh = RefreshLoot },
-    { key = "myres", label = "Meine Reservierung", create = CreateMyResPage, refresh = RefreshMyRes },
-    { key = "sets", label = "Gear-Sets", create = U.CreateSetsPage, refresh = U.RefreshSets },
-    { key = "history", label = "Loot-Historie", create = CreateHistoryPage, refresh = RefreshHistory },
-    { key = "reserves", label = "Reservierungen", create = CreateReservesPage, refresh = RefreshReserves, group = "VORBEREITUNG" },
-    { key = "players", label = "Spieler", create = CreatePlayersPage, refresh = RefreshPlayers, group = "COUNCIL" },
-    { key = "log", label = "Protokoll", create = CreateLogPage, refresh = RefreshLog },
-    { key = "settings", label = "Einstellungen", create = CreateSettingsPage, refresh = RefreshSettings, group = "ADDON" },
+    { key = "start", label = "Erste Schritte", create = CreateStartPage, refresh = RefreshStart, group = 1, lead = true },
+    { key = "loot", label = "Loot", create = CreateLootPage, refresh = RefreshLoot, group = 1, lead = true },
+    { key = "reserves", label = "Reservierungen", create = CreateReservesPage, refresh = RefreshReserves, group = 1, lead = true },
+    { key = "players", label = "Spieler", create = CreatePlayersPage, refresh = RefreshPlayers, group = 1, lead = true },
+    { key = "log", label = "Protokoll", create = CreateLogPage, refresh = RefreshLog, group = 1, lead = true },
+    { key = "sets", label = "Mein Gear", create = U.CreateSetsPage, refresh = U.RefreshSets, group = 2 },
+    { key = "myres", label = "Meine Reservierung", create = CreateMyResPage, refresh = RefreshMyRes, group = 2, navParent = "sets" },
+    { key = "history", label = "Loot-Historie", create = CreateHistoryPage, refresh = RefreshHistory, group = 2 },
+    { key = "settings", label = "Einstellungen", create = CreateSettingsPage, refresh = RefreshSettings, group = 3 },
 }
+local TAB = {}
+for _, t in ipairs(TABS) do TAB[t.key] = t end
+
+-- Council-Bereich anzeigen? Council, Plündermeister, Raidleitung/Assistenz –
+-- und solange noch kein Council eingetragen ist (Einrichten durch die Leitung)
+local function IsLeadView()
+    if LC:AmICouncil() or LC:IsMasterLooter() then return true end
+    if IsInGroup() and (UnitIsGroupLeader("player") or (IsInRaid() and UnitIsGroupAssistant("player"))) then return true end
+    return #LC:GetCouncilList() == 0
+end
+
+local function TabVisible(t)
+    return not t.navParent and (not t.lead or IsLeadView())
+end
+
+-- Menü neu anordnen: nur sichtbare Einträge, Gruppen durch eine feine Linie getrennt
+local function LayoutNav()
+    local y, lastGroup = 14, nil
+    for g = 1, 3 do if nav["div" .. g] then nav["div" .. g]:Hide() end end
+    for _, t in ipairs(TABS) do
+        local b = nav[t.key]
+        if b then
+            if TabVisible(t) then
+                if lastGroup and t.group ~= lastGroup then
+                    local div = nav["div" .. t.group]
+                    div:ClearAllPoints()
+                    div:SetPoint("TOPLEFT", 16, -(y + 6))
+                    div:SetPoint("TOPRIGHT", -16, -(y + 6))
+                    div:Show()
+                    y = y + 13
+                end
+                b:ClearAllPoints()
+                b:SetPoint("TOPLEFT", 0, -y)
+                b:Show()
+                y = y + 38
+                lastGroup = t.group
+            else
+                b:Hide()
+            end
+        end
+    end
+end
 
 function SelectTab(key)
     -- Raid-Loot ist seit 0.19 Teil der Gear-Sets (Ansicht „Items“)
     if key == "items" then key, LC.wantSetsView = "sets", "items" end
+    if not TAB[key] then key = "sets" end
     currentTab = key
     if key == "settings" then pages.settings.needsLoad = true end
+    local navKey = TAB[key].navParent or key
     for _, t in ipairs(TABS) do
         pages[t.key]:SetShown(t.key == key)
-        nav[t.key]:SetSelected(t.key == key)
+        if nav[t.key] then nav[t.key]:SetSelected(t.key == navKey) end
     end
     LC:RefreshUI()
 end
@@ -114,20 +160,14 @@ local function CreateMainFrame()
     sideGlow:SetHeight(140)
     T:Gradient(sideGlow, { 0.62, 0.39, 1, 0.08 }, { 0.62, 0.39, 1, 0 })
 
-    -- Menü: nur klickbare Einträge; Gruppen werden durch eine feine Linie getrennt
-    local y = 14
-    for i, t in ipairs(TABS) do
-        if t.group and i > 1 then
-            local div = T:Line(side, C.line)
-            div:SetPoint("TOPLEFT", 16, -(y + 6))
-            div:SetPoint("TOPRIGHT", -16, -(y + 6))
-            y = y + 13
+    -- Menü: Einträge je nach Rolle (LayoutNav), Gruppen durch eine feine Linie getrennt
+    for g = 1, 3 do nav["div" .. g] = T:Line(side, C.line) end
+    for _, t in ipairs(TABS) do
+        if not t.navParent then
+            nav[t.key] = T:NavButton(side, L[t.label], SIDEBAR - 1, function() SelectTab(t.key) end)
         end
-        local b = T:NavButton(side, L[t.label], SIDEBAR - 1, function() SelectTab(t.key) end)
-        b:SetPoint("TOPLEFT", 0, -y)
-        nav[t.key] = b
-        y = y + 38
     end
+    LayoutNav()
 
     local ver = T:Text(side, 10, C.muted)
     ver:SetPoint("BOTTOMLEFT", 16, 14)
@@ -146,8 +186,8 @@ end
 
 -- Startseite, solange die Vorbereitung unvollständig ist, sonst Loot
 local function DefaultTab()
-    -- Raider ohne besondere Rolle landen direkt bei ihrer Reservierung
-    if not LC:AmICouncil() and not LC:IsMasterLooter() then return "myres" end
+    -- Raider ohne besondere Rolle landen bei ihrem Gear (Set + Reservierung)
+    if not IsLeadView() or (not LC:AmICouncil() and not LC:IsMasterLooter()) then return "sets" end
     local st = SetupStatus()
     if not (st.council.ok and st.softres.ok and st.items.ok) then return "start" end
     return "loot"
@@ -165,6 +205,10 @@ end
 
 function LC:RefreshUI()
     if not main or not main:IsShown() then return end
+    -- Rolle kann sich ändern (Council-Liste, Plündermeister, Gruppe): Menü anpassen
+    LayoutNav()
+    local cur = TAB[currentTab]
+    if cur and not TabVisible(cur) and not cur.navParent then return SelectTab("sets") end
     for _, t in ipairs(TABS) do
         if t.key == currentTab then t.refresh() end
     end

@@ -1,5 +1,5 @@
--- Light Council – Hauptfenster, Seite: Gear-Sets
---   „Mein Set“    : eigene Sets, nach Slots geordnet (ein Item pro Slot, ★ = wichtig)
+-- Light Council – Hauptfenster, Seite: Mein Gear
+--   „Mein Set“    : Kacheln wie im Charakterfenster (ein Item pro Slot, Würfel = reservieren)
 --   „Items“       : alle Raids → Bosse → Items zum Anhaken (Council/Leitung: Council-Item)
 --   „Alle Sets“   : die aktiven Sets aller Addon-Nutzer in Gilde und Raid
 --   „Council-Items“ (nur Council/Leitung): Liste der Council-Items
@@ -14,14 +14,10 @@ local Card, PageHeader, Tip, AcceptLinks = U.Card, U.PageHeader, U.Tip, U.Accept
 local Segmented, ChipBar, IdsFromText, SourceButton = U.Segmented, U.ChipBar, U.IdsFromText, U.SourceButton
 local AttachItemSearch = U.AttachItemSearch
 
-local SLOT_ROW, GROUP_ROW = 32, 30
 local PLAYER_ROW = 44
-local slotRows, groupRows, playerRows = {}, {}, {}
+local playerRows = {}
 local CHECK = "|TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t"
 local STAR_TEX = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_1"
-
--- Spalten der Slot-Liste (x-Position)
-local X_SLOT, X_ICON, X_NAME, X_SRC, X_STATE, X_RES = 12, 104, 132, 340, 500, 566
 
 local function ItemQualityBorder(icon, id)
     local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
@@ -37,11 +33,6 @@ local function IconRow(ids)
     return table.concat(t, " ")
 end
 
-local function SourceText(id)
-    local src = LC:ItemSource(id)
-    if not src then return H.muted .. "–|r" end
-    return src.raid.name .. H.muted .. " · " .. src.boss.name .. "|r"
-end
 
 ------------------------------------------------------------------------
 -- Dialoge
@@ -103,9 +94,9 @@ end
 
 local function CreateSetsPage(p)
     DefineDialogs()
-    local _, ht, hd = PageHeader(p, L["Gear-Sets"], L["Stell dir pro Slot dein Wunsch-Item zusammen und markiere, was dir wichtig ist. Dein aktives Set sehen alle – so weiß der Council, wo du im Gear stehst."])
-    hd:SetWidth(CW - 220)   -- rechts sitzt „Quelle“
-    local y = math.ceil(ht:GetStringHeight() + 5 + hd:GetStringHeight() + 16)
+    -- Keine Beschreibung: was zu tun ist, sagt der Hinweis „Nächster Schritt“
+    local _, ht = PageHeader(p, L["Mein Gear"], "")
+    local y = math.ceil(ht:GetStringHeight() + 14)
     p.view = "mine"
 
     p.sourceBtn = SourceButton(p)
@@ -142,35 +133,37 @@ local function CreateSetsPage(p)
     local mine = View()
     p.mine = mine
 
-    mine.chips = ChipBar(mine)
-    mine.chips:SetPoint("TOPLEFT", 0, 0)
+    -- Set-Auswahl als Aufklappmenü (Wechseln, Neu, Umbenennen, Löschen)
+    mine.setBtn = T:Button(mine, "", 220, 30, "default", function(self)
+        local order, active = LC:GetMySets()
+        local entries = {}
+        for _, name in ipairs(order) do
+            entries[#entries + 1] = { text = name, checked = (name == active), func = function() LC:SetActiveGearSet(name) end }
+        end
+        if #entries > 0 then entries[#entries + 1] = { text = "-" } end
+        entries[#entries + 1] = { text = L["Neues Set …"], func = function() StaticPopup_Show("LIGHTCOUNCIL_NEW_SET") end }
+        if active then
+            entries[#entries + 1] = { text = L["Umbenennen …"], func = function()
+                local d = StaticPopup_Show("LIGHTCOUNCIL_RENAME_SET", active, nil, active)
+                if d then d.data = active end
+            end }
+            entries[#entries + 1] = { text = L["Löschen …"], color = C.bad, func = function()
+                local d = StaticPopup_Show("LIGHTCOUNCIL_DELETE_SET", active, nil, active)
+                if d then d.data = active end
+            end }
+        end
+        U.ShowMenu(self, entries)
+    end)
+    mine.setBtn:SetPoint("TOPLEFT", 0, 0)
+    Tip(mine.setBtn, L["Dein Set"], L["Wechseln, neues Set anlegen, umbenennen oder löschen. Dein aktives Set sehen alle – so weiß der Council, wo du im Gear stehst."])
 
-    local bar = CreateFrame("Frame", nil, mine)
-    bar:SetSize(CW, 30)
-    bar:SetPoint("TOPLEFT", mine.chips, "BOTTOMLEFT", 0, -10)
-    local newBtn = T:Button(bar, L["Neues Set"], 110, 30, "primary", function() StaticPopup_Show("LIGHTCOUNCIL_NEW_SET") end)
-    newBtn:SetPoint("LEFT", 0, 0)
-    mine.renameBtn = T:Button(bar, L["Umbenennen"], 110, 30, "default", function()
-        local _, name = LC:GetActiveSet()
-        if name then
-            local d = StaticPopup_Show("LIGHTCOUNCIL_RENAME_SET", name, nil, name)
-            if d then d.data = name end
-        end
-    end)
-    mine.renameBtn:SetPoint("LEFT", newBtn, "RIGHT", 8, 0)
-    mine.deleteBtn = T:Button(bar, L["Löschen"], 90, 30, "danger", function()
-        local _, name = LC:GetActiveSet()
-        if name then
-            local d = StaticPopup_Show("LIGHTCOUNCIL_DELETE_SET", name, nil, name)
-            if d then d.data = name end
-        end
-    end)
-    mine.deleteBtn:SetPoint("LEFT", mine.renameBtn, "RIGHT", 8, 0)
+    mine.progress = T:Text(mine, 12, C.muted, "LEFT")
+    mine.progress:SetPoint("LEFT", mine.setBtn, "RIGHT", 14, 0)
 
     -- Hinzufügen: Name oder ID tippen (Suche), Shift-Klick oder ID + Enter
-    mine.input = T:Input(bar, CW - 340 - 12, 30)
-    mine.input:SetPoint("RIGHT", 0, 0)
-    mine.input:SetPlaceholder(L["Item hinzufügen: Name, Item-ID oder Shift-Klick"])
+    mine.input = T:Input(mine, 300, 30)
+    mine.input:SetPoint("TOPRIGHT", 0, 0)
+    mine.input:SetPlaceholder(L["Item suchen oder Shift-Klick"])
     AcceptLinks(mine.input)
     mine.input:SetScript("OnEnterPressed", function(self)
         local ok, msg = LC:AddToGearSet(IdsFromText(self:GetText()))
@@ -185,41 +178,26 @@ local function CreateSetsPage(p)
         LC:RefreshUI()
     end)
 
-    mine.summary = T:Text(mine, 12, C.muted, "LEFT")
-    mine.summary:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -12)
-    mine.summary:SetWidth(CW)
-    mine.summary:SetWordWrap(false)
+    -- „Nächster Schritt“: ein Satz, was jetzt zu tun ist, und höchstens ein Hauptknopf
+    local nb = Card(mine, 48)
+    nb:SetPoint("TOPLEFT", 0, -42)
+    nb:SetWidth(CW)
+    nb:SetBackdropColor(0.115, 0.085, 0.16, 1)
+    mine.next = nb
+    nb.bar = nb:CreateTexture(nil, "ARTWORK")
+    nb.bar:SetTexture(T.WHITE)
+    nb.bar:SetPoint("TOPLEFT", 1, -1)
+    nb.bar:SetPoint("BOTTOMLEFT", 1, 1)
+    nb.bar:SetWidth(3)
+    nb.text = T:Text(nb, 13, C.text, "LEFT")
+    nb.text:SetPoint("LEFT", 16, 0)
+    nb.text:SetWordWrap(true)
+    nb.main = T:Button(nb, "", 190, 30, "primary")
+    nb.main:SetPoint("RIGHT", -9, 0)
+    nb.main:SetScript("OnClick", function() if nb.onMain then nb.onMain() end end)
+    nb.alt = T:Button(nb, "", 130, 30, "ghost")
+    nb.alt:SetScript("OnClick", function() if nb.onAlt then nb.onAlt() end end)
 
-    local sf, content = T:Scroll(mine)
-    sf:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -34)
-    sf:SetPoint("BOTTOMRIGHT", -10, 64)
-    mine.list = content
-
-    -- Reservierung: Stand für einen Raid + Speichern (Auswahl ist dieselbe wie unter „Meine Reservierung“)
-    local rb = Card(mine, 36)
-    rb:SetPoint("BOTTOMLEFT", 0, 22)
-    rb:SetWidth(CW)
-    mine.resBar = rb
-    mine.resText = T:Text(rb, 12, C.text, "LEFT")
-    mine.resText:SetPoint("LEFT", 12, 0)
-    mine.resText:SetWidth(CW - 340)
-    mine.resText:SetWordWrap(false)
-    mine.resSave = T:Button(rb, L["Reservierung speichern"], 190, 26, "primary", function()
-        local key = mine.resKey
-        if not key then return end
-        local _, locked = U.ResState(key)
-        if locked then
-            -- Änderung braucht eine Begründung – die steht unter „Meine Reservierung“
-            LC:OpenReservation(key)
-        else
-            U.ResConfirm(key, "sets")
-        end
-    end)
-    mine.resSave:SetPoint("RIGHT", -6, 0)
-    mine.resOpen = T:Button(rb, L["Meine Reservierung"], 130, 26, "ghost", function()
-        LC:OpenReservation(mine.resKey)
-    end)
-    mine.resOpen:SetPoint("RIGHT", mine.resSave, "LEFT", -6, 0)
 
     ------------------------------------------------------------ Items
     p.items = View()
@@ -259,122 +237,515 @@ local function CreateSetsPage(p)
 end
 
 ------------------------------------------------------------------------
--- Zeilen „Mein Set“
+-- „Mein Gear“: links ein Charakterbogen wie im Charakterfenster (3D-Modell + Slots),
+-- rechts die Slots als Liste mit Quelle und Würfel zum Reservieren
 ------------------------------------------------------------------------
-local function GetGroupRow(parent, g)
-    local r = groupRows[g]
-    if r then return r end
-    r = CreateFrame("Frame", nil, parent)
-    r:SetSize(CW - 14, GROUP_ROW)
-    r.title = T:Text(r, 11, C.accentLt, "LEFT", nil, true)
-    r.title:SetPoint("BOTTOMLEFT", 4, 7)
-    r.count = T:Text(r, 11, C.muted, "LEFT")
-    r.count:SetPoint("LEFT", r.title, "RIGHT", 10, 0)
-    groupRows[g] = r
-    return r
+local DOLL_W, SLOT, SLOT_GAP = 330, 40, 5
+local ROW_H, HEAD_H = 34, 28
+local ROW_W = CW - DOLL_W - 10 - 16 - 14
+local DICE_TEX = "Interface\\Buttons\\UI-GroupLoot-Dice-Up"
+local ARROW_TEX = "Interface\\Buttons\\Arrow-Up-Up"
+local CHECK_TEX = "Interface\\RaidFrame\\ReadyCheck-Ready"
+-- Anordnung wie im Charakterfenster (Hemd und Wappenrock nur als Platzhalter)
+local DOLL_LEFT = { "HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "SHIRT", "TABARD", "WRIST" }
+local DOLL_RIGHT = { "HANDS", "WAIST", "LEGS", "FEET", "FINGER1", "FINGER2", "TRINKET1", "TRINKET2" }
+local DOLL_BOTTOM = { "MAINHAND", "OFFHAND", "RANGED" }
+local INV_NAME = {
+    HEAD = "HeadSlot", NECK = "NeckSlot", SHOULDER = "ShoulderSlot", BACK = "BackSlot", CHEST = "ChestSlot",
+    SHIRT = "ShirtSlot", TABARD = "TabardSlot", WRIST = "WristSlot", HANDS = "HandsSlot", WAIST = "WaistSlot",
+    LEGS = "LegsSlot", FEET = "FeetSlot", FINGER1 = "Finger0Slot", FINGER2 = "Finger1Slot",
+    TRINKET1 = "Trinket0Slot", TRINKET2 = "Trinket1Slot", MAINHAND = "MainHandSlot",
+    OFFHAND = "SecondaryHandSlot", RANGED = "RangedSlot",
+}
+local entries = {}   -- [slotKey] = { key, itemID, upID, important, owned, slotLabel, doll, row }
+
+-- Leeres Slot-Bild aus dem Spiel (wie im Charakterfenster)
+local emptyTex = {}
+local function EmptyTex(key)
+    if emptyTex[key] == nil then
+        local ok, _, tex = pcall(GetInventorySlotInfo, INV_NAME[key] or "")
+        emptyTex[key] = (ok and tex) or "Interface\\PaperDoll\\UI-Backpack-EmptySlot"
+    end
+    return emptyTex[key]
 end
 
-local function GetSlotRow(parent, i)
-    local r = slotRows[i]
-    if r then return r end
-    r = CreateFrame("Button", nil, parent, "BackdropTemplate")
-    r:SetSize(CW - 14, SLOT_ROW - 2)
-    T:Skin(r, (i % 2 == 0) and C.panel or C.bg, { 0, 0, 0, 0 })
-    -- Grüner Streifen links: hast du schon
+-- Reservierungs-Stand eines Items: Raid-Schlüssel, Raid-Name, ausgewählt, gespeichert
+local function ResInfo(id)
+    local src = id and LC:ItemSource(id)
+    if not src then return nil end
+    local key = src.raid.key
+    local rec = LC:GetReservation(key)
+    local saved = false
+    for _, x in ipairs(rec and rec.items or {}) do if x == id then saved = true end end
+    return key, src.raid.name, U.ResSelected(key, id), saved
+end
+
+local function ToggleRes(id, raidKey)
+    local ok, msg = U.ResToggle(raidKey, id, not U.ResSelected(raidKey, id))
+    pages.sets.mine.resKey = raidKey
+    SetMsg((not ok) and msg or nil)
+    LC:RefreshUI()
+end
+
+local function ShowItems()
+    pages.sets.view = "items"
+    pages.sets.msgText = nil
+    LC:RefreshUI()
+end
+
+-- Menü eines Slots (Klick)
+local function SlotMenu(e)
+    local id, up = e.itemID, e.upID
+    local m = {}
+    if id then
+        local key, name, on = ResInfo(id)
+        if key then m[#m + 1] = { text = L("Reservieren (%s)", name), checked = on, func = function() ToggleRes(id, key) end } end
+        m[#m + 1] = { text = L["Wichtig"], checked = e.important, func = function() LC:ToggleGearSetImportant(id) end }
+    end
+    if up then
+        local ukey, uname, uon = ResInfo(up)
+        if ukey then m[#m + 1] = { text = L("Upgrade reservieren (%s)", uname), checked = uon, func = function() ToggleRes(up, ukey) end } end
+        m[#m + 1] = { text = L["Upgrade entfernen"], func = function() LC:RemoveFromGearSet(up) end }
+    end
+    m[#m + 1] = { text = L["Anderes Item wählen …"], func = ShowItems }
+    if id then
+        m[#m + 1] = { text = "-" }
+        m[#m + 1] = { text = L["Aus dem Set entfernen"], color = C.bad, func = function() LC:RemoveFromGearSet(id) end }
+    end
+    return m
+end
+
+local function SlotClick(e, anchor)
+    if not e then return end
+    if not e.itemID then
+        if e.upID then U.ShowMenu(anchor, SlotMenu(e)) else ShowItems() end
+        return
+    end
+    if IsModifiedClick and IsModifiedClick("CHATLINK") and ChatEdit_InsertLink then
+        ChatEdit_InsertLink(LC:ItemLink(e.itemID))
+        return
+    end
+    GameTooltip:Hide()
+    U.ShowMenu(anchor, SlotMenu(e))
+end
+
+local function SlotTooltip(owner, e)
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    if e.itemID then
+        GameTooltip:SetItemByID(e.itemID)
+        GameTooltip:AddLine(" ")
+        if e.owned then GameTooltip:AddLine(CHECK .. " " .. L["Hast du schon."], C.good[1], C.good[2], C.good[3]) end
+        if e.important then GameTooltip:AddLine(LC.STAR .. " " .. L["Wichtig"], C.accentLt[1], C.accentLt[2], C.accentLt[3]) end
+        if e.upID then GameTooltip:AddLine(LC.UPGRADE .. " " .. L["Upgrade"] .. ": " .. LC:ItemLink(e.upID), C.warn[1], C.warn[2], C.warn[3]) end
+        GameTooltip:AddLine(L["Klick: Optionen  ·  Shift-Klick: im Chat verlinken"], C.muted[1], C.muted[2], C.muted[3])
+    else
+        GameTooltip:SetText(e.slotLabel or "", 1, 1, 1)
+        GameTooltip:AddLine(L["Noch kein Item. Klick öffnet die Item-Übersicht – oder oben Name bzw. ID eintippen."], nil, nil, nil, true)
+    end
+    GameTooltip:Show()
+end
+
+-- Slot im Bogen und Zeile in der Liste gemeinsam hervorheben
+local function Highlight(e, on)
+    if not e then return end
+    if e.doll then
+        if on then T:SetBorder(e.doll, C.accentLt)
+        elseif e.itemID then ItemQualityBorder(e.doll, e.itemID)
+        else T:SetBorder(e.doll, C.line) end
+    end
+    if e.row then
+        local bg = on and C.panelAlt or (e.row.alt and C.panel or C.bg)
+        e.row:SetBackdropColor(bg[1], bg[2], bg[3], 1)
+    end
+end
+
+------------------------------------------------------------ Bausteine
+local function MakeDice(parent, size)
+    local d = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    d:SetSize(size, size)
+    T:Skin(d, C.bgDark, C.line)
+    d.tex = d:CreateTexture(nil, "ARTWORK")
+    d.tex:SetTexture(DICE_TEX)
+    d.tex:SetSize(size - 6, size - 6)
+    d.tex:SetPoint("CENTER")
+    d:SetScript("OnClick", function(self) if self.raidKey then ToggleRes(self.itemID, self.raidKey) end end)
+    d:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L("Reservieren für %s", self.raidName or "?"), 1, 1, 1)
+        local text
+        if self.on and self.saved then text = H.good .. L["Reserviert und gespeichert."] .. "|r"
+        elseif self.on then text = H.warn .. L["Ausgewählt – noch nicht gespeichert. Speichern geht oben im Hinweis."] .. "|r"
+        else text = L("Klick wählt das Item für deine Reservierung aus (höchstens %d pro Raid).", LC:MaxReserves()) end
+        GameTooltip:AddLine(text, nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    d:SetScript("OnLeave", GameTooltip_Hide)
+    return d
+end
+
+local function PaintDice(d, id)
+    local key, name, on, saved = ResInfo(id)
+    d.itemID, d.raidKey, d.raidName, d.on, d.saved = id, key, name, on, saved
+    d:SetShown(key ~= nil)
+    if not key then return end
+    d.tex:SetDesaturated(not on)
+    d.tex:SetAlpha(on and 1 or 0.4)
+    T:SetBorder(d, (on and saved) and C.good or (on and C.accent or C.line))
+    local bg = on and C.accentDim or C.bgDark
+    d:SetBackdropColor(bg[1], bg[2], bg[3], 1)
+end
+
+-- Kennzeichen „Upgrade“: Pfeil ohne Kästchen, mit dunklem Schatten – auf jedem Icon gut sichtbar
+local function UpgradeBadge(parent, size)
+    local f = CreateFrame("Frame", nil, parent)
+    f:SetSize(size, size)
+    f:SetFrameLevel(parent:GetFrameLevel() + 4)
+    f.shadow = f:CreateTexture(nil, "ARTWORK")
+    f.shadow:SetTexture(ARROW_TEX)
+    f.shadow:SetVertexColor(0, 0, 0, 1)
+    f.shadow:SetSize(size + 4, size + 4)
+    f.shadow:SetPoint("CENTER", 1, -1)
+    f.tex = f:CreateTexture(nil, "OVERLAY")
+    f.tex:SetTexture(ARROW_TEX)
+    f.tex:SetSize(size, size)
+    f.tex:SetPoint("CENTER")
+    return f
+end
+
+local function MakeUpgradeIcon(parent, size, getID)
+    local u = T:Icon(parent, size)
+    u:EnableMouse(true)
+    u.arrow = UpgradeBadge(u, 18)
+    u.arrow:SetPoint("RIGHT", u, "LEFT", -2, 0)   -- Pfeil links neben dem Upgrade-Item
+    u:SetScript("OnEnter", function(self)
+        local id = getID()
+        if not id then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetItemByID(id)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(LC.UPGRADE .. " " .. L["Upgrade: zweite Wahl für diesen Slot. Zählt nur, solange dir das beste Item darüber fehlt."], C.warn[1], C.warn[2], C.warn[3], true)
+        GameTooltip:Show()
+    end)
+    u:SetScript("OnLeave", GameTooltip_Hide)
+    return u
+end
+
+-- Slot im Charakterbogen
+local function MakeDollSlot(parent, key)
+    local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    b:SetSize(SLOT, SLOT)
+    T:Skin(b, C.bgDark, C.line)
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b.tex = b:CreateTexture(nil, "ARTWORK")
+    b.tex:SetPoint("TOPLEFT", 1, -1)
+    b.tex:SetPoint("BOTTOMRIGHT", -1, 1)
+    b.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    b.tex:SetTexture(EmptyTex(key))
+    if key == "SHIRT" or key == "TABARD" then
+        -- Zählt nicht – nur damit der Bogen aussieht wie im Spiel
+        b.tex:SetDesaturated(true)
+        b:SetAlpha(0.3)
+        b:EnableMouse(false)
+        return b
+    end
+    b.check = b:CreateTexture(nil, "OVERLAY")
+    b.check:SetTexture(CHECK_TEX)
+    b.check:SetSize(15, 15)
+    b.check:SetPoint("TOPLEFT", -4, 4)
+    b.star = b:CreateTexture(nil, "OVERLAY")
+    b.star:SetTexture(STAR_TEX)
+    b.star:SetSize(14, 14)
+    b.star:SetPoint("TOPRIGHT", 4, 4)
+    b.dice = b:CreateTexture(nil, "OVERLAY")
+    b.dice:SetTexture(DICE_TEX)
+    b.dice:SetSize(17, 17)
+    b.dice:SetPoint("BOTTOMLEFT", -4, -4)
+    b:SetScript("OnClick", function(self) SlotClick(self.e, self) end)
+    b:SetScript("OnEnter", function(self) Highlight(self.e, true) if self.e then SlotTooltip(self, self.e) end end)
+    b:SetScript("OnLeave", function(self) Highlight(self.e, false) GameTooltip:Hide() end)
+    return b
+end
+
+local function PaintDollSlot(b, e)
+    if not b.check then return end
+    if e.itemID then
+        b.tex:SetTexture(LC:ItemIcon(e.itemID))
+        ItemQualityBorder(b, e.itemID)
+    else
+        b.tex:SetTexture(EmptyTex(e.key))
+        T:SetBorder(b, C.line)
+    end
+    b.check:SetShown(e.owned)
+    b.star:SetShown(e.important)
+    local _, _, on = ResInfo(e.itemID)
+    local _, _, uon = ResInfo(e.upID)
+    b.dice:SetShown((on or uon) and true or false)
+end
+
+-- Zeile in der Liste
+local function MakeRow(parent)
+    local r = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    r:SetSize(ROW_W, ROW_H - 2)
+    T:Skin(r, C.bg, { 0, 0, 0, 0 })
+    r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     r.stripe = r:CreateTexture(nil, "ARTWORK")
     r.stripe:SetTexture(T.WHITE)
     r.stripe:SetVertexColor(unpack(C.good))
     r.stripe:SetPoint("TOPLEFT")
     r.stripe:SetPoint("BOTTOMLEFT")
-    r.stripe:SetWidth(3)
-    r.slot = T:Text(r, 12, C.muted)
-    r.slot:SetPoint("LEFT", X_SLOT, 0)
-    r.slot:SetWidth(X_ICON - X_SLOT - 6)
+    r.stripe:SetWidth(2)
+    r.slot = T:Text(r, 12, C.muted, "LEFT")
+    r.slot:SetPoint("LEFT", 10, 0)
+    r.slot:SetWidth(74)
     r.slot:SetWordWrap(false)
-    r.icon = T:Icon(r, 24)
-    r.icon:SetPoint("LEFT", X_ICON, 0)
-    r.name = T:Text(r, 13, C.text)
-    r.name:SetPoint("LEFT", X_NAME, 0)
-    r.name:SetWidth(X_SRC - X_NAME - 8)
+    r.icon = T:Icon(r, 26)
+    r.icon:SetPoint("LEFT", 88, 0)
+    r.name = T:Text(r, 13, C.text, "LEFT")
+    r.name:SetPoint("LEFT", 122, 0)
     r.name:SetWordWrap(false)
-    r.src = T:Text(r, 12, C.muted)
-    r.src:SetPoint("LEFT", X_SRC, 0)
-    r.src:SetWidth(X_STATE - X_SRC - 8)
+    r.src = T:Text(r, 11, C.muted, "RIGHT")
     r.src:SetWordWrap(false)
-    r.state = T:Text(r, 12, C.text)
-    r.state:SetPoint("LEFT", X_STATE, 0)
-    r.state:SetWidth(X_RES - X_STATE - 6)
-    r.state:SetWordWrap(false)
-
-    -- Reservieren für den Raid, in dem das Item droppt (gleiche Auswahl wie unter „Meine Reservierung“)
-    r.res = T:Check(r, L["Reservieren"])
-    r.res:SetPoint("LEFT", X_RES, 0)
-    r.res.label:SetWidth(86)
-    r.res.label:SetWordWrap(false)
-    r.res:SetScript("OnClick", function(self)
-        local ok, msg = U.ResToggle(r.raidKey, r.itemID, self:GetChecked())
-        pages.sets.mine.resKey = r.raidKey
-        if not ok then self:SetChecked(false) end
-        SetMsg(msg)
-        LC:RefreshUI()
-    end)
-    r.res:HookScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText(L["Reservieren"], 1, 1, 1)
-        if r.raidName then
-            GameTooltip:AddLine(L("Für „%s“ reservieren. Gespeichert wird unten mit „Reservierung speichern“ – wie unter „Meine Reservierung“.", r.raidName), nil, nil, nil, true)
-        else
-            GameTooltip:AddLine(L["Dieses Item droppt in keinem Raid der Loot-Quelle – reservieren geht hier nicht."], nil, nil, nil, true)
-        end
-        GameTooltip:Show()
-    end)
-    r.res:HookScript("OnLeave", GameTooltip_Hide)
-
-    -- ★ wichtig
-    r.star = CreateFrame("Button", nil, r)
-    r.star:SetSize(22, 22)
-    r.star:SetPoint("RIGHT", -40, 0)
-    r.star.tex = r.star:CreateTexture(nil, "ARTWORK")
-    r.star.tex:SetAllPoints()
-    r.star.tex:SetTexture(STAR_TEX)
-    r.star:SetScript("OnClick", function() LC:ToggleGearSetImportant(r.itemID) end)
-    r.star:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText(L["Wichtig"], 1, 1, 1)
-        GameTooltip:AddLine(L["Markiert Items, die dir besonders wichtig sind. Der Council sieht das bei der Abstimmung."], nil, nil, nil, true)
-        GameTooltip:Show()
-    end)
-    r.star:SetScript("OnLeave", GameTooltip_Hide)
-
-    r.del = T:Button(r, "×", 26, 24, "ghost", function() LC:RemoveFromGearSet(r.itemID) end)
-    r.del:SetPoint("RIGHT", -8, 0)
-    r.del.tooltipTitle, r.del.tooltip = L["Aus dem Set entfernen"], " "
-
-    r:SetScript("OnClick", function(self)
-        -- Leerer Slot: zur Item-Übersicht
-        if not self.itemID then
-            pages.sets.view = "items"
-            LC:RefreshUI()
-        end
-    end)
-    r:SetScript("OnEnter", function(self)
-        self:SetBackdropColor(C.panelAlt[1], C.panelAlt[2], C.panelAlt[3], 1)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        if self.itemID then
-            GameTooltip:SetItemByID(self.itemID)
-        else
-            GameTooltip:SetText(self.slotLabel or "", 1, 1, 1)
-            GameTooltip:AddLine(L["Noch kein Item. Klick öffnet die Item-Übersicht – oder oben Name bzw. ID eintippen."], nil, nil, nil, true)
-        end
-        GameTooltip:Show()
-    end)
-    r:SetScript("OnLeave", function(self)
-        local bg = (self.index % 2 == 0) and C.panel or C.bg
-        self:SetBackdropColor(bg[1], bg[2], bg[3], 1)
-        GameTooltip:Hide()
-    end)
-    slotRows[i] = r
+    r.dice = MakeDice(r, 26)
+    r.dice:SetPoint("RIGHT", -4, 0)
+    r.up = MakeUpgradeIcon(r, 22, function() return r.e and r.e.upID end)
+    r.up:SetScript("OnMouseUp", function() GameTooltip:Hide() if r.e then U.ShowMenu(r, SlotMenu(r.e)) end end)
+    r:SetScript("OnClick", function(self) SlotClick(self.e, self) end)
+    r:SetScript("OnEnter", function(self) Highlight(self.e, true) if self.e then SlotTooltip(self, self.e) end end)
+    r:SetScript("OnLeave", function(self) Highlight(self.e, false) GameTooltip:Hide() end)
     return r
+end
+
+local function PaintRow(r, e)
+    r.stripe:SetShown(e.owned)
+    r.slot:SetText(e.slotLabel)
+    if e.itemID then
+        r.icon.tex:SetTexture(LC:ItemIcon(e.itemID))
+        r.icon.tex:Show()
+        ItemQualityBorder(r.icon, e.itemID)
+        r.icon:Show()
+        r.name:SetText(LC:ItemLink(e.itemID))
+        local src = LC:ItemSource(e.itemID)
+        r.src:SetText(src and src.boss.name or "")
+    else
+        r.icon:Hide()
+        r.name:SetText(H.muted .. L["+ Item wählen"] .. "|r")
+        r.src:SetText("")
+    end
+    PaintDice(r.dice, e.itemID)
+    -- Rechts von außen nach innen: Würfel, Upgrade, Quelle
+    local x = -4 - (r.dice:IsShown() and 32 or 0)
+    r.up:ClearAllPoints()
+    if e.upID then
+        r.up:SetPoint("RIGHT", x - 2, 0)
+        r.up.tex:SetTexture(LC:ItemIcon(e.upID))
+        local _, _, uon = ResInfo(e.upID)
+        if uon then T:SetBorder(r.up, C.accent) else ItemQualityBorder(r.up, e.upID) end
+        r.up:Show()
+        x = x - 32 - 20
+    else
+        r.up:Hide()
+    end
+    r.src:ClearAllPoints()
+    r.src:SetPoint("RIGHT", x - 6, 0)
+    local srcW = e.itemID and 110 or 0
+    r.src:SetWidth(srcW)
+    r.name:SetWidth(ROW_W - 122 + x - 6 - srcW - 8)
+    local bg = r.alt and C.panel or C.bg
+    r:SetBackdropColor(bg[1], bg[2], bg[3], 1)
+end
+
+------------------------------------------------------------ 3D-Modell
+local function DressModel(m)
+    if not m:IsVisible() then return end
+    pcall(m.SetUnit, m, "player")
+    m:SetFacing(m.facing or 0)
+    if m.SetPortraitZoom then m:SetPortraitZoom(m.zoom or 0) end
+    if m.mode ~= "now" then
+        local set = LC:GetActiveSet()
+        for _, id in pairs(set and set.slots or {}) do pcall(m.TryOn, m, "item:" .. id) end
+    end
+end
+
+local function MakeModel(parent)
+    local m = CreateFrame("DressUpModel", nil, parent)
+    m.facing, m.zoom, m.mode = 0, 0, "set"
+    m:EnableMouse(true)
+    m:EnableMouseWheel(true)
+    m:SetScript("OnMouseDown", function(self, btn)
+        if btn == "LeftButton" then self.dragX = GetCursorPosition() end
+    end)
+    m:SetScript("OnMouseUp", function(self, btn)
+        self.dragX = nil
+        if btn == "RightButton" then
+            self.facing, self.zoom = 0, 0
+            self:SetFacing(0)
+            if self.SetPortraitZoom then self:SetPortraitZoom(0) end
+        end
+    end)
+    m:SetScript("OnUpdate", function(self)
+        if not self.dragX then return end
+        local x = GetCursorPosition()
+        self.facing = (self.facing + (x - self.dragX) / 90) % (2 * math.pi)
+        self.dragX = x
+        self:SetFacing(self.facing)
+    end)
+    m:SetScript("OnMouseWheel", function(self, delta)
+        self.zoom = math.max(0, math.min(0.8, (self.zoom or 0) + delta * 0.1))
+        if self.SetPortraitZoom then self:SetPortraitZoom(self.zoom) end
+    end)
+    m:SetScript("OnShow", function(self) C_Timer.After(0, function() DressModel(self) end) end)
+    return m
+end
+
+------------------------------------------------------------ Aufbau
+local function BuildMine(mine)
+    mine.built = true
+
+    -- Links: Charakterbogen
+    local doll = Card(mine)
+    doll:SetPoint("TOPLEFT", 0, -98)
+    doll:SetPoint("BOTTOMLEFT", 0, 24)
+    doll:SetWidth(DOLL_W)
+    doll:SetBackdropColor(C.bgDark[1], C.bgDark[2], C.bgDark[3], 1)
+    mine.doll = doll
+    mine.dollSlots = {}
+    for i, key in ipairs(DOLL_LEFT) do
+        local b = MakeDollSlot(doll, key)
+        b:SetPoint("TOPLEFT", 10, -10 - (i - 1) * (SLOT + SLOT_GAP))
+        mine.dollSlots[key] = b
+    end
+    for i, key in ipairs(DOLL_RIGHT) do
+        local b = MakeDollSlot(doll, key)
+        b:SetPoint("TOPRIGHT", -10, -10 - (i - 1) * (SLOT + SLOT_GAP))
+        mine.dollSlots[key] = b
+    end
+    local bw = #DOLL_BOTTOM * SLOT + (#DOLL_BOTTOM - 1) * 8
+    for i, key in ipairs(DOLL_BOTTOM) do
+        local b = MakeDollSlot(doll, key)
+        b:SetPoint("BOTTOMLEFT", math.floor((DOLL_W - bw) / 2) + (i - 1) * (SLOT + 8), 10)
+        mine.dollSlots[key] = b
+    end
+
+    local model = MakeModel(doll)
+    model:SetPoint("TOPLEFT", SLOT + 16, -34)
+    model:SetPoint("BOTTOMRIGHT", -(SLOT + 16), SLOT + 34)
+    mine.model = model
+
+    -- Umschalter über dem Modell: Set anprobieren oder aktuelle Ausrüstung
+    local function ModeButton(label, mode)
+        local b = T:Button(doll, label, 84, 22, "default", function()
+            model.mode = mode
+            DressModel(model)
+            LC:RefreshUI()
+        end)
+        b.mode = mode
+        return b
+    end
+    mine.modeSet = ModeButton(L["Dein Set"], "set")
+    mine.modeNow = ModeButton(L["Jetzt"], "now")
+    mine.modeSet:SetPoint("TOP", doll, "TOP", -42, -8)
+    mine.modeNow:SetPoint("LEFT", mine.modeSet, "RIGHT", -1, 0)
+    Tip(mine.modeSet, L["Dein Set"], L["Das Modell trägt die Items aus deinem Set."])
+    Tip(mine.modeNow, L["Jetzt"], L["Das Modell trägt, was du gerade anhast."])
+
+    local hint = T:Text(doll, 10, C.muted, "CENTER")
+    hint:SetPoint("BOTTOM", doll, "BOTTOM", 0, SLOT + 16)
+    hint:SetText(L["Ziehen: drehen  ·  Mausrad: zoomen  ·  Rechtsklick: zurück"])
+
+    -- Rechts: Liste
+    local right = Card(mine)
+    right:SetPoint("TOPLEFT", DOLL_W + 10, -98)
+    right:SetPoint("BOTTOMRIGHT", 0, 24)
+    local sf, content = T:Scroll(right)
+    sf:SetPoint("TOPLEFT", 8, -6)
+    sf:SetPoint("BOTTOMRIGHT", -16, 6)
+    mine.list = content
+    mine.rows, mine.heads = {}, {}
+    local y, lastGroup, n = 0, nil, 0
+    for _, s in ipairs(LC.GEAR_SLOTS) do
+        if s.group ~= lastGroup then
+            lastGroup = s.group
+            local h = CreateFrame("Frame", nil, content)
+            h:SetSize(ROW_W, HEAD_H)
+            h:SetPoint("TOPLEFT", 0, -y)
+            h.title = T:Text(h, 11, C.accentLt, "LEFT", nil, true)
+            h.title:SetPoint("BOTTOMLEFT", 4, 6)
+            h.title:SetText(L[LC.GEAR_GROUPS[s.group]])
+            h.count = T:Text(h, 11, C.muted, "LEFT")
+            h.count:SetPoint("LEFT", h.title, "RIGHT", 10, 0)
+            mine.heads[s.group] = h
+            y, n = y + HEAD_H, 0
+        end
+        n = n + 1
+        local r = MakeRow(content)
+        r.alt = (n % 2 == 0)
+        r:SetPoint("TOPLEFT", 0, -y)
+        mine.rows[s.key] = r
+        y = y + ROW_H
+    end
+    content:SetHeight(y)
+end
+
+-- Bogen und Liste mit dem aktiven Set füllen. Rückgabe: belegt, hast du, irgendwas im Set, Raids
+local function PaintMine(mine, set)
+    local filled, have, any = 0, 0, false
+    local raidsInSet = {}
+    local groups = {}
+    for i, s in ipairs(LC.GEAR_SLOTS) do
+        local e = entries[s.key] or { key = s.key }
+        entries[s.key] = e
+        local id = set and set.slots[s.key]
+        local up = set and set.upgrades and set.upgrades[s.key]
+        e.itemID, e.upID = id, up
+        e.slotLabel = LC:GearSlotLabel(s.key)
+        e.owned = (id and LC:HaveItem(id)) and true or false
+        e.important = (id and (set.important or {})[id] == true) and true or false
+        e.doll, e.row = mine.dollSlots[s.key], mine.rows[s.key]
+        if e.doll then e.doll.e = e PaintDollSlot(e.doll, e) end
+        e.row.e = e
+        PaintRow(e.row, e)
+
+        local g = groups[s.group] or { total = 0, have = 0 }
+        groups[s.group] = g
+        g.total = g.total + 1
+        if id then
+            filled = filled + 1
+            if e.owned then have, g.have = have + 1, g.have + 1 end
+        end
+        for _, x in ipairs({ id or false, up or false }) do
+            if x then
+                any = true
+                local src = LC:ItemSource(x)
+                if src and not raidsInSet[src.raid.key] then
+                    raidsInSet[src.raid.key] = { key = src.raid.key, name = src.raid.name, order = i }
+                end
+            end
+        end
+    end
+    for g, h in pairs(mine.heads) do
+        local st = groups[g] or { total = 0, have = 0 }
+        h.count:SetText(L("%d von %d hast du", st.have, st.total))
+    end
+
+    -- Modell: nur neu anziehen, wenn sich das Set geändert hat
+    local model = mine.model
+    local sig = {}
+    for _, s in ipairs(LC.GEAR_SLOTS) do sig[#sig + 1] = tostring(set and set.slots[s.key] or 0) end
+    sig = model.mode .. table.concat(sig, ",")
+    if sig ~= model.sig then
+        model.sig = sig
+        DressModel(model)
+    end
+    for _, b in ipairs({ mine.modeSet, mine.modeNow }) do
+        b.selected = (b.mode == model.mode)
+        if b.selected then
+            b:SetBackdropColor(C.accentDim[1], C.accentDim[2], C.accentDim[3], 1)
+            T:SetBorder(b, C.accent)
+        else
+            b.Paint(false)
+        end
+    end
+    return filled, have, any, raidsInSet
 end
 
 ------------------------------------------------------------------------
@@ -437,162 +808,17 @@ end
 ------------------------------------------------------------------------
 local function RefreshMine(p)
     local mine = p.mine
-    local order, active = LC:GetMySets()
-    local labels, sel = {}, 1
-    for i, name in ipairs(order) do
-        labels[i] = (name == active) and ("» " .. name) or name
-        if name == active then sel = i end
-    end
-    mine.chips:SetItems(labels, sel, function(i) LC:SetActiveGearSet(order[i]) end)
-    mine.renameBtn:SetEnabled(active ~= nil)
-    mine.deleteBtn:SetEnabled(active ~= nil)
-
+    local _, active = LC:GetMySets()
     local set = LC:GetActiveSet()
-    local slots = set and set.slots or {}
-    local important = set and set.important or {}
-    local y, filled, have, stars = 0, 0, 0, 0
-    local raidsInSet = {}
-    local groupStats = {}
-    for _, s in ipairs(LC.GEAR_SLOTS) do
-        local g = groupStats[s.group] or { total = 0, have = 0 }
-        groupStats[s.group] = g
-        g.total = g.total + 1
-        local id = slots[s.key]
-        if id and LC:HaveItem(id) then g.have = g.have + 1 end
-    end
 
-    -- Zeile für ein Upgrade füllen (wie ein Slot, aber ohne Stern; reservieren geht genauso)
-    local function FillUpgrade(r, id, order)
-        r.itemID = id
-        r.slotLabel = LC:GearSlotLabel(LC.GEAR_SLOTS[order].key) .. " – " .. L["Upgrade"]
-        r.slot:SetText("   " .. LC.UPGRADE .. H.warn .. L["Upgrade"] .. "|r")
-        local owned = LC:HaveItem(id)
-        r.icon.tex:SetTexture(LC:ItemIcon(id))
-        ItemQualityBorder(r.icon, id)
-        r.icon:Show()
-        r.name:SetText(LC:ItemLink(id))
-        r.src:SetText(SourceText(id))
-        r.state:SetText(owned and (H.good .. L["Hast du"] .. "|r") or (H.warn .. L["Fehlt"] .. "|r"))
-        r.stripe:SetShown(owned)
-        r.star:Hide()
-        r.del:Show()
-        local src = LC:ItemSource(id)
-        r.raidKey = src and src.raid.key or nil
-        r.raidName = src and src.raid.name or nil
-        if r.raidKey then
-            raidsInSet[r.raidKey] = raidsInSet[r.raidKey] or { key = r.raidKey, name = r.raidName, order = order }
-            local on = U.ResSelected(r.raidKey, id)
-            r.res:SetChecked(on)
-            r.res:SetEnabled(on or #U.ResSel(r.raidKey) < LC:MaxReserves())
-            local rec = LC:GetReservation(r.raidKey)
-            local saved = false
-            for _, x in ipairs(rec and rec.items or {}) do if x == id then saved = true end end
-            local lc = saved and C.good or C.text
-            r.res.label:SetTextColor(lc[1], lc[2], lc[3])
-        else
-            r.res:SetChecked(false)
-            r.res:SetEnabled(false)
-        end
-        r.res:Show()
-    end
+    mine.setBtn:SetText((active and (L["Set: "] .. active) or L["Noch kein Set"]) .. "   |TInterface\\Buttons\\Arrow-Down-Up:12:12:0:-4|t")
+    mine.setBtn:SetWidth(math.min(300, math.max(170, math.ceil(mine.setBtn:GetFontString():GetStringWidth()) + 36)))
 
-    local lastGroup
-    for i, s in ipairs(LC.GEAR_SLOTS) do
-        if s.group ~= lastGroup then
-            lastGroup = s.group
-            local gr = GetGroupRow(mine.list, s.group)
-            gr:ClearAllPoints()
-            gr:SetPoint("TOPLEFT", 0, -y)
-            gr.title:SetText(L[LC.GEAR_GROUPS[s.group]])
-            local st = groupStats[s.group]
-            gr.count:SetText(L("%d von %d hast du", st.have, st.total))
-            gr:Show()
-            y = y + GROUP_ROW
-        end
-        local r = GetSlotRow(mine.list, i)
-        r.index = i
-        r:ClearAllPoints()
-        r:SetPoint("TOPLEFT", 0, -y)
-        y = y + SLOT_ROW
-        local id = slots[s.key]
-        r.itemID = id
-        r.slotLabel = LC:GearSlotLabel(s.key)
-        r.slot:SetText(r.slotLabel)
-        if id then
-            filled = filled + 1
-            local owned = LC:HaveItem(id)
-            if owned then have = have + 1 end
-            local imp = important[id] == true
-            if imp then stars = stars + 1 end
-            r.icon.tex:SetTexture(LC:ItemIcon(id))
-            ItemQualityBorder(r.icon, id)
-            r.icon:Show()
-            r.name:SetText(LC:ItemLink(id))
-            r.src:SetText(SourceText(id))
-            r.state:SetText(owned and (H.good .. L["Hast du"] .. "|r") or (H.warn .. L["Fehlt"] .. "|r"))
-            r.stripe:SetShown(owned)
-            r.star:Show()
-            r.star.tex:SetDesaturated(not imp)
-            r.star:SetAlpha(imp and 1 or 0.3)
-            r.del:Show()
-            -- Reservieren: Raid, in dem das Item droppt
-            local src = LC:ItemSource(id)
-            r.raidKey = src and src.raid.key or nil
-            r.raidName = src and src.raid.name or nil
-            if r.raidKey then
-                raidsInSet[r.raidKey] = raidsInSet[r.raidKey] or { key = r.raidKey, name = r.raidName, order = i }
-                local on = U.ResSelected(r.raidKey, id)
-                r.res:SetChecked(on)
-                r.res:SetEnabled(on or #U.ResSel(r.raidKey) < LC:MaxReserves())
-                local rec = LC:GetReservation(r.raidKey)
-                local saved = false
-                for _, x in ipairs(rec and rec.items or {}) do if x == id then saved = true end end
-                local lc = saved and C.good or C.text
-                r.res.label:SetTextColor(lc[1], lc[2], lc[3])
-            else
-                r.res:SetChecked(false)
-                r.res:SetEnabled(false)
-            end
-            r.res:Show()
-        else
-            r.icon:Hide()
-            r.name:SetText(H.muted .. L["– frei –"] .. "|r")
-            r.src:SetText("")
-            r.state:SetText("")
-            r.stripe:Hide()
-            r.star:Hide()
-            r.del:Hide()
-            r.res:Hide()
-            r.raidKey, r.raidName = nil, nil
-        end
-        r:Show()
+    if not mine.built then BuildMine(mine) end
+    local filled, have, any, raidsInSet = PaintMine(mine, set)
+    mine.progress:SetText(any and L("%d von %d Slots  ·  %d hast du", filled, #LC.GEAR_SLOTS, have) or "")
 
-        -- Upgrade (zweite Wahl) direkt unter dem Slot
-        local up = set and set.upgrades and set.upgrades[s.key]
-        local u = slotRows[100 + i]
-        if up then
-            u = GetSlotRow(mine.list, 100 + i)
-            u.index = i
-            u:ClearAllPoints()
-            u:SetPoint("TOPLEFT", 0, -y)
-            y = y + SLOT_ROW
-            FillUpgrade(u, up, i)
-            u:Show()
-        elseif u then
-            u.itemID = nil
-            u:Hide()
-        end
-    end
-    mine.list:SetHeight(math.max(1, y))
-
-    if #order == 0 then
-        mine.summary:SetText(L["Noch kein Set. Klick auf „Neues Set“ – oder füge direkt ein Item hinzu, dann entsteht „Set 1“."])
-    else
-        mine.summary:SetText(L("%d von %d Slots belegt  ·  %d hast du  ·  %d wichtig", filled, #LC.GEAR_SLOTS, have, stars)
-            .. "   " .. H.muted .. L["(Klick auf einen freien Slot öffnet die Item-Übersicht)"] .. "|r")
-    end
-
-    -- Leiste „Reservierung“: zuletzt angeklickter Raid, sonst einer mit ungespeicherter Auswahl,
+    -- Raid für den Hinweis: zuletzt angeklickter, sonst einer mit ungespeicherter Auswahl,
     -- sonst der aktuelle Raid, sonst der erste Raid mit Items aus dem Set
     local list = {}
     for _, info in pairs(raidsInSet) do list[#list + 1] = info end
@@ -610,30 +836,80 @@ local function RefreshMine(p)
     end
     if not key and list[1] then key = list[1].key end
     mine.resKey = key
-    mine.resBar:SetShown(key ~= nil)
-    if key then
+
+    -- „Nächster Schritt“
+    local nb = mine.next
+    local text, accent, mainText, onMain, altText, onAlt
+    local function Open() LC:OpenReservation(key) end
+    if not any then
+        text = L["Wähl für jeden Slot dein Wunsch-Item: Klick auf einen freien Slot oder such oben nach dem Namen."]
+        accent = C.accent
+        mainText, onMain = L["Items durchsuchen"], ShowItems
+    elseif not key then
+        text = L["Dein Set steht. Droppt ein Item in einem Raid, reservierst du es mit dem Würfel in der Liste."]
+        accent = C.accent
+        altText, onAlt = L["Meine Reservierung"], Open
+    else
         local changed, locked, pending = U.ResState(key)
+        local sel = U.ResSel(key)
+        local max = LC:MaxReserves()
         local name = raidsInSet[key] and raidsInSet[key].name
         if not name then
             for _, r in ipairs(LC:GetLootDB() or {}) do if r.key == key then name = r.name end end
         end
-        local sel = U.ResSel(key)
-        local state
-        if pending then state = H.warn .. L["Änderung beantragt – wartet auf den Council"] .. "|r"
-        elseif changed then state = H.warn .. L["nicht gespeichert"] .. "|r"
-        elseif locked then state = H.good .. L["gespeichert"] .. "|r"
-        elseif #sel > 0 then state = H.warn .. L["wartet auf Bestätigung"] .. "|r"
-        else state = H.muted .. L["Häkchen „Reservieren“ setzen"] .. "|r" end
+        name = name or key
+        if pending then
+            text = H.warn .. L["Änderung beantragt"] .. "|r  " .. L("Der Council entscheidet über deine Reservierung für %s.", name)
+            accent = C.warn
+            altText, onAlt = L["Ansehen"], Open
+        elseif changed and locked then
+            text = L("Du hast deine gespeicherte Reservierung für %s geändert. Dafür braucht der Council eine kurze Begründung.", name)
+            accent = C.warn
+            mainText, onMain = L["Änderung beantragen"], Open
+        elseif changed and #sel > 0 then
+            text = L("%d von %d gewählt für %s", #sel, max, name) .. "  " .. IconRow(sel)
+                .. "\n" .. H.muted .. L["Nach dem Speichern ist deine Wahl gesperrt."] .. "|r"
+            accent = C.warn
+            mainText = L("Reservierung speichern (%d/%d)", #sel, max)
+            onMain = function() U.ResConfirm(key, "sets") end
+        elseif locked then
+            text = H.good .. L("Reservierung für %s gespeichert", name) .. "|r  " .. IconRow(sel)
+            accent = C.good
+            altText, onAlt = L["Ansehen"], Open
+        elseif #sel > 0 then
+            text = L("Reservierung für %s gespeichert", name) .. "  " .. IconRow(sel)
+                .. "\n" .. H.muted .. L["Wartet auf Bestätigung durch den Council."] .. "|r"
+            accent = C.accent
+            altText, onAlt = L["Ansehen"], Open
+        else
+            text = L("Klick auf den Würfel bei bis zu %d Items aus %s, um sie zu reservieren.", max, name)
+            accent = C.accent
+            altText, onAlt = L["Ganze Raid-Liste"], Open
+        end
         local others = 0
         for _, info in ipairs(list) do
             if info.key ~= key and U.ResState(info.key) then others = others + 1 end
         end
-        mine.resText:SetText(L("Reservierung %s: %d von %d", name or key, #sel, LC:MaxReserves())
-            .. "  " .. IconRow(sel) .. "   " .. state
-            .. ((others > 0) and (H.warn .. "   " .. L("(+%d Raid(s) nicht gespeichert)", others) .. "|r") or ""))
-        mine.resSave:SetText(locked and L["Änderung beantragen"] or L["Reservierung speichern"])
-        mine.resSave:SetEnabled(changed and not pending and (#sel > 0 or locked))
+        if others > 0 then text = text .. "  " .. H.warn .. L("(+%d Raid(s) nicht gespeichert)", others) .. "|r" end
     end
+
+    nb.bar:SetVertexColor(accent[1], accent[2], accent[3], 1)
+    nb.onMain, nb.onAlt = onMain, onAlt
+    nb.main:SetShown(mainText ~= nil)
+    if mainText then
+        nb.main:SetText(mainText)
+        nb.main:SetWidth(math.max(150, math.ceil(nb.main:GetFontString():GetStringWidth()) + 32))
+    end
+    nb.alt:SetShown(altText ~= nil)
+    if altText then
+        nb.alt:SetText(altText)
+        nb.alt:SetWidth(math.max(100, math.ceil(nb.alt:GetFontString():GetStringWidth()) + 28))
+        nb.alt:ClearAllPoints()
+        if mainText then nb.alt:SetPoint("RIGHT", nb.main, "LEFT", -6, 0) else nb.alt:SetPoint("RIGHT", -9, 0) end
+    end
+    local right = 9 + (mainText and (nb.main:GetWidth() + 6) or 0) + (altText and (nb.alt:GetWidth() + 6) or 0)
+    nb.text:SetWidth(CW - 16 - right - 6)
+    nb.text:SetText(text)
 end
 
 local function RefreshRaid(p)
@@ -685,7 +961,7 @@ end
 
 -- Hinweis unten, wenn keine Meldung ansteht
 local HINTS = {
-    mine = "Pro Slot ein Item, darunter optional ein Upgrade (zweite Wahl). Der Stern markiert, was dir wichtig ist.",
+    mine = "",
     items = "„Set“: bestes Item für den Slot (ein neues ersetzt das alte). „Upgrade“: zweite Wahl, besser als dein jetziges.",
     raid = "",
     council = "Nur bei Council-Items entscheidet der Council, wer würfeln darf. Sie gelten beim Plündermeister.",
@@ -707,7 +983,7 @@ local function RefreshSets()
     end
     p.seg:Set(p.view)
     p.sourceBtn:Update()
-    p.sourceBtn:SetShown(p.view == "items" or p.view == "mine")
+    p.sourceBtn:SetShown(p.view == "items")
     p.mine:SetShown(p.view == "mine")
     p.items:SetShown(p.view == "items")
     p.raid:SetShown(p.view == "raid")

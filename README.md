@@ -64,7 +64,7 @@ flowchart LR
 
 ### For all raiders
 - **Reserve in the addon** – 1 to 5 items per raid (set by the council). Once saved, the choice is locked; changes go to the council as a request with a reason.
-- **Gear sets** – any number of named sets (e.g. one per biome), laid out by slot like the character window: one item per slot (two rings, two trinkets), important items marked with a star, plus an optional **upgrade** per slot – a second choice that is not the best, but better than what you wear now. Reserve straight from the set: each item has a “Reserve” tick for the raid it drops in. Pick items with a tick from a raid → boss → item overview. The addon detects what you already have (equipped, bags, bank).
+- **Gear sets** – any number of named sets (e.g. one per biome), laid out by slot like the character window: one item per slot (two rings, two trinkets), important items marked with a star, plus an optional **upgrade** per slot – a second choice that is not the best, but better than what you wear now. Reserve straight from the set: click the dice next to an item to reserve it for the raid it drops in. Pick items with a tick from a raid → boss → item overview. The addon detects what you already have (equipped, bags, bank).
 - **Item search** – type part of a name or an item ID and pick the item from the list. The search covers every raid in the loot source and jumps straight to the right raid and boss – no more clicking through bosses.
 - **Loot window with a roll button** – Main Spec and Off Spec with one click, everyone sees the rolls live.
 - **Raid day reminder** – a notice at login on your raid days if you haven't reserved yet.
@@ -102,7 +102,7 @@ Light Council turns this around: **the guild leadership doesn't maintain lists f
 
 **What the council sees:** If player A still needs the item and marked it as important, while player B has it in the set but not marked, the decision is made quickly – no discussion, no follow-up questions.
 
-**And pugs?** Anyone without a set simply reserves as usual. Every raider can tick “Reserve” right in their set; the council only decides whether the “Take from gear set” button is offered. The number of reservation slots is the same for everyone.
+**And pugs?** Anyone without a set simply reserves as usual. Every raider can reserve right in their set with the dice; the council only decides whether the “Take from gear set” button is offered. The number of reservation slots is the same for everyone.
 
 ---
 
@@ -166,9 +166,9 @@ Light Council turns this around: **the guild leadership doesn't maintain lists f
 2. Start the game or type `/reload`.
 3. **Raid lead:** open `/lc` → **Getting started** walks you through everything:
    - enter the council members under **Settings** (first and last name),
-   - mark the important items as council items under **Gear sets → Items** or **My reservation** (tick “Council”),
+   - mark the important items as council items under **My gear → Items** or **My reservation** (tick “Council”),
    - set the raid days under **Reservations → Raid days** and optionally turn on “Offer reserving from gear sets”.
-4. **Raiders:** `/lc` → create a set under **Gear sets** and reserve right there (tick “Reserve”) or under **My reservation**.
+4. **Raiders:** `/lc` → open **My gear**, fill the slots around your character and reserve with the dice – the hint at the top always says what to do next.
 
 Optional loot sources: **AtlasLoot** (Classic/Forever) or **Naowh Forever**. Without a loot source everything works via shift-click or item ID.
 

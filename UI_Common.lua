@@ -7,7 +7,7 @@ local H = T.HEX
 LC.UI = LC.UI or {}
 local U = LC.UI
 
-U.W, U.HGT = 1000, 740
+U.W, U.HGT = 1080, 740
 U.SIDEBAR = 200
 U.PAD = 18
 U.CW = U.W - U.SIDEBAR - 2 * U.PAD - 2   -- Inhaltsbreite
@@ -446,8 +446,98 @@ local function ScrollToRow(sf, index, rowH)
     end)
 end
 
+------------------------------------------------------------------------
+-- Aufklappmenü (Set-Auswahl, Klick auf eine Gear-Kachel)
+--   entries: { { text = …, func = …, checked = true/false/nil, color = C.bad, disabled = true } }
+--   text = "-" ist eine Trennlinie
+------------------------------------------------------------------------
+local menu
+local function ShowMenu(anchor, entries)
+    if not menu then
+        menu = CreateFrame("Frame", "LightCouncilMenu", UIParent, "BackdropTemplate")
+        menu:SetFrameStrata("FULLSCREEN_DIALOG")
+        menu:SetClampedToScreen(true)
+        menu:EnableMouse(true)
+        T:Skin(menu, C.bgDark, C.line)
+        menu.rows, menu.lines = {}, {}
+        -- Klick daneben schließt das Menü
+        menu.catcher = CreateFrame("Button", nil, UIParent)
+        menu.catcher:SetAllPoints(UIParent)
+        menu.catcher:SetFrameStrata("FULLSCREEN")
+        menu.catcher:RegisterForClicks("AnyUp")
+        menu.catcher:SetScript("OnClick", function() menu:Hide() end)
+        menu.catcher:Hide()
+        menu:SetScript("OnHide", function() menu.catcher:Hide() end)
+        menu:SetScript("OnUpdate", function(self)
+            if self.owner and not self.owner:IsVisible() then self:Hide() end
+        end)
+        tinsert(UISpecialFrames, "LightCouncilMenu")
+    end
+    local ROW, SEP = 26, 9
+    local width, y, nRow, nLine = 170, 6, 0, 0
+    for _, e in ipairs(entries) do
+        if e.text == "-" then
+            nLine = nLine + 1
+            local ln = menu.lines[nLine]
+            if not ln then ln = T:Line(menu, C.line) menu.lines[nLine] = ln end
+            ln:ClearAllPoints()
+            ln:SetPoint("TOPLEFT", 8, -(y + 4))
+            ln:SetPoint("TOPRIGHT", -8, -(y + 4))
+            ln:Show()
+            y = y + SEP
+        else
+            nRow = nRow + 1
+            local r = menu.rows[nRow]
+            if not r then
+                r = CreateFrame("Button", nil, menu)
+                r:SetHeight(ROW)
+                r.hl = r:CreateTexture(nil, "BACKGROUND")
+                r.hl:SetTexture(T.WHITE)
+                r.hl:SetAllPoints()
+                r.hl:SetVertexColor(C.accent[1], C.accent[2], C.accent[3], 0)
+                r.check = T:Text(r, 12, C.accentLt, "CENTER", nil, true)
+                r.check:SetPoint("LEFT", 8, 0)
+                r.check:SetWidth(14)
+                r.text = T:Text(r, 12, C.text, "LEFT")
+                r.text:SetPoint("LEFT", 28, 0)
+                r.text:SetWordWrap(false)
+                r:SetScript("OnEnter", function(self)
+                    if self:IsEnabled() then self.hl:SetVertexColor(C.accent[1], C.accent[2], C.accent[3], 0.18) end
+                end)
+                r:SetScript("OnLeave", function(self) self.hl:SetVertexColor(C.accent[1], C.accent[2], C.accent[3], 0) end)
+                r:SetScript("OnClick", function(self)
+                    menu:Hide()
+                    if self.func then self.func() end
+                end)
+                menu.rows[nRow] = r
+            end
+            r.func = e.func
+            r.text:SetText(e.text)
+            local c = e.disabled and C.muted or (e.color or C.text)
+            r.text:SetTextColor(c[1], c[2], c[3])
+            r.check:SetText(e.checked and "|TInterface\\Buttons\\UI-CheckBox-Check:16:16|t" or "")
+            r:SetEnabled(not e.disabled)
+            r.hl:SetVertexColor(C.accent[1], C.accent[2], C.accent[3], 0)
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", 1, -y)
+            r:SetPoint("TOPRIGHT", -1, -y)
+            r:Show()
+            width = math.max(width, math.ceil(r.text:GetStringWidth()) + 46)
+            y = y + ROW
+        end
+    end
+    for i = nRow + 1, #menu.rows do menu.rows[i]:Hide() end
+    for i = nLine + 1, #menu.lines do menu.lines[i]:Hide() end
+    menu:SetSize(width, y + 6)
+    menu.owner = anchor
+    menu:ClearAllPoints()
+    menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
+    menu.catcher:Show()
+    menu:Show()
+end
 
 U.Card, U.PageHeader, U.Tip, U.AcceptLinks = Card, PageHeader, Tip, AcceptLinks
+U.ShowMenu = ShowMenu
 U.SetupStatus, U.Segmented, U.ChipBar, U.SourceButton = SetupStatus, Segmented, ChipBar, SourceButton
 U.ReserveRaids, U.IdsFromText, U.ItemIcons = ReserveRaids, IdsFromText, ItemIcons
 U.AttachItemSearch, U.ScrollToRow = AttachItemSearch, ScrollToRow
