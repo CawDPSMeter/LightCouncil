@@ -7,6 +7,7 @@
 --   V~sid~DECISION~name,name~reason     Council -> Leitung (Whisper): Stimme
 --   E~sid~text                          Leitung -> Council: Abstimmung beendet
 --   D~P|E~name~value                    Council/Leitung -> Raid/Gilde: Parse/Engagement-Sync
+--   SO~woche~itemID~name               Plündermeister/Council -> Council + Raidleitung (Whisper): Aussetzen
 --   EQ~slot:id,… / EQQ                 alle -> Raid/Gruppe: angelegte Ausrüstung (siehe Equipped.lua)
 local _, LC = ...
 
@@ -187,6 +188,17 @@ function LC:OnComm(msg, sender, channel)
         if parts[2] == "P" then self:SetParse(who, parts[4], false)
         elseif parts[2] == "E" then self:SetEngagement(who, parts[4], false) end
         self:RefreshUI()
+    elseif cmd == "SO" then
+        -- „Aussetzen“ vom Plündermeister/Council übernehmen (gleiche Vertrauensregel wie bei D)
+        if self:IsMe(sender) then return end
+        if not (self:IsCouncilMember(sender) or (self:IsTrustedLeader(sender) and self:IsGuildMember(sender))) then return end
+        local week, itemID = tonumber(parts[2]), tonumber(parts[3])
+        local who = self:CleanText(parts[4] or "", 40)
+        -- nur diese oder die letzte Woche (ältere Aussetzer sind abgelaufen)
+        if week and itemID and who ~= "" and week >= self:CurrentWeek() - 1 and week <= self:CurrentWeek() then
+            self:AddSitout(who, itemID, week)
+            self:RefreshUI()
+        end
     end
 end
 

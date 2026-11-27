@@ -24,6 +24,7 @@ local DEFAULTS = {
         attendanceWeeks = 8,    -- Zeitraum für die Anwesenheit
         weights = { attendance = 40, parse = 40, engagement = 20 },
         autoStart = true,       -- Council automatisch starten, wenn ein Council-Item im Loot liegt
+        autoRollAll = false,    -- auch normale Items (keine Council-Items) beim Öffnen der Leiche gleich auswürfeln
         minimap = { angle = 200, hide = false },
         raidWarning = true,     -- Council-Items und Entscheidungen zusätzlich als Raidwarnung
         raiderWindow = true,    -- Loot-Fenster für Raider anzeigen, wenn Loot droppt
@@ -264,6 +265,20 @@ function LC:CurrentWeek()
     -- Fallback: EU-Reset Mittwoch 05:00 UTC
     local ref = 6 * 86400 + 5 * 3600
     return math.floor((now - ref) / 604800) + 1
+end
+
+-- Woche (wie CurrentWeek) zu einem beliebigen Zeitpunkt, z. B. für abgeglichene Historie-Einträge
+function LC:WeekOf(t)
+    if not t then return self:CurrentWeek() end
+    local now = GetServerTime()
+    local untilReset = C_DateAndTime and C_DateAndTime.GetSecondsUntilWeeklyReset and C_DateAndTime.GetSecondsUntilWeeklyReset()
+    if untilReset and untilReset > 0 then
+        local nextReset = now + untilReset
+        if t >= nextReset then return self:CurrentWeek() end
+        return self:CurrentWeek() - math.floor((nextReset - t - 1) / 604800)
+    end
+    local ref = 6 * 86400 + 5 * 3600
+    return math.floor((t - ref) / 604800) + 1
 end
 
 ------------------------------------------------------------------------

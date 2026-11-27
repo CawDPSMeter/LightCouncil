@@ -32,10 +32,24 @@ local function CreateLootPage(p)
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
         GameTooltip:SetText(L["Automatisch vergeben"], 1, 1, 1)
         GameTooltip:AddLine(L["Steht der Gewinner fest, bekommt er das Item sofort – ohne Klick auf „An …“. "]
-            .. L["Klappt nur, solange das Lootfenster offen ist; sonst kommt ein Hinweis im Chat."], nil, nil, nil, true)
+            .. L["Ist das Lootfenster zu, wird beim nächsten Öffnen der Leiche vergeben. Klappt die Übergabe nicht (z. B. Taschen voll), bekommen du und der Gewinner einen Hinweis."], nil, nil, nil, true)
         GameTooltip:Show()
     end)
     p.autoAward:HookScript("OnLeave", GameTooltip_Hide)
+
+    -- Auch normale Items gleich auswürfeln (sonst nur Council-Items automatisch)
+    p.autoRollAll = T:Check(p, L["Alles automatisch starten"])
+    p.autoRollAll:SetPoint("TOPLEFT", p.autoAward, "BOTTOMLEFT", 0, -4)
+    p.autoRollAll:SetScript("OnClick", function(self)
+        LC.db.config.autoRollAll = self:GetChecked() and true or false
+    end)
+    p.autoRollAll:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(L["Alles automatisch starten"], 1, 1, 1)
+        GameTooltip:AddLine(L["Beim Öffnen einer Leiche werden auch normale Items sofort ausgewürfelt – ohne Klick auf „Alle starten“. Council-Items gehen wie gewohnt an den Council."], nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    p.autoRollAll:HookScript("OnLeave", GameTooltip_Hide)
 
     -- Statuskarte
     local status = Card(p, 54)
@@ -68,7 +82,7 @@ local function CreateLootPage(p)
     Tip(p.btnFinish, L["Würfeln beenden"], L["Beendet die Würfelrunde sofort und sagt den Gewinner an, statt auf den Ablauf der Zeit zu warten."])
     p.btnAll = T:Button(status, L["Alle starten"], 140, 26, "primary", function()
         for _, e in ipairs(LC.lootItems) do
-            if e.status == "offen" and not e.winner and not e.awarded and not e.looted then LC:Enqueue(e) end
+            if e.status == "offen" and not e.winner and not e.awarded and not e.looted and not e.belowThreshold then LC:Enqueue(e) end
         end
     end)
     p.btnAll:SetPoint("RIGHT", p.btnFinish, "LEFT", -6, 0)
@@ -256,7 +270,7 @@ function LC:UpdateLootStatus()
     p.btnFinish:SetEnabled(r ~= nil)
     local open = 0
     for _, e in ipairs(self.lootItems) do
-        if e.status == "offen" and not e.winner and not e.awarded and not e.looted then open = open + 1 end
+        if e.status == "offen" and not e.winner and not e.awarded and not e.looted and not e.belowThreshold then open = open + 1 end
     end
     p.btnAll:SetEnabled(open > 0)
     p.btnAll:SetText(open > 1 and (L["Alle starten ("] .. open .. ")") or L["Alle starten"])
@@ -265,6 +279,7 @@ end
 local function RefreshLoot()
     local p = pages.loot
     p.autoAward:SetChecked(LC.db.config.autoAward)
+    p.autoRollAll:SetChecked(LC.db.config.autoRollAll)
     local items = LC.lootItems
     p.empty:SetShown(#items == 0)
     local busy = LC.active or LC.roll
@@ -294,13 +309,18 @@ local function RefreshLoot()
             r.council:SetEnabled(not e.test and not busy and not e.awarded and e.status ~= "wartet")
 
             local st = e.status or "offen"
-            if e.awarded then st = H.good .. L["vergeben|r"]
+            if e.awarded then st = H.good .. "✓ " .. L("bei %s", e.winner or "?") .. "|r"
+            elseif e.pending then st = H.warn .. L["wird übergeben …"] .. "|r"
+            elseif e.giveFailed then st = H.bad .. "✗ " .. L["Übergabe fehlgeschlagen"] .. "|r"
+            elseif e.otherCorpse then st = H.warn .. L["andere Leiche öffnen"] .. "|r"
+            elseif e.belowThreshold and not e.winner then st = L["unter Plündergrenze"]
             elseif e.looted then st = L["nicht mehr im Loot"]
             elseif e.winner then st = H.accentLt .. L["Gewinner|r"]
-            elseif st == "offen" then st = "" end
-            r.state:SetText(L[st])
+            elseif st == "offen" then st = ""
+            else st = L[st] end
+            r.state:SetText(st)
 
-            local canStart = not busy and not e.awarded and not e.looted and (e.status == "offen" or e.winner ~= nil)
+            local canStart = not busy and not e.awarded and not e.looted and not e.otherCorpse and (e.status == "offen" or e.winner ~= nil)
             if e.winner and not e.awarded then
                 r.btnAction:SetText(L["Neu starten"])
                 r.btnAction.tooltip = L["Startet Abstimmung bzw. Würfeln für dieses Item noch einmal."]
@@ -313,16 +333,22 @@ local function RefreshLoot()
             r.btnAction.tooltipTitle = r.btnAction:GetText()
             r.btnAction:SetEnabled(canStart)
 
-            if e.awarded then
+            -- Voller Name auf dem Knopf, damit bei gleichen Vornamen klar ist, wer das Item bekommt
+            if e.awarded or not e.winner then
                 r.btnAward:SetText(L["Vergeben"])
-            elseif e.winner then
-                r.btnAward:SetText(L["An "] .. (e.winner:match("^(%S+)") or e.winner))
+            elseif e.giveFailed then
+                r.btnAward:SetText(L["Erneut: "] .. e.winner)
             else
-                r.btnAward:SetText(L["Vergeben"])
+                r.btnAward:SetText(L["An "] .. e.winner)
             end
+            r.btnAward:SetWidth(math.max(100, math.min(130, math.ceil(r.btnAward:GetFontString():GetStringWidth()) + 24)))
             r.btnAward.tooltipTitle = L["Vergeben"]
-            r.btnAward.tooltip = e.winner and (L["Gibt das Item per Plündermeister direkt an "] .. e.winner .. ".") or L["Wird aktiv, sobald ein Gewinner feststeht."]
-            r.btnAward:SetEnabled(e.winner ~= nil and not e.awarded and not e.looted)
+            r.btnAward.tooltip = (e.giveFailed and (L("Letzter Versuch: %s.", e.giveFailed) .. " ") or "")
+                .. (e.winner and (L["Gibt das Item per Plündermeister direkt an "] .. e.winner .. ".") or L["Wird aktiv, sobald ein Gewinner feststeht."])
+            if e.belowThreshold then
+                r.btnAward.tooltip = L["Liegt unter der Plündergrenze: Das Spiel lässt es nicht per Plündermeister zuteilen. Der Gewinner plündert es selbst, oder du senkst die Grenze."]
+            end
+            r.btnAward:SetEnabled(e.winner ~= nil and not e.awarded and not e.looted and not e.pending and not e.otherCorpse and not e.belowThreshold)
             r:Show()
         elseif lootRows[i] then
             lootRows[i].entry = nil

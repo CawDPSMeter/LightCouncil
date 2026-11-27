@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.24.2
+Safer automatic loot awarding.
+
+- **Confirmed awarding:** an item only counts as given once the game confirms it (loot slot empties or “X receives loot”). Otherwise you get a notice and the item stays open (“Again: name”).
+- **Full bags & co.:** if giving fails (bags full, unique item, cannot receive), the master looter sees why; the winner gets an on-screen warning (with addon) or a whisper (without).
+- **Right player:** the winner is matched by full name; a first-name match is only used if it is unique. The award button shows the full name.
+- **Open the corpse – done:** if the loot window was closed, the winner gets the item the next time the corpse is opened. Winners from other corpses stay visible (“open other corpse”).
+- **New option “Start everything automatically”** (Loot page): normal items are rolled right away too, not just council items.
+- Items below the loot threshold are marked and not started or awarded automatically.
+- Loot cooldown is recorded only when the item actually arrives, and is also read from the synced loot history – it now works with a different master looter. Sit-outs are shared with council and raid lead.
+- Roll time accounts for queued addon messages, so raiders get the full time.
+- Attendance and raid name also work in Upper Blackrock Spire if the game reports it as a dungeon.
+- Simultaneous reservation edits by two council members no longer leave clients out of sync.
+
 ## 0.24.1
 - **Upper Blackrock Spire** is now built in as a 10-player raid with all bosses and their loot (Forever runs it as a raid, AtlasLoot and Naowh list it as a dungeon). Trash loot follows later.
 - **Upgrade** is called “Upgrade” in every language now. Clicking the upgrade icon only shows upgrade options (no more “Important”).

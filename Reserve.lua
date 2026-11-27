@@ -483,7 +483,13 @@ function LC:ResHandle(cmd, p, sender)
     if cmd == "YA" then
         local rev = tonumber(p[5]) or 0
         local items = ParseItems(p[6])
-        if not rec or rev >= (rec.rev or 0) then
+        -- Gleiche Revision, andere Items (zwei Council-Mitglieder gleichzeitig): fest entscheiden,
+        -- damit alle Clients denselben Stand behalten – die „größere“ Itemliste gewinnt
+        local accept = not rec or rev > (rec.rev or 0)
+        if rec and rev == (rec.rev or 0) then
+            accept = SameItems(rec.items, items) or ItemsString(items) > ItemsString(rec.items)
+        end
+        if accept then
             if not key then key = self:NameKey(name) end
             local pending = rec and rev == (rec.rev or 0) and rec.pending or nil
             if #items == 0 then

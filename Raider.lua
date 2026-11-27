@@ -14,14 +14,16 @@
 --   RN~lid~idx                            niemand hat gewürfelt
 --   RC~lid~idx                            abgebrochen
 --   RA~lid~idx~gewinner                   vergeben
+--   RF~lid~idx~gewinner~grund             Übergabe gescheitert (z. B. Taschen voll)
 -- Whisper der Leitung an einen ausgeschlossenen Spieler:
 --   X~itemID~art~begründung               art: SKIP, LIMIT, CD, SIT
 local _, LC = ...
+local L = LC.L
 
 local SEP = "~"
 local RAID_CMDS = {
     LS = true, LI = true, LR = true, LP = true, LE = true, CS = true, RS = true, RL = true,
-    RG = true, RW = true, RN = true, RC = true, RA = true, X = true,
+    RG = true, RW = true, RN = true, RC = true, RA = true, RF = true, X = true,
 }
 
 ------------------------------------------------------------------------
@@ -224,7 +226,21 @@ function LC:OnRaidComm(cmd, p, sender)
     elseif cmd == "RC" then
         it.state = "wait"
         if R.activeIdx == idx then R.activeIdx = nil end
+    elseif cmd == "RF" then
+        -- Übergabe gescheitert (z. B. Taschen voll): nur der Gewinner bekommt einen deutlichen Hinweis
+        local winner = self:CleanText(p[4] or "", 40)
+        local why = self:CleanText(p[5] or "", 80)
+        it.giveFailed = true
+        if self:IsMe(winner) then
+            local text = L("Light Council: %s konnte dir nicht übergeben werden (%s). Mach Platz in den Taschen und sag dem Plündermeister Bescheid.", it.link or self:ItemLink(it.itemID), why)
+            self:Print(self.T.HEX.bad .. text .. "|r")
+            if RaidNotice_AddMessage and RaidWarningFrame and ChatTypeInfo and ChatTypeInfo["RAID_WARNING"] then
+                pcall(RaidNotice_AddMessage, RaidWarningFrame, text, ChatTypeInfo["RAID_WARNING"])
+            end
+            if SOUNDKIT and SOUNDKIT.RAID_WARNING then pcall(PlaySound, SOUNDKIT.RAID_WARNING, "Master") end
+        end
     elseif cmd == "RA" then
+        it.giveFailed = nil
         -- Wurf/Off Spec nur übernehmen, wenn der Würfelgewinner das Item auch bekommen hat
         local winner = self:CleanText(p[4] or "", 40)
         local sameWinner = it.winner and self:NamesMatch(it.winner, winner)

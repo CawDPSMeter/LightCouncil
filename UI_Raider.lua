@@ -181,7 +181,9 @@ function LC:RefreshRaidFrame()
                 end
             elseif it.state == "done" then
                 -- Der Name steht unten bei "Gewinner: …" – hier nur der Zustand, damit nichts abgeschnitten wird
-                if it.winner and self:IsMe(it.winner) then
+                if it.giveFailed and it.winner and self:IsMe(it.winner) then
+                    st, sc = L["Taschen prüfen!"], C.bad
+                elseif it.winner and self:IsMe(it.winner) then
                     st, sc = L["Gewonnen!"], C.good
                 else
                     st, sc = L["entschieden"], C.text

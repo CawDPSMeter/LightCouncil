@@ -57,33 +57,73 @@ function LC:ScanLoot()
                 entry.link, entry.slot, entry.quality = link, slot, quality
                 entry.isCouncil = self:IsCouncilItem(itemID)
                 entry.looted = nil
+                entry.otherCorpse = nil
+                -- Unter der Plündergrenze geht das Item nicht über den Plündermeister
+                entry.belowThreshold = ((quality or 0) < threshold) or nil
                 self.itemState[key] = entry
                 table.insert(self.lootItems, entry)
             end
         end
     end
+    -- Gewinner aus anderen Leichen, die ihr Item noch nicht haben, sichtbar lassen (höchstens 30 Min. alt)
+    local now = GetTime()
+    for _, e in pairs(self.itemState) do
+        if not used[e] and not e.test and e.winner and not e.awarded and e.wonAt and now - e.wonAt < 1800 then
+            e.otherCorpse = true
+            table.insert(self.lootItems, e)
+        end
+    end
+end
+
+-- Einträge der gerade geöffneten Leiche (ohne die aus anderen Leichen)
+function LC:CurrentCorpseItems()
+    local out = {}
+    for _, e in ipairs(self.lootItems) do if not e.otherCorpse then out[#out + 1] = e end end
+    return out
 end
 
 LC:On("LOOT_OPENED", function(self)
     if not self:IsMasterLooter() then return end
     self:ScanLoot()
-    if #self.lootItems == 0 then return end
+    local here = self:CurrentCorpseItems()
+    if #here == 0 then return end
     self:ShowMainFrame("loot")
-    self:NetLoot(self.lootItems)   -- Raider-Fenster bei allen Addon-Nutzern
-    if self.db.config.autoStart then
-        for _, entry in ipairs(self.lootItems) do
-            if entry.isCouncil and entry.status == "offen" and not entry.autoStarted then
-                entry.autoStarted = true
-                self:Enqueue(entry)
-            end
+    self:NetLoot(here)   -- Raider-Fenster bei allen Addon-Nutzern (nur diese Leiche)
+    local cfg = self.db.config
+    for _, entry in ipairs(here) do
+        -- Council-Items (autoStart) und – falls gewünscht – alle anderen gleich auswürfeln.
+        -- Items unter der Plündergrenze nicht: die lassen sich nicht per Plündermeister zuteilen.
+        local start = (entry.isCouncil and cfg.autoStart) or (not entry.isCouncil and cfg.autoRollAll)
+        if start and not entry.belowThreshold and entry.status == "offen" and not entry.winner and not entry.autoStarted then
+            entry.autoStarted = true
+            self:Enqueue(entry)
         end
+    end
+    -- Gewinner steht schon fest, Lootfenster war aber zu: jetzt automatisch übergeben.
+    -- Nach einem Fehlschlag höchstens einmal automatisch neu versuchen, bei „einzigartig“ gar nicht.
+    if cfg.autoAward then
+        C_Timer.After(0.3, function()
+            for _, entry in ipairs(here) do
+                if entry.winner and not entry.awarded and not entry.pending and not entry.looted then
+                    local retry = true
+                    if entry.giveFailed then
+                        retry = not entry.giveFailedHard and not entry.autoRetried
+                        entry.autoRetried = true
+                    end
+                    if retry then LC:AwardLoot(entry, true) end
+                end
+            end
+        end)
     end
     self:RefreshUI()
 end)
 
 LC:On("LOOT_SLOT_CLEARED", function(self, slot)
+    -- Wartet ein Item auf die Bestätigung der Übergabe? Dann ist sie hiermit erfolgt.
+    local pending = self:PendingForSlot(slot)
+    if pending then self:ConfirmAward(pending) end
     for _, entry in ipairs(self.lootItems) do
-        if entry.slot == slot and not entry.test then entry.looted = true end
+        if entry.slot == slot and not entry.test and not entry.awarded and not entry.otherCorpse then entry.looted = true end
     end
     self:RefreshUI()
 end)
@@ -361,14 +401,20 @@ function LC:ResolveCouncil()
                 result = L["Nur "] .. self:JoinNames(rollers) .. L[" würfeln"]
             end
         elseif v.decision == "SKIP" then
-            local skip = v.names[1]
-            local skipKey = self:NameKey(skip)
-            if not test then self:AddSitout(skip, entry.itemID) end
-            rollers = NamesOf(a.cand, function(c) return c.eligible and c.key ~= skipKey end)
-            result = self:ShortName(skip) .. L[" setzt bei diesem Item diese Woche aus"]
-            if #rollers == 0 then
-                rollers = nil
-                result = result .. L[" – keine weiteren Reservierer, freies Würfeln"]
+            -- Den Namen über die Kandidaten auflösen: nur ein echter Reservierer kann aussetzen
+            local byKey = {}
+            for _, c in ipairs(a.cand) do byKey[c.key] = c end
+            local c = self:FindByName(byKey, v.names[1])
+            if not c then
+                result = L["Aussetzen für einen Spieler, der nicht reserviert hat – alle Reservierer würfeln"]
+            else
+                if not test then self:AddSitout(c.name, entry.itemID) end
+                rollers = NamesOf(a.cand, function(x) return x.eligible and x.key ~= c.key end)
+                result = self:ShortName(c.name) .. L[" setzt bei diesem Item diese Woche aus"]
+                if #rollers == 0 then
+                    rollers = nil
+                    result = result .. L[" – keine weiteren Reservierer, freies Würfeln"]
+                end
             end
         end
     else
@@ -483,8 +529,11 @@ function LC:StartRoll(entry, rollers, logEntry, offspecTie)
     else
         self:Announce(L["Freies Würfeln für "] .. link .. L[" – Main Spec: /roll · Off Spec: /roll 99 – "] .. t .. L[" Sek."], test, true)
     end
-    self.roll.timer = C_Timer.NewTimer(t, function() LC:FinishRoll() end)
     self:NetRollStart(entry, rollers, t)
+    -- Wartende Nachrichten verzögern den Start bei den Raidern – die Zeit wird draufgerechnet (wie beim Council)
+    local delay = test and 0 or self:SendBacklog()
+    self.roll.endsAt = self.roll.endsAt + delay
+    self.roll.timer = C_Timer.NewTimer(t + delay, function() LC:FinishRoll() end)
 
     if test and rollers then
         local roll = self.roll
@@ -519,7 +568,8 @@ function LC:HandleRoll(name, roll, minRoll, maxRoll)
     -- Freies Würfeln: nur Würfe aus der eigenen Gruppe (im Systemchat stehen je nach Server auch Spieler in der Nähe)
     if not r.allowed and not self:IsMe(name) and not self:FindExact(self:GetGroupMembers(), name) then return end
     if r.rolls[key] then return end
-    r.rolls[key] = { name = displayName, roll = roll, os = offspec or nil }
+    -- full = Name genau wie im Systemchat (für die eindeutige Vergabe per Plündermeister)
+    r.rolls[key] = { name = displayName, full = name, roll = roll, os = offspec or nil }
     r.count = r.count + 1
     self:RefreshUI()
     if r.rollers and r.count >= #r.rollers then
@@ -562,13 +612,19 @@ function LC:FinishRoll()
         return self:StartRoll(entry, tied, r.log, wantOS)
     end
     local isOS = wantOS or r.offspecTie
-    self:FinishRollWith(entry, tied[1], best, r.log, isOS and L["Off Spec"] or nil, isOS)
+    local full
+    for _, x in pairs(r.rolls) do if x.name == tied[1] then full = x.full end end
+    self:FinishRollWith(entry, tied[1], best, r.log, isOS and L["Off Spec"] or nil, isOS, full)
 end
 
 -- offspec = true: der Gewinner hat für Off Spec gewürfelt
-function LC:FinishRollWith(entry, winner, roll, logEntry, note, offspec)
+-- fullName: Name des Gewinners genau wie im Spiel (aus dem Wurf), sonst nil
+function LC:FinishRollWith(entry, winner, roll, logEntry, note, offspec, fullName)
     winner = self:ShortName(winner)
     entry.winner = winner
+    entry.winnerFull = fullName
+    entry.giveFailed, entry.giveFailedHard, entry.autoRetried = nil, nil, nil
+    entry.wonAt = GetTime()
     entry.winRoll = roll
     entry.winOS = offspec or nil
     entry.status = L["Gewinner: "] .. winner
@@ -578,14 +634,12 @@ function LC:FinishRollWith(entry, winner, roll, logEntry, note, offspec)
     self:Announce(msg, entry.test, true)   -- Gewinner immer per Raidwarnung
     self:NetItem(entry, "RW", self:CleanText(winner, 40), roll and tostring(roll) or "", offspec and "1" or "")
     if logEntry then logEntry.winner = winner end
-    if entry.isCouncil and not entry.test then
-        self:AddCouncilWin(winner, entry.itemID)
-    end
+    -- Loot-Cooldown erst, wenn das Item wirklich übergeben ist (MarkAwarded)
     self:RefreshUI()
     -- Automatisch vergeben (Einstellung auf der Loot-Seite); klappt nur bei geöffnetem Lootfenster
     if self.db.config.autoAward and (entry.test or self:IsMasterLooter()) then
         C_Timer.After(1, function()
-            if entry.winner and not entry.awarded and not entry.looted then LC:AwardLoot(entry, true) end
+            if entry.winner and not entry.awarded and not entry.looted and not entry.pending then LC:AwardLoot(entry, true) end
         end)
     end
     C_Timer.After(1.5, function() LC:ProcessQueue() end)
@@ -661,6 +715,8 @@ function LC:MarkAwarded(entry, winner)
             offspec = isOS,
         }
         if self:AddHistory(h) then self:ShareHistoryEntry(h) end
+        -- Loot-Cooldown für den tatsächlichen Empfänger (die Historie trägt ihn zusätzlich zum Council)
+        if entry.isCouncil then self:AddCouncilWin(winner, entry.itemID) end
     end
     self:NetItem(entry, "RA", self:CleanText(winner, 40), isOS and "1" or "")
     self:RefreshUI()
@@ -670,12 +726,118 @@ function LC:MarkAwarded(entry, winner)
     end
 end
 
+-- Übergabe abwarten: erst wenn das Spiel sie bestätigt (Loot-Platz leer oder „X erhält Beute“),
+-- gilt das Item als vergeben. Sonst nach CONFIRM_TIME Sek. Hinweis, das Item bleibt offen.
+local CONFIRM_TIME = 4
+-- Alle wartenden Übergaben, unabhängig davon, welche Leiche gerade offen ist
+LC.pendingAwards = {}
+
+function LC:ConfirmAward(entry)
+    local p = entry and entry.pending
+    if not p then return end
+    if p.timer then p.timer:Cancel() end
+    entry.pending = nil
+    self.pendingAwards[entry] = nil
+    entry.giveFailed, entry.giveFailedHard, entry.autoRetried = nil, nil, nil
+    self:MarkAwarded(entry, p.winner)
+end
+
+function LC:BeginAward(entry, slot, winner)
+    if entry.pending and entry.pending.timer then entry.pending.timer:Cancel() end
+    local p = { winner = winner, slot = slot, link = entry.link, at = GetTime() }
+    entry.pending = p
+    self.pendingAwards[entry] = true
+    entry.giveFailed = nil
+    p.timer = C_Timer.NewTimer(CONFIRM_TIME, function()
+        if entry.pending == p then LC:FailAward(entry, nil) end
+    end)
+    self:RefreshUI()
+end
+
+-- Übergabe gescheitert: Plündermeister und Gewinner informieren, Item bleibt offen (erneut vergeben möglich).
+-- reason: Text aus der Fehlermeldung des Spiels (z. B. Taschen voll) oder nil (keine Bestätigung)
+-- hard = true: erneut versuchen hilft nicht (z. B. einzigartiges Item schon vorhanden)
+function LC:FailAward(entry, reason, hard)
+    local p = entry and entry.pending
+    if not p then return end
+    if p.timer then p.timer:Cancel() end
+    entry.pending = nil
+    self.pendingAwards[entry] = nil
+    entry.giveFailed = reason or L["keine Bestätigung"]
+    if hard then entry.giveFailedHard = true end
+    local why = reason or L["Taschen voll, zu weit weg oder Lootfenster zu?"]
+    self:Print(self.T.HEX.warn .. L("Vergabe von %s an %s hat nicht geklappt (%s). Bitte erneut vergeben.", entry.link, p.winner, why) .. "|r")
+    -- Gewinner informieren: mit Addon per Nachricht (Hinweis auf dem Bildschirm), sonst per Flüstern
+    self:NetItem(entry, "RF", self:CleanText(p.winner, 40), self:CleanText(why, 80))
+    local key = self:NameKey(p.winner)
+    if not entry.test and key and not (self.versions and self.versions[key]) and not self:IsMe(p.winner) then
+        local m = self:FindByName(self:GetGroupMembers(), p.winner)
+        local target = (type(m) == "table" and m.fullName) or p.winner
+        pcall(SendChatMessage, L("[Light Council] Du hast %s gewonnen, es konnte aber nicht übergeben werden (%s). Bitte Platz in den Taschen schaffen und dem Plündermeister Bescheid geben.", entry.link, why), "WHISPER", nil, target)
+    end
+    self:RefreshUI()
+end
+
+-- Fehlermeldungen des Spiels beim Vergeben (kommen beim Plündermeister an)
+local GIVE_ERRORS = {
+    { g = "ERR_LOOT_MASTER_INV_FULL",    text = "Taschen voll" },
+    { g = "ERR_LOOT_MASTER_UNIQUE_ITEM", text = "hat das Item schon (einzigartig)", hard = true },
+    { g = "ERR_LOOT_MASTER_OTHER",       text = "kann das Item nicht erhalten" },
+}
+LC:On("UI_ERROR_MESSAGE", function(self, a, b)
+    local msg = (type(b) == "string" and b) or (type(a) == "string" and a) or nil
+    if not msg then return end
+    for _, e in ipairs(GIVE_ERRORS) do
+        if _G[e.g] and msg == _G[e.g] then
+            -- betrifft die zuletzt begonnene Übergabe
+            local last
+            for entry in pairs(self.pendingAwards) do
+                if entry.pending and (not last or entry.pending.at > last.pending.at) then last = entry end
+            end
+            if last then self:FailAward(last, L[e.text], e.hard) end
+            return
+        end
+    end
+end)
+
+-- Kandidat für den Gewinner suchen: erst exakt (voller Name), sonst ein eindeutiger Vornamen-Treffer.
+-- Rückgabe: Index, Name – oder nil, Grund ("none" / "ambiguous")
+function LC:FindLootCandidate(slot, entry)
+    local full = entry.winnerFull
+    if not full then
+        local m = self:FindByName(self:GetGroupMembers(), entry.winner)
+        if type(m) == "table" then full = m.fullName or m.name end
+    end
+    -- 1. exakt gleicher Name (ohne Vornamen-Regel), 2. sonst nur ein eindeutiger Vornamen-Treffer
+    local want = self:NameKey(full or entry.winner)
+    local partial = {}
+    for i = 1, 40 do
+        local cand = GetMasterLootCandidate(slot, i)
+        if cand then
+            if self:NameKey(cand) == want then return i, cand end
+            if self:NamesMatch(cand, full or entry.winner) or self:NamesMatch(cand, entry.winner) then
+                partial[#partial + 1] = { i = i, name = cand }
+            end
+        end
+    end
+    if #partial == 1 then return partial[1].i, partial[1].name end
+    return nil, (#partial > 1) and "ambiguous" or "none"
+end
+
 -- auto = true: automatische Vergabe direkt nach dem Würfeln (leisere Meldungen)
 function LC:AwardLoot(entry, auto)
-    if not entry or not entry.winner or entry.awarded then return end
+    if not entry or not entry.winner or entry.awarded or entry.pending then return end
     if entry.test then
         self:Print(L["Test: "] .. entry.link .. L[" würde "] .. (auto and L["automatisch "] or "") .. L["an "] .. entry.winner .. L[" vergeben."])
         self:MarkAwarded(entry, entry.winner)
+        return
+    end
+    if entry.otherCorpse then
+        self:Print(L("%s liegt in einer anderen Leiche – öffne sie, dann wird an %s vergeben.", entry.link, entry.winner))
+        return
+    end
+    if entry.belowThreshold then
+        self:Print(L("%s liegt unter der Plündergrenze und lässt sich nicht zuteilen – %s kann es selbst plündern.", entry.link, entry.winner))
         return
     end
     local slot
@@ -688,27 +850,29 @@ function LC:AwardLoot(entry, auto)
     end
     if not slot then
         if auto then
-            self:Print(entry.link .. L[" geht an "] .. entry.winner .. L[" – Lootfenster ist zu. Leiche öffnen und „An …“ klicken."])
+            self:Print(entry.link .. L[" geht an "] .. entry.winner .. L[" – Lootfenster ist zu. Öffne die Leiche erneut, dann wird automatisch vergeben."])
         else
             self:Print(L["Das Item liegt nicht im geöffneten Lootfenster. Bitte die Leiche erneut öffnen."])
         end
         return
     end
-    for i = 1, 40 do
-        local cand = GetMasterLootCandidate(slot, i)
-        if cand and self:NamesMatch(cand, entry.winner) then
-            self.awarding = true
-            GiveMasterLoot(slot, i)
-            self.awarding = nil
-            self:MarkAwarded(entry, entry.winner)
-            return
+    local index, cand = self:FindLootCandidate(slot, entry)
+    if not index then
+        if cand == "ambiguous" then
+            self:Print(L("Mehrere Spieler passen zu „%s“ – bitte %s von Hand über das Plündermeister-Menü vergeben.", entry.winner, entry.link))
+        else
+            self:Print(entry.winner .. L[" kann das Item nicht erhalten (nicht in Reichweite oder nicht berechtigt)."]
+                .. (auto and L[" Bitte von Hand vergeben."] or ""))
         end
+        return
     end
-    self:Print(entry.winner .. L[" kann das Item nicht erhalten (nicht in Reichweite oder nicht berechtigt)."]
-        .. (auto and L[" Bitte von Hand vergeben."] or ""))
+    self:BeginAward(entry, slot, self:ShortName(cand))
+    self.awarding = true
+    GiveMasterLoot(slot, index)
+    self.awarding = nil
 end
 
--- Vergabe am Addon vorbei (Blizzard-Plündermeister-Menü) trotzdem erfassen
+-- Vergabe am Addon vorbei (Blizzard-Plündermeister-Menü) trotzdem erfassen – ebenfalls erst nach Bestätigung
 if GiveMasterLoot then
     hooksecurefunc("GiveMasterLoot", function(slot, index)
         if LC.awarding or not LC.db then return end
@@ -717,14 +881,62 @@ if GiveMasterLoot then
         if not cand or not link then return end
         local match
         for _, entry in ipairs(LC.lootItems) do
-            if not entry.test and not entry.awarded and entry.link == link then
+            if not entry.test and not entry.awarded and not entry.pending and not entry.otherCorpse and entry.link == link then
                 if entry.slot == slot then match = entry break end
                 match = match or entry
             end
         end
-        if match then LC:MarkAwarded(match, cand) end
+        if match then LC:BeginAward(match, slot, LC:ShortName(cand)) end
     end)
 end
+
+-- Bestätigung 1: der Loot-Platz wird leer (Item hat die Leiche verlassen)
+function LC:PendingForSlot(slot)
+    for _, entry in ipairs(self.lootItems) do
+        if entry.pending and not entry.otherCorpse and entry.pending.slot == slot then return entry end
+    end
+end
+
+-- Bestätigung 2: Systemchat „X erhält Beute: [Item]“ (falls das Lootfenster schon zu ist)
+local lootPatterns
+local function FormatToPattern(fmt)
+    local p = fmt:gsub("%%%d%$([sd])", "%%%1")
+    p = p:gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1")
+    p = p:gsub("%%s", "(.+)"):gsub("%%d", "(%%d+)")
+    return "^" .. p .. "$"
+end
+local function LootPatterns()
+    if lootPatterns then return lootPatterns end
+    lootPatterns = {}
+    for _, g in ipairs({ "LOOT_ITEM", "LOOT_ITEM_MULTIPLE" }) do
+        if type(_G[g]) == "string" then lootPatterns[#lootPatterns + 1] = { p = FormatToPattern(_G[g]), self = false } end
+    end
+    for _, g in ipairs({ "LOOT_ITEM_SELF", "LOOT_ITEM_SELF_MULTIPLE" }) do
+        if type(_G[g]) == "string" then lootPatterns[#lootPatterns + 1] = { p = FormatToPattern(_G[g]), self = true } end
+    end
+    return lootPatterns
+end
+
+LC:On("CHAT_MSG_LOOT", function(self, msg)
+    if not msg then return end
+    if not next(self.pendingAwards) then return end
+    for _, lp in ipairs(LootPatterns()) do
+        local a, b = msg:match(lp.p)
+        if a then
+            local who, item = a, b
+            if lp.self then who, item = self:PlayerName(), a end
+            for e in pairs(self.pendingAwards) do
+                local p = e.pending
+                if p and item and item:find(self:ItemIDFromLink(p.link) and ("item:" .. self:ItemIDFromLink(p.link) .. ":") or p.link, 1, true)
+                    and self:NamesMatch(who, p.winner) then
+                    self:ConfirmAward(e)
+                    return
+                end
+            end
+            return
+        end
+    end
+end)
 
 ------------------------------------------------------------------------
 -- Abbrechen

@@ -98,7 +98,8 @@ function LC:RecordAttendance(force)
     if not IsInRaid() then return 0 end
     if not force then
         local _, instanceType = IsInInstance()
-        if instanceType ~= "raid" then return 0 end
+        -- Dungeons, die hier als Raid gelten (Obere Schwarzfelsspitze), zählen auch
+        if instanceType ~= "raid" and not (instanceType == "party" and self:GetCurrentRaid()) then return 0 end
     end
     local week = self:CurrentWeek()
     self.db.attendance[week] = self.db.attendance[week] or {}
@@ -162,25 +163,44 @@ end
 -- Gibt true und die letzte gesperrte Woche zurück, wenn der Spieler im Loot-Cooldown ist
 function LC:IsOnCooldown(name)
     local p = self:GetPlayer(name)
-    if not p then return false end
     local week = self:CurrentWeek()
     local cd = self.db.config.cooldownWeeks or 2
     -- 0 = kein Cooldown. Sonst gesperrt: die Gewinnwoche und die folgenden cd Wochen
     if cd <= 0 then return false end
     local untilWeek
-    for _, win in ipairs(p.wins) do
+    for _, win in ipairs(p and p.wins or {}) do
         if week >= win.week and week <= win.week + cd then
             untilWeek = math.max(untilWeek or 0, win.week + cd)
+        end
+    end
+    -- Zusätzlich aus der Loot-Historie (wird mit dem Council abgeglichen): so gilt der Cooldown
+    -- auch, wenn diesmal jemand anderes Plündermeister ist
+    local h = self.db.history or {}
+    for i = #h, 1, -1 do
+        local e = h[i]
+        local w = e.time and self:WeekOf(e.time) or e.week
+        if w and w < week - cd then break end
+        if e.council and w and week >= w and week <= w + cd and self:NamesMatch(e.winner, name) then
+            untilWeek = math.max(untilWeek or 0, w + cd)
         end
     end
     return untilWeek ~= nil, untilWeek
 end
 
-function LC:AddSitout(name, itemID)
-    local week = self:CurrentWeek()
+-- week: nur beim Empfang aus dem Abgleich; sonst diese Woche und an Council + Raidleitung verteilen
+-- (damit „Aussetzen“ auch gilt, wenn das Item bei einem anderen Plündermeister droppt)
+function LC:AddSitout(name, itemID, week)
+    local fromSync = week ~= nil
+    week = week or self:CurrentWeek()
+    local key = self:NameKey(name)
+    if not key or not itemID then return end
     self.db.sitouts[week] = self.db.sitouts[week] or {}
     self.db.sitouts[week][itemID] = self.db.sitouts[week][itemID] or {}
-    self.db.sitouts[week][itemID][self:NameKey(name)] = self:ShortName(name)
+    self.db.sitouts[week][itemID][key] = self:ShortName(name)
+    if not fromSync then
+        local msg = strjoin("~", "SO", tostring(week), tostring(itemID), self:CleanText(name, 40))
+        for _, target in ipairs(self:GetPrivateTargets()) do self:Send(msg, "WHISPER", target) end
+    end
 end
 
 function LC:IsSittingOut(name, itemID)
@@ -253,6 +273,10 @@ local MAX_HISTORY = 3000
 function LC:CurrentRaidName()
     local name, instanceType = GetInstanceInfo()
     if instanceType == "raid" and name and name ~= "" then return name end
+    if instanceType == "party" then
+        local r = self:GetCurrentRaid()
+        if r then return r.name end
+    end
     return (GetRealZoneText and GetRealZoneText()) or name or "?"
 end
 
@@ -278,7 +302,7 @@ function LC:AddHistory(e, quiet)
         end
     end
     e.time = e.time or time()
-    e.week = e.week or self:CurrentWeek()
+    e.week = e.week or self:WeekOf(e.time)   -- aus der Zeit (abgeglichene Einträge kommen evtl. Wochen später)
     e.raid = e.raid or self:CurrentRaidName()
     e.winner = self:ShortName(e.winner)
     local pos = #h + 1
