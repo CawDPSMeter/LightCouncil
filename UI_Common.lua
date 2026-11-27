@@ -460,19 +460,31 @@ local function ShowMenu(anchor, entries)
         menu:EnableMouse(true)
         T:Skin(menu, C.bgDark, C.line)
         menu.rows, menu.lines = {}, {}
-        -- Klick daneben schließt das Menü
-        menu.catcher = CreateFrame("Button", nil, UIParent)
-        menu.catcher:SetAllPoints(UIParent)
-        menu.catcher:SetFrameStrata("FULLSCREEN")
-        menu.catcher:RegisterForClicks("AnyUp")
-        menu.catcher:SetScript("OnClick", function() menu:Hide() end)
-        menu.catcher:Hide()
-        menu:SetScript("OnHide", function() menu.catcher:Hide() end)
+        -- Klick daneben schließt das Menü. Bevorzugt per GLOBAL_MOUSE_DOWN, damit der Klick
+        -- trotzdem ankommt (Spielwelt, Kamera, andere Knöpfe); sonst unsichtbare Fläche als Rückfall.
+        local hasGlobal = pcall(menu.RegisterEvent, menu, "GLOBAL_MOUSE_DOWN")
+        if hasGlobal then
+            menu:SetScript("OnEvent", function(self)
+                if not self:IsShown() or self:IsMouseOver() then return end
+                if self.owner and self.owner:IsMouseOver() then return end   -- Klick aufs Ziel schaltet um
+                self:Hide()
+            end)
+        else
+            menu.catcher = CreateFrame("Button", nil, UIParent)
+            menu.catcher:SetAllPoints(UIParent)
+            menu.catcher:SetFrameStrata("FULLSCREEN")
+            menu.catcher:RegisterForClicks("AnyUp")
+            menu.catcher:SetScript("OnClick", function() menu:Hide() end)
+            menu.catcher:Hide()
+            menu:SetScript("OnHide", function() menu.catcher:Hide() end)
+        end
         menu:SetScript("OnUpdate", function(self)
             if self.owner and not self.owner:IsVisible() then self:Hide() end
         end)
         tinsert(UISpecialFrames, "LightCouncilMenu")
     end
+    -- erneuter Klick auf denselben Knopf schließt das Menü wieder
+    if menu:IsShown() and menu.owner == anchor then menu:Hide() return end
     local ROW, SEP = 26, 9
     local width, y, nRow, nLine = 170, 6, 0, 0
     for _, e in ipairs(entries) do
@@ -532,7 +544,7 @@ local function ShowMenu(anchor, entries)
     menu.owner = anchor
     menu:ClearAllPoints()
     menu:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -2)
-    menu.catcher:Show()
+    if menu.catcher then menu.catcher:Show() end
     menu:Show()
 end
 

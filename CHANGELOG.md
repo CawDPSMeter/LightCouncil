@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.24.1
+- **Upper Blackrock Spire** is now built in as a 10-player raid with all bosses and their loot (Forever runs it as a raid, AtlasLoot and Naowh list it as a dungeon). Trash loot follows later.
+- **Upgrade** is called “Upgrade” in every language now. Clicking the upgrade icon only shows upgrade options (no more “Important”).
+- Raider and vote windows stay on screen when they grow while open.
+- Removing an item or upgrade from a slot only affects that slot.
+- “Now” on the 3D model updates after changing gear.
+- Winter decor pauses in combat and uses less CPU.
+- Drop-down menus no longer swallow the first click into the game world.
+- Group leaders without a council land on *Getting started*.
+
 ## 0.24.0
 - **Winter decor:** snowflakes and colorful twinkling string lights along the edge of the main, vote and raider windows. *Settings → Options → Winter decor*: Auto (November 20 to January 6), On or Off.
 

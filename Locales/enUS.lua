@@ -751,4 +751,5 @@ LC:RegisterLocale("enUS", {
     ["Winterdeko: %s"] = "Winter decor: %s",
     ["Winterdeko"] = "Winter decor",
     ["Schneeflocken und eine bunte Lichterkette am Fensterrand. Auto: vom 20. November bis zum 6. Januar."] = "Snowflakes and colorful string lights along the window edge. Auto: from November 20 to January 6.",
+    ["Obere Schwarzfelsspitze"] = "Upper Blackrock Spire",
 })

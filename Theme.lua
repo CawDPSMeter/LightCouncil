@@ -186,6 +186,8 @@ function T:Window(name, width, height, title, subtitle, barHeight)
     f.close = self:CloseButton(bar, function() f:Hide() end)
     f.close:SetPoint("RIGHT", -8, 0)
     f:HookScript("OnShow", function(self) T:ApplyScale(self) end)
+    -- wächst das Fenster im offenen Zustand (neue Items), Größe erneut an den Bildschirm anpassen
+    f:HookScript("OnSizeChanged", function(self) if self:IsShown() then T:ApplyScale(self) end end)
     -- Winterdeko (Schnee + Lichterkette) nur für die großen Fenster
     if FESTIVE[name] and self.Festive then self:Festive(f, barHeight) end
     return f

@@ -393,13 +393,24 @@ function LC:IsUpgradeInMySet(itemID)
 end
 
 -- Entfernt das Item aus dem aktiven Set – als bestes Item und als Upgrade
-function LC:RemoveFromGearSet(itemID)
+-- slot (optional): nur aus diesem Slot entfernen; upgrade = true: nur das Upgrade dieses Slots
+function LC:RemoveFromGearSet(itemID, slot, upgrade)
     local set = self:GetActiveSet()
     if not set then return end
-    local a = RemoveFrom(set.slots, itemID)
-    local b = RemoveFrom(set.upgrades, itemID)
+    local a, b
+    if slot then
+        local tbl = upgrade and set.upgrades or set.slots
+        if tbl and tbl[slot] == itemID then tbl[slot] = nil a = true end
+    else
+        a = RemoveFrom(set.slots, itemID)
+        b = RemoveFrom(set.upgrades, itemID)
+    end
     if a or b then
-        set.important[itemID] = nil
+        -- „wichtig“ nur löschen, wenn das Item nirgends mehr im Set steht
+        local still = false
+        for _, x in pairs(set.slots) do if x == itemID then still = true end end
+        for _, x in pairs(set.upgrades or {}) do if x == itemID then still = true end end
+        if not still then set.important[itemID] = nil end
         self:GearSetChanged()
     end
 end

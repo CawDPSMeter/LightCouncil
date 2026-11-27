@@ -186,8 +186,13 @@ end
 
 -- Startseite, solange die Vorbereitung unvollständig ist, sonst Loot
 local function DefaultTab()
+    -- Noch kein Council eingetragen und du leitest die Gruppe: erst einrichten
+    if #LC:GetCouncilList() == 0 and IsInGroup()
+        and (UnitIsGroupLeader("player") or (IsInRaid() and UnitIsGroupAssistant("player"))) then
+        return "start"
+    end
     -- Raider ohne besondere Rolle landen bei ihrem Gear (Set + Reservierung)
-    if not IsLeadView() or (not LC:AmICouncil() and not LC:IsMasterLooter()) then return "sets" end
+    if not LC:AmICouncil() and not LC:IsMasterLooter() then return "sets" end
     local st = SetupStatus()
     if not (st.council.ok and st.softres.ok and st.items.ok) then return "start" end
     return "loot"

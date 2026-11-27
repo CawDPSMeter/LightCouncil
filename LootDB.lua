@@ -179,6 +179,66 @@ local function ReadNaowh(out)
     end
 end
 
+-- Fest eingebaut, unabhängig von der Quelle: Instanzen, die in Forever als Raid laufen,
+-- in AtlasLoot und Naowh aber als Dungeon geführt werden.
+-- Item-IDs und Drop-Chancen (%, gleiche Reihenfolge wie items; 0 = unbekannt) aus Naowh Forever
+-- (Dungeon Journal, UpperBlackrockSpire.lua), ohne Trash.
+-- TODO: Trash-Loot der Oberen Schwarzfelsspitze muss später noch dazu (Wunsch der Gilde).
+local BUILTIN = {
+    {
+        -- display ist der L[]-Schlüssel, übersetzt beim Einlesen
+        name = "Upper Blackrock Spire", display = "Obere Schwarzfelsspitze", instanceID = 229, forever = true,
+        dungeonRaid = true,   -- GetInstanceInfo meldet evtl. „party“
+        bosses = {
+            { name = "Pyroguard Emberseer",
+              items = { 12926, 12905, 16672, 12929, 12927, 249520 },
+              chance = { 27, 26, 18, 13, 12, 0 } },
+            { name = "Solakar Flamewreath",
+              items = { 12589, 16695, 12603, 12609, 12606, 18657 },
+              chance = { 19, 18, 18, 18, 17, 0 } },
+            { name = "Goraluk Anvilcrack",
+              items = { 13498, 18048, 18047, 13502, 12834, 12837, 228312, 12728 },
+              chance = { 28, 23, 17, 8, 0, 0, 0, 0 } },
+            { name = "Gyth",
+              items = { 12960, 16669, 12953, 12952, 22225, 13522 },
+              chance = { 20, 19, 19, 18, 16, 0 } },
+            { name = "Warchief Rend Blackhand",
+              items = { 12935, 18102, 16733, 12587, 18103, 12936, 18104, 22247, 12940, 12939, 12583, 12590, 12588 },
+              chance = { 22, 21, 20, 19, 19, 19, 18, 16, 12, 11, 9, 2, 1 } },
+            { name = "The Beast",
+              items = { 12964, 12967, 12965, 12966, 12968, 12963, 16729, 22311, 12969, 12709, 273109 },
+              chance = { 27, 25, 20, 20, 20, 20, 18, 18, 14, 14, 0 } },
+            { name = "General Drakkisath",
+              items = { 13141, 22253, 22267, 13098, 13142, 12602, 22269, 16700, 16730, 16706,
+                        16674, 16688, 16690, 16721, 22268, 16726, 16666, 12592, 15730, 13519 },
+              chance = { 28, 26, 24, 23, 22, 22, 21, 12, 12, 12, 11, 11, 11, 10, 8, 7, 6, 2, 0, 0 } },
+            { name = "Jed Runewatcher",   -- selten
+              items = { 12605, 12604, 12930 },
+              chance = { 33, 33, 30 } },
+            { name = "Lord Valthalak",    -- optional (Beschwörung)
+              items = { 22335, 22337, 22343, 22339, 22336, 22340, 22302, 22342 },
+              chance = { 26, 26, 25, 24, 23, 23, 22, 22 } },
+        },
+    },
+}
+
+local function ReadBuiltin(out)
+    for _, inst in ipairs(BUILTIN) do
+        local e = { name = inst.name, display = L[inst.display], instanceID = inst.instanceID,
+            forever = inst.forever, dungeonRaid = inst.dungeonRaid, bosses = {} }
+        for _, b in ipairs(inst.bosses) do
+            local items, chance = {}, {}
+            for i, id in ipairs(b.items) do
+                items[i] = id
+                local c = b.chance and b.chance[i]
+                if c and c > 0 then chance[id] = c end
+            end
+            e.bosses[#e.bosses + 1] = { name = b.name, items = items, chance = chance }
+        end
+        out[#out + 1] = e
+    end
+end
+
 ------------------------------------------------------------------------
 -- Zusammenführen
 ------------------------------------------------------------------------
@@ -200,6 +260,7 @@ local function Merge(lists)
             if alt ~= "" and alt ~= key then m.alt[alt] = true end
             if inst.instanceID then m.instanceID = inst.instanceID end
             if inst.forever then m.forever = true end
+            if inst.dungeonRaid then m.dungeonRaid = true end
             for _, boss in ipairs(inst.bosses) do
                 local bk = NormBoss(boss.name)
                 local mb = m.bossIndex[bk]
@@ -243,6 +304,9 @@ function LC:GetLootDB()
                 if ok then lists[#lists + 1] = { key = r.key, entries = entries } end
             end
         end
+        -- fest eingebaute Raids immer dazu (z. B. Obere Schwarzfelsspitze)
+        local builtin = {}
+        if pcall(ReadBuiltin, builtin) then lists[#lists + 1] = { key = "builtin", entries = builtin } end
         self.lootCache = { source = source, all = Merge(lists) }
         self:MigrateRaidKeys(self.lootCache.all)
     end
@@ -255,12 +319,15 @@ end
 -- Raid, in dem ich gerade bin (Eintrag aus der Loot-Datenbank) oder nil
 function LC:GetCurrentRaid()
     local name, instanceType, _, _, _, _, _, instanceID = GetInstanceInfo()
-    if instanceType ~= "raid" or not name or name == "" then return nil end
+    if not name or name == "" or (instanceType ~= "raid" and instanceType ~= "party") then return nil end
     local key = NormKey(name)
     for _, r in ipairs(self:GetLootDB() or {}) do
-        if (instanceID and r.instanceID == instanceID)
-            or (key ~= "" and (r.key == key or NormKey(r.name) == key or (r.alt and r.alt[key]))) then
-            return r
+        -- Dungeons nur, wenn sie hier als Raid eingetragen sind (Obere Schwarzfelsspitze)
+        if instanceType == "raid" or r.dungeonRaid then
+            if (instanceID and r.instanceID == instanceID)
+                or (key ~= "" and (r.key == key or NormKey(r.name) == key or (r.alt and r.alt[key]))) then
+                return r
+            end
         end
     end
     return nil
@@ -446,6 +513,8 @@ function LC:IsKnownRaidKey(key)
                 if pcall(r.fn, entries) then lists[#lists + 1] = { key = r.key, entries = entries } end
             end
         end
+        local builtin = {}
+        if pcall(ReadBuiltin, builtin) then lists[#lists + 1] = { key = "builtin", entries = builtin } end
         local keys = {}
         for _, m in ipairs(Merge(lists)) do keys[m.key] = true end
         knownKeys = next(keys) and keys or nil

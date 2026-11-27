@@ -129,6 +129,8 @@ end
 local function Update(o, elapsed)
     o.acc = (o.acc or 0) + elapsed
     if o.acc < STEP then return end
+    -- im Kampf pausieren (spart Leistung, Deko bleibt stehen)
+    if InCombatLockdown() then o.acc = 0 return end
     local dt = o.acc
     o.acc = 0
     o.t = (o.t or 0) + dt
@@ -145,7 +147,10 @@ local function Update(o, elapsed)
         fx.tex:SetShown(fx.y >= 0)   -- nicht über die Titelleiste schneien
     end
 
-    -- Funkeln plus eine langsame Lauflicht-Welle
+    -- Funkeln plus eine langsame Lauflicht-Welle (nur alle 0,1 s – reicht fürs Auge)
+    o.lacc = (o.lacc or 0) + dt
+    if o.lacc < 0.1 then return end
+    o.lacc = 0
     for i = 1, o.nBulbs or 0 do
         local b = o.bulbs[i]
         local v = 0.55 + 0.30 * math.sin(t * b.speed + b.phase) + 0.15 * math.sin(t * 2.2 - i * 0.6)

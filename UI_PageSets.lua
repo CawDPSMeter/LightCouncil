@@ -293,6 +293,14 @@ local function ShowItems()
     LC:RefreshUI()
 end
 
+-- Einträge fürs Upgrade eines Slots (Upgrades können nicht „wichtig“ sein)
+local function UpgradeEntries(m, e)
+    local up = e.upID
+    local ukey, uname, uon = ResInfo(up)
+    if ukey then m[#m + 1] = { text = L("Upgrade reservieren (%s)", uname), checked = uon, func = function() ToggleRes(up, ukey) end } end
+    m[#m + 1] = { text = L["Upgrade entfernen"], func = function() LC:RemoveFromGearSet(up, e.key, true) end }
+end
+
 -- Menü eines Slots (Klick)
 local function SlotMenu(e)
     local id, up = e.itemID, e.upID
@@ -303,14 +311,13 @@ local function SlotMenu(e)
         m[#m + 1] = { text = L["Wichtig"], checked = e.important, func = function() LC:ToggleGearSetImportant(id) end }
     end
     if up then
-        local ukey, uname, uon = ResInfo(up)
-        if ukey then m[#m + 1] = { text = L("Upgrade reservieren (%s)", uname), checked = uon, func = function() ToggleRes(up, ukey) end } end
-        m[#m + 1] = { text = L["Upgrade entfernen"], func = function() LC:RemoveFromGearSet(up) end }
+        if id then m[#m + 1] = { text = "-" } end
+        UpgradeEntries(m, e)
     end
     m[#m + 1] = { text = L["Anderes Item wählen …"], func = ShowItems }
     if id then
         m[#m + 1] = { text = "-" }
-        m[#m + 1] = { text = L["Aus dem Set entfernen"], color = C.bad, func = function() LC:RemoveFromGearSet(id) end }
+        m[#m + 1] = { text = L["Aus dem Set entfernen"], color = C.bad, func = function() LC:RemoveFromGearSet(id, e.key) end }
     end
     return m
 end
@@ -508,7 +515,16 @@ local function MakeRow(parent)
     r.dice = MakeDice(r, 26)
     r.dice:SetPoint("RIGHT", -4, 0)
     r.up = MakeUpgradeIcon(r, 22, function() return r.e and r.e.upID end)
-    r.up:SetScript("OnMouseUp", function() GameTooltip:Hide() if r.e then U.ShowMenu(r, SlotMenu(r.e)) end end)
+    -- Klick aufs Upgrade: nur die Upgrade-Optionen (nicht „Wichtig“ des besten Items)
+    r.up:SetScript("OnMouseUp", function(self)
+        GameTooltip:Hide()
+        if r.e and r.e.upID then
+            local m = {}
+            UpgradeEntries(m, r.e)
+            m[#m + 1] = { text = L["Anderes Item wählen …"], func = ShowItems }
+            U.ShowMenu(self, m)
+        end
+    end)
     r:SetScript("OnClick", function(self) SlotClick(self.e, self) end)
     r:SetScript("OnEnter", function(self) Highlight(self.e, true) if self.e then SlotTooltip(self, self.e) end end)
     r:SetScript("OnLeave", function(self) Highlight(self.e, false) GameTooltip:Hide() end)
@@ -997,3 +1013,12 @@ local function RefreshSets()
 end
 
 U.CreateSetsPage, U.RefreshSets = CreateSetsPage, RefreshSets
+
+-- Modus „Jetzt“: nach einem Ausrüstungswechsel neu anziehen
+LC:On("PLAYER_EQUIPMENT_CHANGED", function()
+    local mine = pages.sets and pages.sets.mine
+    local m = mine and mine.model
+    if m and m.mode == "now" and m:IsVisible() then
+        C_Timer.After(0.2, function() DressModel(m) end)
+    end
+end)
