@@ -861,6 +861,8 @@ local function RefreshMine(p)
         text = L["Wähl für jeden Slot dein Wunsch-Item: Klick auf einen freien Slot oder such oben nach dem Namen."]
         accent = C.accent
         mainText, onMain = L["Items durchsuchen"], ShowItems
+        -- Reservieren geht auch ganz ohne Set
+        altText, onAlt = L["Meine Reservierung"], Open
     elseif not key then
         text = L["Dein Set steht. Droppt ein Item in einem Raid, reservierst du es mit dem Würfel in der Liste."]
         accent = C.accent

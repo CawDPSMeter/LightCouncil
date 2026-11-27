@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.24.3
+- **“My reservation” is back in the menu** for everyone. Since 0.23.0 it was only reachable from “My gear”, and not at all without a gear set – reserving any item works again without a set.
+- “My gear” with an empty set now also links to “My reservation”.
+
 ## 0.24.2
 Safer automatic loot awarding.
 

@@ -36,7 +36,7 @@ local TABS = {
     { key = "players", label = "Spieler", create = CreatePlayersPage, refresh = RefreshPlayers, group = 1, lead = true },
     { key = "log", label = "Protokoll", create = CreateLogPage, refresh = RefreshLog, group = 1, lead = true },
     { key = "sets", label = "Mein Gear", create = U.CreateSetsPage, refresh = U.RefreshSets, group = 2 },
-    { key = "myres", label = "Meine Reservierung", create = CreateMyResPage, refresh = RefreshMyRes, group = 2, navParent = "sets" },
+    { key = "myres", label = "Meine Reservierung", create = CreateMyResPage, refresh = RefreshMyRes, group = 2 },
     { key = "history", label = "Loot-Historie", create = CreateHistoryPage, refresh = RefreshHistory, group = 2 },
     { key = "settings", label = "Einstellungen", create = CreateSettingsPage, refresh = RefreshSettings, group = 3 },
 }
