@@ -307,8 +307,10 @@ function LC:ShowVoteFrame(s, keep)
             -- Letztes Item: Council-Items lila hervorgehoben
             local loot = self:GetPlayerLoot(c.name)
             local last = loot[1]
+            local nRaid = self:RaidLootCount(c.name)
+            local raidTxt = (nRaid > 0) and ((nRaid >= (tonumber(self.db.config.fairLimit) or 0) and (tonumber(self.db.config.fairLimit) or 0) > 0 and H.warn or H.accentLt) .. L("%d× Raid-ID", nRaid) .. "|r  ") or ""
             if last then
-                r.last:SetText((last.council and (H.accentLt .. L["Council|r "]) or "") .. self:AgoText(last.time))
+                r.last:SetText(raidTxt .. (last.council and (H.accentLt .. L["Council|r "]) or "") .. self:AgoText(last.time))
             else
                 r.last:SetText(H.muted .. L["noch keins|r"])
             end

@@ -182,8 +182,7 @@ end
 -- Fest eingebaut, unabhängig von der Quelle: Instanzen, die in Forever als Raid laufen,
 -- in AtlasLoot und Naowh aber als Dungeon geführt werden.
 -- Item-IDs und Drop-Chancen (%, gleiche Reihenfolge wie items; 0 = unbekannt) aus Naowh Forever
--- (Dungeon Journal, UpperBlackrockSpire.lua), ohne Trash.
--- TODO: Trash-Loot der Oberen Schwarzfelsspitze muss später noch dazu (Wunsch der Gilde).
+-- (Dungeon Journal, UpperBlackrockSpire.lua), samt Trash-Loot.
 local BUILTIN = {
     {
         -- display ist der L[]-Schlüssel, übersetzt beim Einlesen
@@ -218,6 +217,10 @@ local BUILTIN = {
             { name = "Lord Valthalak",    -- optional (Beschwörung)
               items = { 22335, 22337, 22343, 22339, 22336, 22340, 22302, 22342 },
               chance = { 26, 26, 25, 24, 23, 23, 22, 22 } },
+            -- Trash-Mobs (16 Items laut Naowh; 0 = Chance unbekannt)
+            { name = "Trash", display = "Trash-Mobs", trash = true,
+              items = { 16683, 16680, 16696, 16703, 16673, 16735, 16713, 13260, 16717, 13371, 16247, 16685, 16736, 16681, 16710, 16716 },
+              chance = { 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
         },
     },
 }
@@ -233,7 +236,7 @@ local function ReadBuiltin(out)
                 local c = b.chance and b.chance[i]
                 if c and c > 0 then chance[id] = c end
             end
-            e.bosses[#e.bosses + 1] = { name = b.name, items = items, chance = chance }
+            e.bosses[#e.bosses + 1] = { name = b.display and L[b.display] or b.name, items = items, chance = chance, trash = b.trash }
         end
         out[#out + 1] = e
     end

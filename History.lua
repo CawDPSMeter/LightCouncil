@@ -3,7 +3,7 @@
 -- Nachrichten:
 --   HQ~seit                 alle -> Gilde/Raid: bitte Einträge ab Zeitpunkt "seit" schicken
 --   HE~eintrag;eintrag;…    Council -> Anfragender (Whisper) bzw. Gilde (neu vergebenes Item)
---     eintrag = id^itemID^gewinner^zeit^raid^wurf^flags   (flags: c = Council-Item, r = reserviert, o = Off Spec)
+--     eintrag = id^itemID^gewinner^zeit^raid^wurf^flags^instanzID   (flags: c = Council-Item, r = reserviert, o = Off Spec)
 --   HD~id;id;…              Council -> Gilde/Anfragender: diese Einträge wurden gelöscht
 --   HN~zeit                 Council -> Anfragender: es gibt noch mehr Einträge ab „zeit“ (nächste Seite)
 --   HQ~seit~p               Anfragender -> Council (Whisper): nächste Seite abholen
@@ -44,11 +44,11 @@ end
 local function Encode(e)
     local flags = (e.council and "c" or "") .. (e.reserved and "r" or "") .. (e.offspec and "o" or "")
     return table.concat({ Field(e.id), tostring(e.itemID), Field(e.winner), tostring(e.time or 0),
-        Field(e.raid), e.roll and tostring(e.roll) or "", flags }, "^")
+        Field(e.raid), e.roll and tostring(e.roll) or "", flags, e.instID and tostring(e.instID) or "" }, "^")
 end
 
 local function Decode(s)
-    local id, itemID, winner, t, raid, roll, flags = strsplit("^", s)
+    local id, itemID, winner, t, raid, roll, flags, instID = strsplit("^", s)
     itemID, t = tonumber(itemID), tonumber(t)
     if not id or id == "" or not itemID or not winner or winner == "" or not t then return nil end
     flags = flags or ""
@@ -56,7 +56,7 @@ local function Decode(s)
     return {
         id = LC:SafeText(id, 80), itemID = itemID, winner = winner, time = t, raid = (raid ~= "") and raid or nil,
         roll = tonumber(roll), council = flags:find("c") and true or nil, reserved = flags:find("r") and true or nil,
-        offspec = flags:find("o") and true or nil,
+        offspec = flags:find("o") and true or nil, instID = tonumber(instID),
     }
 end
 

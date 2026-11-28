@@ -13,6 +13,7 @@
 --   RW~lid~idx~gewinner~wurf              Gewinner
 --   RN~lid~idx                            niemand hat gewürfelt
 --   RC~lid~idx                            abgebrochen
+--   RH~lid~idx~namen                      wartet auf Reservierer, die offline sind
 --   RA~lid~idx~gewinner                   vergeben
 --   RF~lid~idx~gewinner~grund~hart        Übergabe gescheitert (z. B. Taschen voll; hart = 1: erneut versuchen hilft nicht)
 -- Whisper eines Gewinners an den Plündermeister:
@@ -25,7 +26,7 @@ local L = LC.L
 local SEP = "~"
 local RAID_CMDS = {
     LS = true, LI = true, LR = true, LP = true, LE = true, CS = true, RS = true, RL = true,
-    RG = true, RW = true, RN = true, RC = true, RA = true, RF = true, RB = true, X = true,
+    RG = true, RW = true, RN = true, RC = true, RA = true, RF = true, RB = true, RH = true, X = true,
 }
 
 ------------------------------------------------------------------------
@@ -230,6 +231,9 @@ function LC:OnRaidComm(cmd, p, sender)
     elseif cmd == "RN" then
         it.state = "none"
         if R.activeIdx == idx then R.activeIdx = nil end
+    elseif cmd == "RH" then
+        it.state = "hold"
+        it.holdFor = self:CleanText(p[4] or "", 180)
     elseif cmd == "RC" then
         it.state = "wait"
         if R.activeIdx == idx then R.activeIdx = nil end

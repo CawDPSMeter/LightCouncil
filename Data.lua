@@ -303,7 +303,11 @@ function LC:AddHistory(e, quiet)
     end
     e.time = e.time or time()
     e.week = e.week or self:WeekOf(e.time)   -- aus der Zeit (abgeglichene Einträge kommen evtl. Wochen später)
-    e.raid = e.raid or self:CurrentRaidName()
+    if not e.raid then
+        e.raid = self:CurrentRaidName()
+        local _, itype, _, _, _, _, _, iid = GetInstanceInfo()
+        if itype and itype ~= "none" and iid then e.instID = iid end
+    end
     e.winner = self:ShortName(e.winner)
     local pos = #h + 1
     while pos > 1 and (h[pos - 1].time or 0) > e.time do pos = pos - 1 end
@@ -328,6 +332,27 @@ function LC:GetPlayerLoot(name, weeks)
         end
     end
     return out, council
+end
+
+-- Items eines Spielers in dieser Raid-ID: diese Woche, im Raid gleich im selben Raid
+function LC:RaidLootCount(name)
+    if not name then return 0 end
+    local week = self:CurrentWeek()
+    local raid, iid
+    if IsInInstance() then
+        raid = self:CurrentRaidName()
+        iid = select(8, GetInstanceInfo())
+    end
+    local h, n = self.db.history or {}, 0
+    for i = #h, 1, -1 do
+        local e = h[i]
+        local w = e.week or (e.time and self:WeekOf(e.time))
+        if w and w < week then break end   -- Historie ist nach Zeit sortiert
+        -- gleicher Raid: per Instanz-ID (sprachunabhängig), bei älteren Einträgen ohne ID per Name
+        local same = not raid or ((e.instID and iid) and e.instID == iid) or (not (e.instID and iid) and e.raid == raid)
+        if w == week and same and self:NamesMatch(e.winner, name) then n = n + 1 end
+    end
+    return n
 end
 
 -- "heute", "gestern", "vor 5 Tagen"

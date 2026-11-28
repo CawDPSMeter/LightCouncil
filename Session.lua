@@ -151,6 +151,7 @@ function LC:Enqueue(entry)
     if self.roll and self.roll.entry == entry then return end
     entry.status = "wartet"
     entry.winner = nil
+    entry.held, entry.heldAt = nil, nil
     table.insert(self.queue, entry)
     self:ProcessQueue()
 end
@@ -160,12 +161,141 @@ function LC:ProcessQueue()
     local entry = table.remove(self.queue, 1)
     if not entry then self:RefreshUI() return end
     self:FixEntryLink(entry)
+    -- Reservierer im Raid, aber offline: anhalten (warten oder trotzdem verwürfeln)
+    local force = entry.forceRoll
+    entry.forceRoll = nil
+    if not entry.test and not force then
+        local absent = self:AbsentReservers(entry)
+        if #absent > 0 then
+            self:HoldForAbsent(entry, absent)
+            return self:ProcessQueue()
+        end
+    end
     if entry.isCouncil then
+        self:StartCouncil(entry)
+    elseif not entry.test and self:FairnessCheck(entry) then
+        -- Fairness-Grenze erreicht: bei diesem Item entscheidet der Council (wie bei einem Council-Item)
         self:StartCouncil(entry)
     else
         self:StartNormal(entry)
     end
     self:RefreshUI()
+end
+
+------------------------------------------------------------------------
+-- Reservierer offline: Item anhalten
+------------------------------------------------------------------------
+-- Reservierer, die im Raid sind, aber gerade offline (wer gar nicht mitraidet, zählt nicht)
+function LC:AbsentReservers(entry)
+    local out = {}
+    if entry.test then return out end
+    local members = self:GetGroupMembers()
+    for _, r in ipairs(self:GetReservers(entry.itemID)) do
+        local m = self:FindByName(members, r.name)
+        if m and not m.online then out[#out + 1] = m.name end
+    end
+    return out
+end
+
+local askQueue = {}
+local function AskNext()
+    while askQueue[1] and not askQueue[1].held do table.remove(askQueue, 1) end
+    local e = askQueue[1]
+    if not e or (StaticPopup_Visible and StaticPopup_Visible("LIGHTCOUNCIL_ABSENT")) then return end
+    table.remove(askQueue, 1)
+    local dlg = StaticPopup_Show("LIGHTCOUNCIL_ABSENT", e.link, table.concat(e.held, ", "))
+    if dlg then dlg.data = e end
+end
+
+StaticPopupDialogs["LIGHTCOUNCIL_ABSENT"] = {
+    text = "%s\n\n%s",   -- wird beim Anzeigen gesetzt (siehe unten)
+    button1 = "", button2 = "",
+    OnAccept = function(self, entry) if entry then LC:RollAnyway(entry) end end,
+    OnHide = function() C_Timer.After(0.3, AskNext) end,
+    timeout = 0, whileDead = true, hideOnEscape = true,
+}
+LC:On("PLAYER_LOGIN", function()
+    local d = StaticPopupDialogs["LIGHTCOUNCIL_ABSENT"]
+    d.text = L["Light Council: %s\n\nReserviert, aber offline: %s\n\nWarten, bis der Spieler wieder da ist (das Item startet dann von selbst), oder trotzdem verwürfeln?"]
+    d.button1, d.button2 = L["Trotzdem würfeln"], L["Warten"]
+end)
+
+function LC:HoldForAbsent(entry, absent)
+    entry.status = "offen"
+    entry.held = absent
+    entry.heldAt = entry.heldAt or GetTime()
+    local names = table.concat(absent, ", ")
+    self:NetItem(entry, "RH", self:CleanText(names, 180))
+    self:Announce(L("%s wartet: %s hat reserviert, ist aber offline.", entry.link, names))
+    self:Print(self.T.HEX.warn .. L("%s wartet auf %s (offline).", entry.link, names) .. "|r "
+        .. L["Kommt der Spieler wieder, startet das Item von selbst – sonst auf der Loot-Seite „Trotzdem würfeln“."])
+    askQueue[#askQueue + 1] = entry
+    AskNext()
+    self:RefreshUI()
+end
+
+-- Nicht mehr warten: mit den Anwesenden auswürfeln
+function LC:RollAnyway(entry)
+    if not entry or not entry.held or entry.awarded or entry.winner then return end
+    entry.held, entry.heldAt = nil, nil
+    entry.forceRoll = true
+    self:AddLog({ itemID = entry.itemID, link = entry.link, result = L("Trotz offline Reservierer verwürfelt (%s).", self:PlayerName()) })
+    self:Enqueue(entry)
+end
+
+-- Kommt ein Spieler zurück, wartende Items automatisch starten (höchstens 30 Minuten lang)
+local heldPending
+local HELD_MAX = 1800
+local function CheckHeld()
+    heldPending = nil
+    if not LC:IsMasterLooter() then return end
+    for _, e in pairs(LC.itemState) do
+        if e.held and not e.awarded and not e.winner and not e.looted and GetTime() - (e.heldAt or 0) > HELD_MAX then
+            -- zu alt: die Leiche ist vermutlich weg – nicht mehr von selbst starten
+            e.held, e.heldAt = nil, nil
+            LC:Print(LC.T.HEX.warn .. L("%s wartet nicht mehr (älter als 30 Min.) – bei Bedarf von Hand starten.", e.link) .. "|r")
+            LC:RefreshUI()
+        elseif e.held and not e.awarded and not e.winner and not e.looted then
+            local absent = LC:AbsentReservers(e)
+            if #absent == 0 then
+                e.held = nil
+                LC:Print(LC.T.HEX.good .. L("Alle Reservierer für %s sind wieder da – das Item startet.", e.link) .. "|r")
+                LC:Enqueue(e)
+            elseif #absent ~= #e.held then
+                e.held = absent
+                LC:RefreshUI()
+            end
+        end
+    end
+end
+local function QueueCheckHeld()
+    if heldPending then return end
+    heldPending = true
+    C_Timer.After(1.5, CheckHeld)
+end
+LC:On("GROUP_ROSTER_UPDATE", QueueCheckHeld)
+LC:On("UNIT_CONNECTION", QueueCheckHeld)
+
+------------------------------------------------------------------------
+-- Fairness: ab N Items in dieser Raid-ID entscheidet der Council auch bei normalen Items
+------------------------------------------------------------------------
+-- Rückgabe: true, wenn mindestens ein anwesender Reservierer die Grenze erreicht hat
+function LC:FairnessCheck(entry)
+    local limit = tonumber(self.db.config.fairLimit) or 0
+    if limit <= 0 or #self:GetCouncilList() == 0 then return false end
+    local members = self:GetGroupMembers()
+    local over = {}
+    for _, r in ipairs(self:GetReservers(entry.itemID)) do
+        local m = self:FindByName(members, r.name)
+        if m and m.online then
+            local n = self:RaidLootCount(m.name)
+            if n >= limit then over[#over + 1] = m.name .. " (" .. n .. ")" end
+        end
+    end
+    if #over == 0 then return false end
+    entry.fairCouncil = true
+    self:Announce(L("Fairness: %s – bei %s entscheidet der Council.", table.concat(over, ", "), entry.link), false, true)
+    return true
 end
 
 ------------------------------------------------------------------------
@@ -188,6 +318,9 @@ function LC:BuildCandidates(entry)
                 c.cooldown = self:IsOnCooldown(c.name)
                 c.sitout = self:IsSittingOut(c.name, entry.itemID)
             end
+        elseif not test then
+            -- „Aussetzen“ gilt für das Item, egal ob Council-Item oder Fairness-Abstimmung (kein Loot-Cooldown)
+            c.sitout = self:IsSittingOut(c.name, entry.itemID)
         end
         c.score, c.att, c.parse, c.eng = self:GetScore(c.name)
         if test then
@@ -493,7 +626,8 @@ end
 function LC:StartNormal(entry)
     local test = entry.test
     local cand = self:BuildCandidates(entry)
-    local rollers = NamesOf(cand, function(c) return c.present end)
+    local rollers = NamesOf(cand, function(c) return c.eligible end)
+    self:NotifyExcluded(entry, self:RuleNotices(cand))
     local log = self:AddLog({
         itemID = entry.itemID, link = entry.link, test = test,
         result = (#rollers > 0) and L["Reservierer würfeln"] or L["keine Reservierung – freies Würfeln"],
@@ -998,6 +1132,13 @@ function LC:CancelAll()
     end
     for _, e in ipairs(self.queue) do e.status = "offen" end
     wipe(self.queue)
+    -- Wartende Items (Reservierer offline) starten danach nicht mehr von selbst
+    for _, e in pairs(self.itemState) do
+        if e.held then
+            e.held, e.heldAt = nil, nil
+            any = true
+        end
+    end
     self:ClearTestEntries()   -- abgebrochene Tests verschwinden aus der Liste
     if not any then self:Print(L["Nichts aktiv."]) end
     self:RefreshUI()

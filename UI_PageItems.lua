@@ -43,11 +43,8 @@ local function CreateItemRow(parent, width, marked, setMsg)
     r.sub = T:Text(r, 11, C.muted)
     r.sub:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -4)
     r.sub:SetWordWrap(false)
-    -- Favorit: kleiner Stern auf dem Icon
+    -- Favorit: Stern mit Beschriftung in der Leiste rechts (Position in FillItemRow)
     r.star = FavStar(r)
-    r.star:SetSize(16, 16)
-    r.star:SetPoint("BOTTOMRIGHT", r.icon, "BOTTOMRIGHT", 5, -5)
-    r.star:SetFrameLevel(r.icon:GetFrameLevel() + 3)
 
     if marked then
         r.remove = T:Button(r, L["Entfernen"], 96, 28, "ghost", function()
@@ -150,8 +147,10 @@ local function FillItemRow(r, itemID, chance, bossName)
     r.sub:SetText(table.concat(parts, "   ·   "))
 
     local right   -- Breite der Knöpfe rechts
+    r.star:ClearAllPoints()
     if r.remove then
         right = 8 + 96 + 8
+        r.star:SetPoint("RIGHT", r.remove, "LEFT", -16, 0)
     else
         r.council:SetChecked(LC:IsCouncilItem(itemID))
         r.council:SetShown(manage)
@@ -167,7 +166,9 @@ local function FillItemRow(r, itemID, chance, bossName)
         r.set:SetEnabled(slots ~= nil)
         r.upgrade:SetChecked(LC:IsUpgradeInMySet(itemID) ~= nil)
         r.upgrade:SetEnabled(slots ~= nil)
+        r.star:SetPoint("RIGHT", r.upgrade, "LEFT", -16, 0)
     end
+    right = right + 16 + r.star:GetWidth()
     local textW = r.width - 50 - right
     r.name:SetWidth(textW)
     r.sub:SetWidth(textW)
@@ -321,7 +322,7 @@ function U.RefreshItemsView(v)
     local manage = LC:CanManageLoot()
     local raid = raids[v.raidIdx]
     -- bossIdx 0 = Favoriten dieses Raids
-    v.bossIdx = math.min(v.bossIdx or 1, #raid.bosses)
+    v.bossIdx = (v.bossIdx == 0) and 0 or math.min(v.bossIdx or 1, math.max(1, #raid.bosses))
     local favList, favFrom = FavItems(raid)
     local fb = GetBossButton(v, 0)
     fb.index = 0

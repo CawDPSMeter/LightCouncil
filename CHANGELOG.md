@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.26.0
+Offline reservers, fairness, Upper Blackrock Spire trash loot.
+
+- **Offline reservers:** if a reserver is in the raid but offline when an item starts, the item waits. The master looter chooses “Wait” (the item starts by itself once the player is back, for up to 30 minutes) or “Roll anyway”.
+- **Items in this raid ID:** shown next to the reservers on the Loot page and in the council vote window.
+- **Fairness limit** (Settings → Rules & score, off by default): once a present reserver has that many items in this raid ID, the council decides on normal items too. Sit-outs now also apply to normal items.
+- **Upper Blackrock Spire:** trash loot added (16 items, “Trash mobs” at the end of the boss list).
+- **Getting started:** new recommended step “Start everything automatically” with an on/off button.
+- **Favorites:** the star is now a labeled “Favorite” control next to “Reserve” / “Upgrade”.
+- Fixes: the reminder and closed state now reach raiders with an older round; the council records attendance when a raid lead closes reservations, and a timer that ran out during a reload is caught up; “Cancel” also stops waiting items; raids without a loot list show “Loot coming” again; the raid-ID counter uses the instance ID (independent of game language).
+
 ## 0.25.0
 Closing reservations, favorites and class filter, “Space free” after full bags.
 

@@ -178,6 +178,8 @@ function LC:RefreshRaidFrame()
             local st, sc = "", C.muted
             if it.state == "wait" then
                 st = L["wartet"]
+            elseif it.state == "hold" then
+                st, sc = L["wartet auf Spieler"], C.warn
             elseif it.state == "council" then
                 st, sc = L["Council entscheidet …"], C.accentLt
             elseif it.state == "prep" or it.state == "roll" then

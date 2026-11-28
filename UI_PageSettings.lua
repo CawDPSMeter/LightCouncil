@@ -187,7 +187,7 @@ local function CreateSettingsPage(p)
     end
 
     -- REGELN & SCORE ---------------------------------------------------
-    local c2 = Section(p, L["Regeln & Score"], c1, 166)
+    local c2 = Section(p, L["Regeln & Score"], c1, 224)
     local fw = math.floor((CW - 32) / 4) - 20
     local step = fw + 20
     p.voteTimeout = LabeledInput(c2, L["Abstimmung (Sek.)"], fw, 16, 46)
@@ -200,6 +200,8 @@ local function CreateSettingsPage(p)
     p.wParse = LabeledInput(c2, L["Score: Parse %"], fw, 16 + step, 104)
     p.wEng = LabeledInput(c2, L["Score: Engagement %"], fw, 16 + 2 * step, 104)
     p.maxRes = LabeledInput(c2, L["Reservierungen pro Raider"], fw, 16 + 3 * step, 104)
+    p.fairLimit = LabeledInput(c2, L["Fairness-Grenze (Items)"], fw, 16, 162)
+    InputTip(p.fairLimit, L["Fairness-Grenze (Items)"], L["Hat ein anwesender Reservierer in dieser Raid-ID schon so viele Items bekommen, entscheidet bei normalen Items der Council (Eingrenzen oder Aussetzen). 0 = aus."])
     p.wSum = T:Text(c2, 12, C.muted, "RIGHT")
     p.wSum:SetPoint("TOPRIGHT", -16, -16)
 
@@ -220,6 +222,7 @@ local function CreateSettingsPage(p)
         self.wParse:SetText(tostring(cfg.weights.parse))
         self.wEng:SetText(tostring(cfg.weights.engagement))
         self.maxRes:SetText(tostring(cfg.maxReserves or 2))
+        self.fairLimit:SetText(tostring(cfg.fairLimit or 0))
         local sum = cfg.weights.attendance + cfg.weights.parse + cfg.weights.engagement
         self.wSum:SetText(L["Summe: "] .. (sum == 100 and H.good or H.warn) .. sum .. " %|r")
     end
@@ -234,10 +237,11 @@ local function CreateSettingsPage(p)
         cfg.weights.parse = Num(self.wParse, 0, 100, cfg.weights.parse or 40)
         cfg.weights.engagement = Num(self.wEng, 0, 100, cfg.weights.engagement or 20)
         cfg.maxReserves = Num(self.maxRes, 1, 5, cfg.maxReserves or 2)
+        cfg.fairLimit = Num(self.fairLimit, 0, 20, cfg.fairLimit or 0)
         if cfg.maxReserves ~= oldMax then LC:BroadcastCouncilInfo() end   -- Raider bekommen die Höchstzahl
         self:ShowRules()   -- korrigierte Werte (Grenzen) und Summe anzeigen
     end
-    for _, box in ipairs({ p.voteTimeout, p.rollTimeout, p.cooldown, p.attWeeks, p.wAtt, p.wParse, p.wEng, p.maxRes }) do
+    for _, box in ipairs({ p.voteTimeout, p.rollTimeout, p.cooldown, p.attWeeks, p.wAtt, p.wParse, p.wEng, p.maxRes, p.fairLimit }) do
         box:HookScript("OnEditFocusLost", function()
             p:SaveRules()
             p.msg:SetText(H.good .. L["Gespeichert.|r"])

@@ -82,7 +82,7 @@ local function CreateLootPage(p)
     Tip(p.btnFinish, L["Würfeln beenden"], L["Beendet die Würfelrunde sofort und sagt den Gewinner an, statt auf den Ablauf der Zeit zu warten."])
     p.btnAll = T:Button(status, L["Alle starten"], 140, 26, "primary", function()
         for _, e in ipairs(LC.lootItems) do
-            if e.status == "offen" and not e.winner and not e.awarded and not e.looted and not e.belowThreshold then LC:Enqueue(e) end
+            if e.status == "offen" and not e.winner and not e.awarded and not e.looted and not e.belowThreshold and not e.held then LC:Enqueue(e) end
         end
     end)
     p.btnAll:SetPoint("RIGHT", p.btnFinish, "LEFT", -6, 0)
@@ -203,7 +203,8 @@ local function GetLootRow(parent, i)
     end)
     r.btnAward:SetPoint("RIGHT", -8, 0)
     r.btnAction = T:Button(r, L["Council starten"], 112, 26, "primary", function()
-        if r.entry then LC:Enqueue(r.entry) end
+        if not r.entry then return end
+        if r.entry.held then LC:RollAnyway(r.entry) else LC:Enqueue(r.entry) end
     end)
     r.btnAction:SetPoint("RIGHT", r.btnAward, "LEFT", -6, 0)
 
@@ -270,7 +271,7 @@ function LC:UpdateLootStatus()
     p.btnFinish:SetEnabled(r ~= nil)
     local open = 0
     for _, e in ipairs(self.lootItems) do
-        if e.status == "offen" and not e.winner and not e.awarded and not e.looted and not e.belowThreshold then open = open + 1 end
+        if e.status == "offen" and not e.winner and not e.awarded and not e.looted and not e.belowThreshold and not e.held then open = open + 1 end
     end
     p.btnAll:SetEnabled(open > 0)
     p.btnAll:SetText(open > 1 and (L["Alle starten ("] .. open .. ")") or L["Alle starten"])
@@ -300,8 +301,12 @@ local function RefreshLoot()
             r.link:SetText(e.link)
 
             local res = e.test and e.testReservers or LC:GetReservers(e.itemID)
+            -- Reservierer mit der Zahl ihrer Items in dieser Raid-ID (Fairness)
             local names = {}
-            for _, x in ipairs(res) do names[#names + 1] = x.name end
+            for _, x in ipairs(res) do
+                local n = (not e.test) and LC:RaidLootCount(x.name) or 0
+                names[#names + 1] = x.name .. ((n > 0) and (H.muted .. " (" .. n .. ")|r") or "")
+            end
             local info = (#names > 0) and (L["Reserviert: "] .. table.concat(names, ", ")) or L["Keine Reservierung – freies Würfeln"]
             r.info:SetText(info)
 
@@ -314,6 +319,7 @@ local function RefreshLoot()
             elseif e.giveFailed and e.bagReady then st = H.warn .. L["Platz frei – erneut übergeben"] .. "|r"
             elseif e.giveFailed then st = H.bad .. "✗ " .. L["Übergabe fehlgeschlagen"] .. "|r"
             elseif e.otherCorpse then st = H.warn .. L["andere Leiche öffnen"] .. "|r"
+            elseif e.held then st = H.warn .. L("wartet auf %s", (e.held[1] or "?"):match("^(%S+)") .. ((#e.held > 1) and " …" or "")) .. "|r"
             elseif e.belowThreshold and not e.winner then st = L["unter Plündergrenze"]
             elseif e.looted then st = L["nicht mehr im Loot"]
             elseif e.winner then st = H.accentLt .. L["Gewinner|r"]
@@ -322,7 +328,10 @@ local function RefreshLoot()
             r.state:SetText(st)
 
             local canStart = not busy and not e.awarded and not e.looted and not e.otherCorpse and (e.status == "offen" or e.winner ~= nil)
-            if e.winner and not e.awarded then
+            if e.held then
+                r.btnAction:SetText(L["Trotzdem würfeln"])
+                r.btnAction.tooltip = L("Wartet auf %s (offline). Klick: nicht mehr warten und mit den Anwesenden auswürfeln.", table.concat(e.held, ", "))
+            elseif e.winner and not e.awarded then
                 r.btnAction:SetText(L["Neu starten"])
                 r.btnAction.tooltip = L["Startet Abstimmung bzw. Würfeln für dieses Item noch einmal."]
             else

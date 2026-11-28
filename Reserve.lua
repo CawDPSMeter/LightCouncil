@@ -842,8 +842,7 @@ end
 -- Empfang: YZ (Zustand) und YW (Erinnerung an mich)
 function LC:ResCloseHandle(cmd, p, sender, R, raid)
     if not TrustedCloser(sender) then return end
-    -- Nur zur bekannten Runde (eine Raidleitung ohne Council-Sitz darf die Runde nie verändern)
-    if (tonumber(p[3]) or -1) ~= (R.epoch or 0) then return end
+    -- Erinnerung: nur ein Hinweis, die Runde spielt keine Rolle
     if cmd == "YW" then
         if not self:HasReservedFor(raid) and self.ShowRaidDayReminder then
             local at = tonumber(p[4]) or 0
@@ -851,7 +850,14 @@ function LC:ResCloseHandle(cmd, p, sender, R, raid)
         end
         return
     end
+    -- Andere Runde: eine neuere nur vom Council übernehmen (eine Raidleitung ohne Council-Sitz darf
+    -- die Runde nie verändern, sonst könnte sie alle Reservierungen löschen)
+    local epoch = tonumber(p[3]) or -1
+    if epoch ~= (R.epoch or 0) then
+        if epoch > (R.epoch or 0) and self:IsTrustedCouncil(sender) then CheckEpoch(R, epoch) else return end
+    end
     local state, at = p[4], tonumber(p[5]) or 0
+    local wasClosed = R.close and R.close.state == "closed"
     if state == "open" then
         R.close = nil
     elseif state == "timer" or state == "closed" then
@@ -860,12 +866,26 @@ function LC:ResCloseHandle(cmd, p, sender, R, raid)
     else
         return
     end
+    -- Gerade geschlossen (nicht aus einem späteren Abgleich): auch der Council erfasst die Anwesenheit –
+    -- sonst fehlte sie, wenn eine Raidleitung ohne Council-Sitz schließt
+    if state == "closed" and not wasClosed and self:AmICouncil() and IsInRaid() and math.abs(GetServerTime() - at) < 600 then
+        self:RecordAttendance(true)
+    end
     self:ScheduleResClose(raid)
     Changed()
 end
 
 LC:On("PLAYER_LOGIN", function(self)
     C_Timer.After(5, function()
-        for raid in pairs(LC.db.reserves or {}) do LC:ScheduleResClose(raid) end
+        for raid, R in pairs(LC.db.reserves or {}) do
+            local c = R.close
+            -- Eigener Zeitplan ist abgelaufen, während ich offline war bzw. neu geladen habe: jetzt nachholen
+            if c and c.state == "timer" and c.by and LC:IsMe(c.by) and c.at and GetServerTime() >= c.at
+                and GetServerTime() - c.at < 1800 and IsInRaid() then
+                LC:CloseReservesNow(raid)
+            else
+                LC:ScheduleResClose(raid)
+            end
+        end
     end)
 end)

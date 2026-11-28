@@ -20,7 +20,17 @@ local STEPS = {
     { key = "softres", title = "Reservierungen sammeln", tab = "reserves", button = "Übersicht", desc = "Raider reservieren selbst im Addon; der Council bestätigt automatisch." },
     { key = "items", title = "Council-Items markieren", tab = "items", button = "Items öffnen", desc = "Unter Gear-Sets → Items per Häkchen „Council“ – nur bei diesen Items entscheidet der Council." },
     { key = "ml", title = "Master Loot aktivieren", desc = "Voraussetzung, damit das Addon den Loot sieht und vergeben kann." },
+    -- Empfehlung (kein Pflichtschritt): auch normale Items beim Öffnen der Leiche gleich auswürfeln
+    { key = "auto", title = "Alles automatisch starten (empfohlen)", toggle = true, button = "Einschalten" },
 }
+
+-- Zustand der Empfehlung „Alles automatisch starten“
+local function AutoStatus()
+    if LC.db.config.autoRollAll then
+        return { ok = true, text = L["An: Beim Öffnen der Leiche wird alles sofort ausgewürfelt – Council-Items gehen an den Council."] }
+    end
+    return { ok = false, text = L["Aus: Normale Items startest du auf der Loot-Seite mit „Alle starten“. Einschalten, damit alles von selbst läuft."] }
+end
 
 local function CreateStartPage(p)
     -- Begrüßung mit Logo
@@ -78,7 +88,14 @@ local function CreateStartPage(p)
         row.stripe:SetPoint("TOPLEFT", 1, -1)
         row.stripe:SetPoint("BOTTOMLEFT", 1, 1)
         row.stripe:SetWidth(3)
-        if step.tab then
+        if step.toggle then
+            row.btn = T:Button(row, L[step.button], 130, 32, "primary", function()
+                LC.db.config.autoRollAll = not LC.db.config.autoRollAll
+                LC:RefreshUI()
+            end)
+            row.btn:SetPoint("RIGHT", -14, 0)
+            Tip(row.btn, L["Alles automatisch starten"], L["Auch normale Items (keine Council-Items) beim Öffnen der Leiche gleich auswürfeln. Dieselbe Einstellung wie auf der Loot-Seite."])
+        elseif step.tab then
             row.btn = T:Button(row, L[step.button], 130, 32, "default", function() SelectTab(step.tab) end)
             row.btn:SetPoint("RIGHT", -14, 0)
         end
@@ -103,9 +120,13 @@ local function RefreshStart()
     local p = pages.start
     local st = SetupStatus()
     for _, row in ipairs(p.steps) do
-        local s = st[row.step.key]
+        local s = (row.step.key == "auto") and AutoStatus() or st[row.step.key]
         row.sub:SetText(s.text)
-        if s.ok then
+        if row.step.toggle then
+            row.num:SetText(s.ok and (H.good .. "OK|r") or (H.warn .. "!|r"))
+            row.stripe:SetVertexColor(unpack(s.ok and C.good or C.warn))
+            row.btn:SetText(s.ok and L["Ausschalten"] or L["Einschalten"])
+        elseif s.ok then
             row.num:SetText(H.good .. "OK|r")
             row.stripe:SetVertexColor(unpack(C.good))
             if row.btn then row.btn:SetText(row.step.button == "Eintragen" and L["Ändern"] or L["Bearbeiten"]) end

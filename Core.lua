@@ -21,6 +21,7 @@ local DEFAULTS = {
         voteTimeout = 30,       -- Sekunden für die Council-Abstimmung
         rollTimeout = 20,       -- Sekunden zum Würfeln
         cooldownWeeks = 2,      -- Loot-Cooldown nach Gewinn eines Council-Items
+        fairLimit = 0,          -- ab so vielen Items in dieser Raid-ID entscheidet der Council auch bei normalen Items (0 = aus)
         attendanceWeeks = 8,    -- Zeitraum für die Anwesenheit
         weights = { attendance = 40, parse = 40, engagement = 20 },
         autoStart = true,       -- Council automatisch starten, wenn ein Council-Item im Loot liegt
