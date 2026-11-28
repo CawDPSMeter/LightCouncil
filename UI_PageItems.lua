@@ -18,12 +18,12 @@ local ITEM_ROW, BOSS_W = U.ITEM_ROW, U.BOSS_W
 local browseRows, markedRows, bossButtons = {}, {}, {}
 
 -- Darf ich Council-Items markieren?
--- Council, Raidleitung, Plündermeister – und wer selbst eine Council-Liste eingetragen hat (Leitung beim Einrichten).
+-- Council, Raidleitung, Plündermeister – und wer den Council einrichtet (Gildeninfo bearbeiten bzw. eigene Liste ohne Gildeninfo).
 -- Council-Items gelten nur beim Plündermeister; für alle anderen sind sie nur eine Anzeige.
 function LC:CanManageLoot()
     if self:AmICouncil() or self:IsMasterLooter() then return true end
     if UnitIsGroupLeader and UnitIsGroupLeader("player") then return true end
-    return #self:GetCouncilList() > 0
+    return self:HasOwnCouncilSetup() or (self:GuildCouncil() ~= nil and self:CanEditGuildCouncil())
 end
 
 ------------------------------------------------------------------------

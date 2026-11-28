@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.27.0
+Council from the guild info.
+
+- **Council in the guild info:** add a line `[LC] Council: Firstname Lastname, …` to the guild information. Every member's addon reads it automatically, and only ranks allowed to edit the guild info can change it – nobody can make themselves council anymore. Whoever may edit the guild info can also save the council under Settings; the addon then writes exactly this line and leaves the rest of the text alone.
+- Without the line (or outside a guild) everything works as before; a first council list is now only accepted from the raid leader, the guild master or officers.
+- README: new overview of what runs automatically and what you do by hand.
+
 ## 0.26.1
 - Loot page: the “Award automatically” / “Start everything automatically” checkboxes stay inside the window in every language.
 - Raid days can be set while setting up (before a council is known); afterwards only council members set them, as before.

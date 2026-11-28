@@ -92,7 +92,7 @@ end
 ------------------------------------------------------------------------
 -- Den Score brauchen nur Council und Leitung (wer selbst eine Council-Liste eingetragen hat).
 local function NeedsAttendance()
-    return LC:AmICouncil() or #LC:GetCouncilList() > 0
+    return LC:AmICouncil() or LC:HasOwnCouncilSetup()
 end
 
 local function BuildRequest()

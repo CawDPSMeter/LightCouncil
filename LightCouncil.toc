@@ -6,7 +6,7 @@
 ## Notes-frFR: Light Council : réservations dans l'addon et distribution du butin avec un conseil de 3 ou 5 membres pour les objets importants. Les raideurs lancent d'un clic. /lc
 ## Notes-esES: Light Council: reservas en el addon y reparto de botín con un consejo de 3 o 5 miembros para objetos importantes. Los raiders tiran con un clic. /lc
 ## Notes-ruRU: Light Council: резервы в аддоне и распределение добычи советом из 3 или 5 человек для важных предметов. Рейдеры бросают одной кнопкой. /lc
-## Version: 0.26.1
+## Version: 0.27.0
 ## Author: Gilde
 ## X-Curse-Project-ID: 1827961
 ## SavedVariables: LightCouncilDB, LightCouncilExport

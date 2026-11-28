@@ -35,7 +35,10 @@ local function Section(parent, title, anchor, height, desc)
     if desc then
         local d = T:Text(card, 11, C.muted)
         d:SetPoint("LEFT", t, "RIGHT", 10, -1)
+        d:SetPoint("RIGHT", card, "RIGHT", -16, 0)
+        d:SetWordWrap(false)
         d:SetText(desc)
+        card.desc = d
     end
     return card
 end
@@ -166,7 +169,37 @@ local function CreateSettingsPage(p)
         target:SetPoint("LEFT", field, "RIGHT", 6, 0)
         Tip(target, L["Ziel eintragen"], L["Spieler anvisieren und klicken – trägt ihn mit Vor- und Nachnamen in dieses Feld ein."])
         p.councilFields[i] = field
+        p.councilTargets = p.councilTargets or {}
+        p.councilTargets[i] = target
         if i > 3 then p.councilExtra[#p.councilExtra + 1] = { label, field, target } end
+    end
+
+    -- Woher kommt der Council? Gildeninfo (nur mit Recht „Gildeninfo bearbeiten“ änderbar) oder eigene Liste
+    -- steht in der Untertitel-Zeile des Abschnitts (statt „Ein Feld pro Person …“, das sagen schon die Felder)
+    p.councilSrc = c1.desc
+    -- "guild" = ich schreibe in die Gildeninfo, "locked" = Gildeninfo gilt, ich darf nicht ändern, "own" = eigene Liste
+    function p:CouncilMode()
+        if LC:CanEditGuildCouncil() then return "guild" end
+        if LC:GuildCouncil() then return "locked" end
+        return "own"
+    end
+    function p:UpdateCouncilSource()
+        local mode = self:CouncilMode()
+        local editable = (mode ~= "locked")
+        for i, field in ipairs(self.councilFields) do
+            if field.SetEnabled then field:SetEnabled(editable) end
+            field:SetAlpha(editable and 1 or 0.6)
+            self.councilTargets[i]:SetEnabled(editable)
+        end
+        for _, b in pairs(self.sizeButtons) do b:SetEnabled(editable) end
+        if mode == "guild" then
+            self.councilSrc:SetText(L["Wird in die Gildeninfo geschrieben und gilt für die ganze Gilde."])
+        elseif mode == "locked" then
+            self.councilSrc:SetText(H.warn .. L["Aus der Gildeninfo – ändern kann nur, wer die Gildeninfo bearbeiten darf."] .. "|r")
+        else
+            self.councilSrc:SetText(IsInGuild() and L["Noch keine Council-Zeile in der Gildeninfo – eintragen kann sie, wer die Gildeninfo bearbeiten darf."]
+                or L["Ohne Gilde: Die Liste gilt nur für dich. Raider übernehmen den Council von der Raidleitung."])
+        end
     end
 
     function p:UpdateCouncilSize()
@@ -335,12 +368,24 @@ local function CreateSettingsPage(p)
             local n = strtrim(field:GetText() or ""):gsub("%s+", " ")
             if i <= p.size and n ~= "" then council[#council + 1] = n end
         end
-        cfg.councilSize = p.size
-        cfg.council = council
         p:SaveRules()
+        local mode = p:CouncilMode()
+        local guildMsg
+        if mode == "guild" then
+            -- In die Gildeninfo schreiben: gilt dann für alle Gildenmitglieder
+            local ok, err = LC:WriteGuildCouncil(council)
+            if ok then
+                cfg.councilSize, cfg.council = p.size, council
+                guildMsg = H.good .. L["In die Gildeninfo geschrieben – gilt für alle in der Gilde.|r"]
+            else
+                guildMsg = H.bad .. (err or "?") .. "|r"
+            end
+        elseif mode == "own" then
+            cfg.councilSize, cfg.council = p.size, council
+        end
         LC:BroadcastCouncilInfo()   -- Raider bekommen Council-Liste und Höchstzahl
-        local msg = H.good .. L["Gespeichert.|r"]
-        if #council ~= p.size then msg = msg .. "  " .. H.warn .. L["Bitte alle "] .. p.size .. L[" Council-Felder ausfüllen.|r"] end
+        local msg = guildMsg or (H.good .. L["Gespeichert.|r"])
+        if mode ~= "locked" and #council ~= p.size then msg = msg .. "  " .. H.warn .. L["Bitte alle "] .. p.size .. L[" Council-Felder ausfüllen.|r"] end
         p.msg:SetText(msg)
         p.needsLoad = true
         LC:RefreshUI()
@@ -355,11 +400,13 @@ local function RefreshSettings()
     if not p.needsLoad then return end
     p.needsLoad = false
     local cfg = LC.db.config
+    local list = LC:GetCouncilList()
     for i, field in ipairs(p.councilFields) do
-        field:SetText(cfg.council[i] or "")
+        field:SetText(list[i] or cfg.council[i] or "")
     end
     p.size = LC:GetCouncilSize()
     p:UpdateCouncilSize()
+    p:UpdateCouncilSource()
     p:ShowRules()
     p.autoStart:SetChecked(cfg.autoStart)
     p.raidWarning:SetChecked(cfg.raidWarning)

@@ -67,7 +67,8 @@ local function SetupStatus()
     local list = LC:GetCouncilList()
     nCouncil = #list
     s.council = { ok = nCouncil == size, text = (nCouncil == 0) and L["Noch niemand eingetragen"]
-        or (nCouncil .. L[" von "] .. size .. L[" eingetragen: "] .. table.concat(list, ", ")) }
+        or (nCouncil .. L[" von "] .. size .. L[" eingetragen: "] .. table.concat(list, ", ")
+            .. (LC:GuildCouncil() and ("  " .. L["(aus der Gildeninfo)"]) or "")) }
     -- Reservierungen im Addon: wie viele Spieler haben (bestätigt) reserviert?
     local players, pending = 0, 0
     for _, R in pairs(db.reserves or {}) do

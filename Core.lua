@@ -364,12 +364,19 @@ function LC:IsGuildMember(name)
 end
 
 function LC:GetCouncilSize()
+    local g = self:GuildCouncil()
+    if g then return (#g > 3) and 5 or 3 end
     return (self.db.config.councilSize == 5) and 5 or 3
 end
 
--- Aktive Council-Mitglieder (höchstens so viele wie die gewählte Größe)
+-- Aktive Council-Mitglieder: laut Gildeninfo, sonst eigene Einstellung (höchstens so viele wie die gewählte Größe)
 function LC:GetCouncilList()
     local out = {}
+    local g = self:GuildCouncil()
+    if g then
+        for i, n in ipairs(g) do out[i] = n end
+        return out
+    end
     for i, n in ipairs(self.db.config.council) do
         if i > self:GetCouncilSize() then break end
         out[#out + 1] = n
@@ -593,3 +600,100 @@ SlashCmdList["LIGHTCOUNCIL"] = function(input)
         ShowHelp()
     end
 end
+
+------------------------------------------------------------------------
+-- Council aus der Gildeninfo: eine Zeile „[LC] Council: Vorname Nachname, Vorname Nachname, …“
+-- Den Gildeninfo-Text dürfen nur Ränge mit dem Recht „Gildeninfo bearbeiten“ ändern – so kann sich
+-- niemand selbst zum Council machen. Ohne diese Zeile (oder außerhalb einer Gilde) gilt wie bisher
+-- die eigene Einstellung bzw. die vom Council übermittelte Liste.
+------------------------------------------------------------------------
+local GUILD_TAG = "[LC] Council:"
+local TAG_PATTERN = "^%s*%[[Ll][Cc]%]%s*[Cc][Oo][Uu][Nn][Cc][Ii][Ll]%s*:"
+local guildCouncil, guildCouncilLoaded   -- Liste aus der Gildeninfo (oder nil)
+
+local function GuildInfoLines(text)
+    local lines = {}
+    for line in ((text or ""):gsub("\r", "") .. "\n"):gmatch("([^\n]*)\n") do lines[#lines + 1] = line end
+    return lines
+end
+
+local function ParseGuildCouncil(text)
+    for _, line in ipairs(GuildInfoLines(text)) do
+        if line:match(TAG_PATTERN) then
+            local out = {}
+            for n in line:gsub(TAG_PATTERN, ""):gmatch("[^,;]+") do
+                n = strtrim(n):gsub("%s+", " ")
+                if n ~= "" and #n <= 40 and #out < 5 then out[#out + 1] = n end
+            end
+            return (#out > 0) and out or nil
+        end
+    end
+end
+
+-- Gildeninfo neu einlesen (beim Einloggen und bei jeder Änderung der Gildenliste)
+function LC:UpdateGuildCouncil()
+    local text = IsInGuild() and GetGuildInfoText and GetGuildInfoText() or nil
+    -- Leerer Text direkt nach dem Einloggen: Gildendaten sind evtl. noch nicht geladen – alten Stand behalten
+    if IsInGuild() and (text == nil or text == "") and not guildCouncilLoaded then return end
+    local list = ParseGuildCouncil(text)
+    local old = guildCouncil and table.concat(guildCouncil, ", ") or ""
+    local new = list and table.concat(list, ", ") or ""
+    guildCouncil = list
+    if new ~= old then
+        -- Einstellungen beim nächsten Öffnen mit der neuen Liste füllen
+        if self.UI and self.UI.pages and self.UI.pages.settings then self.UI.pages.settings.needsLoad = true end
+        if guildCouncilLoaded then
+            self:Print(list and L("Council laut Gildeninfo: %s", new) or L["Die Council-Zeile wurde aus der Gildeninfo entfernt."])
+        end
+        if self.RefreshUI then self:RefreshUI() end
+    end
+    guildCouncilLoaded = true
+end
+
+-- Council laut Gildeninfo (Liste) oder nil
+function LC:GuildCouncil() return guildCouncil end
+
+-- Darf ich die Council-Zeile der Gildeninfo ändern?
+function LC:CanEditGuildCouncil()
+    return IsInGuild() and CanEditGuildInfo ~= nil and CanEditGuildInfo() and SetGuildInfoText ~= nil and true or false
+end
+
+-- Council-Zeile in die Gildeninfo schreiben: ersetzt eine vorhandene Zeile, der übrige Text bleibt.
+-- Leere Liste = Zeile entfernen.
+function LC:WriteGuildCouncil(list)
+    if not self:CanEditGuildCouncil() then return false, L["Du darfst die Gildeninfo nicht bearbeiten."] end
+    local lines, out, done = GuildInfoLines(GetGuildInfoText and GetGuildInfoText() or ""), {}, false
+    local newLine = (#list > 0) and (GUILD_TAG .. " " .. table.concat(list, ", ")) or nil
+    for _, line in ipairs(lines) do
+        if line:match(TAG_PATTERN) then
+            if newLine and not done then out[#out + 1] = newLine end
+            done = true
+        else
+            out[#out + 1] = line
+        end
+    end
+    while #out > 0 and out[#out] == "" do table.remove(out) end
+    if newLine and not done then out[#out + 1] = newLine end
+    local text = table.concat(out, "\n")
+    if #text > 500 then return false, L["Die Gildeninfo ist zu lang für die Council-Zeile (höchstens 500 Zeichen)."] end
+    SetGuildInfoText(text)
+    guildCouncil = (#list > 0) and list or nil
+    guildCouncilLoaded = true
+    return true
+end
+
+-- Habe ich den Council selbst eingerichtet (nur ohne Council-Zeile in der Gildeninfo)?
+function LC:HasOwnCouncilSetup()
+    return guildCouncil == nil and #self.db.config.council > 0
+end
+
+LC:On("GUILD_ROSTER_UPDATE", function(self) self:UpdateGuildCouncil() end)
+LC:On("PLAYER_GUILD_UPDATE", function(self) self:UpdateGuildCouncil() end)
+LC:On("PLAYER_LOGIN", function(self)
+    C_Timer.After(2, function()
+        if IsInGuild() then
+            if C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() elseif GuildRoster then GuildRoster() end
+        end
+        LC:UpdateGuildCouncil()
+    end)
+end)

@@ -116,26 +116,6 @@ function LC:IsTrustedFirstSource(sender)
     return false
 end
 
--- Alternative für Gilden, in denen der Council nicht aus Offizieren besteht:
--- Zwei verschiedene Council-Mitglieder, die selbst auf der Liste stehen, schicken dieselbe Liste.
-local firstSeen = {}   -- [Liste] = { [Absender] = true }
-function LC:FirstListConfirmed(list, sender)
-    local inList = false
-    for _, n in ipairs(list) do
-        if self:SameName(n, sender) then inList = true break end
-    end
-    if not inList then return false end
-    local keys = {}
-    for i, n in ipairs(list) do keys[i] = self:NameKey(n) or "" end
-    table.sort(keys)
-    local sig = table.concat(keys, ";")
-    firstSeen[sig] = firstSeen[sig] or {}
-    firstSeen[sig][self:NameKey(sender)] = true
-    local n = 0
-    for _ in pairs(firstSeen[sig]) do n = n + 1 end
-    return n >= 2
-end
-
 -- Gespeicherte Council-Liste vergessen und neu vom Council anfragen (/lc councilreset)
 function LC:ResetKnownCouncil()
     self.db.knownCouncil = {}
@@ -393,7 +373,7 @@ function LC:ResHandle(cmd, p, sender)
         -- Erste Liste nur von Raidleitung/Gildenleitung, danach nur Änderungen vom bekannten Council
         local trusted
         if #self:GetTrustedCouncil() == 0 then
-            trusted = self:IsTrustedFirstSource(sender) or self:FirstListConfirmed(list, sender)
+            trusted = self:IsTrustedFirstSource(sender)
             if not trusted and C_GuildInfo and C_GuildInfo.GuildRoster then C_GuildInfo.GuildRoster() end
         else
             trusted = self:IsTrustedCouncil(sender)
@@ -641,7 +621,7 @@ end
 
 -- Darf aus dem Gear-Set reserviert werden? (Council-Einstellung, an Raider übermittelt)
 function LC:SetReserveEnabled()
-    if self:AmICouncil() or #self:GetCouncilList() > 0 then return self.db.config.setReserve == true end
+    if self:AmICouncil() or self:HasOwnCouncilSetup() then return self.db.config.setReserve == true end
     return self.db.knownSetReserve == true
 end
 
