@@ -901,4 +901,8 @@ LC:RegisterLocale("enUS", {
     ["Gehandelt ✓"] = "Traded ✓",
     ["Handel das Item an %s – das Addon erkennt den Handel und verbucht ihn. Klick nur, falls das nicht geklappt hat: verbucht es von Hand."] = "Trade the item to %s – the addon detects the trade and records it. Only click if that did not work: records it by hand.",
     ["Das Item liegt in deinen Taschen. Gewürfelt wird, sobald der Reservierer zurück ist (oder „Trotzdem würfeln“)."] = "The item is in your bags. The roll happens once the reserver is back (or “Roll anyway”).",
+    ["Optionen gelten nur für dich. Council und Regeln legt der Council fest."] = "Options apply only to you. Council and rules are set by the council.",
+    ["Council speichern"] = "Save council",
+    ["Speichert die Council-Namen (mit Recht auf die Gildeninfo: in die Gildeninfo). Regeln und Optionen werden sofort beim Ändern gespeichert."] = "Saves the council names (with guild info rights: into the guild info). Rules and options are saved as soon as you change them.",
+    ["Legt der Council fest – hier nur zur Ansicht."] = "Set by the council – shown here for reference only.",
 })

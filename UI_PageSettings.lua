@@ -66,7 +66,7 @@ local function InputTip(e, title, text)
 end
 
 local function CreateSettingsPage(p)
-    local y = PageHeader(p, L["Einstellungen"], L["Leitung und Council sollten dieselben Council-Namen eintragen."])
+    local y = PageHeader(p, L["Einstellungen"], L["Optionen gelten nur für dich. Council und Regeln legt der Council fest."])
 
     -- SPRACHE: Knopf oben rechts, Klick öffnet die Auswahl --------------
     local function LangLabel(key)
@@ -186,6 +186,18 @@ local function CreateSettingsPage(p)
     function p:UpdateCouncilSource()
         local mode = self:CouncilMode()
         local editable = (mode ~= "locked")
+        if self.saveBtn then self.saveBtn:SetShown(editable) end
+        -- Regeln: nur für Council und Leitung (bei allen anderen hätten sie keine Wirkung)
+        local lead = LC:AmICouncil() or LC:CanEditGuildCouncil() or LC:HasOwnCouncilSetup() or #LC:GetTrustedCouncil() == 0
+        if self.rulesBoxes then
+            for _, box in ipairs(self.rulesBoxes) do
+                if box.SetEnabled then box:SetEnabled(lead) end
+                box:SetAlpha(lead and 1 or 0.6)
+            end
+        end
+        if self.rulesCard and self.rulesCard.desc then
+            self.rulesCard.desc:SetText(lead and "" or (H.muted .. L["Legt der Council fest – hier nur zur Ansicht."] .. "|r"))
+        end
         for i, field in ipairs(self.councilFields) do
             if field.SetEnabled then field:SetEnabled(editable) end
             field:SetAlpha(editable and 1 or 0.6)
@@ -220,7 +232,8 @@ local function CreateSettingsPage(p)
     end
 
     -- REGELN & SCORE ---------------------------------------------------
-    local c2 = Section(p, L["Regeln & Score"], c1, 224)
+    local c2 = Section(p, L["Regeln & Score"], c1, 224, " ")
+    p.rulesCard = c2
     local fw = math.floor((CW - 32) / 4) - 20
     local step = fw + 20
     p.voteTimeout = LabeledInput(c2, L["Abstimmung (Sek.)"], fw, 16, 46)
@@ -274,7 +287,8 @@ local function CreateSettingsPage(p)
         if cfg.maxReserves ~= oldMax then LC:BroadcastCouncilInfo() end   -- Raider bekommen die Höchstzahl
         self:ShowRules()   -- korrigierte Werte (Grenzen) und Summe anzeigen
     end
-    for _, box in ipairs({ p.voteTimeout, p.rollTimeout, p.cooldown, p.attWeeks, p.wAtt, p.wParse, p.wEng, p.maxRes, p.fairLimit }) do
+    p.rulesBoxes = { p.voteTimeout, p.rollTimeout, p.cooldown, p.attWeeks, p.wAtt, p.wParse, p.wEng, p.maxRes, p.fairLimit }
+    for _, box in ipairs(p.rulesBoxes) do
         box:HookScript("OnEditFocusLost", function()
             p:SaveRules()
             p.msg:SetText(H.good .. L["Gespeichert.|r"])
@@ -356,12 +370,13 @@ local function CreateSettingsPage(p)
     p.festiveBtn:SetPoint("LEFT", p.scaleBtn, "RIGHT", 10, 0)
     Tip(p.festiveBtn, L["Winterdeko"], L["Schneeflocken und eine bunte Lichterkette am Fensterrand. Auto: vom 20. November bis zum 6. Januar."])
 
-    p.msg = T:Text(p, 12, C.muted)
-    p.msg:SetPoint("BOTTOMLEFT", 156, 10)
-    p.msg:SetWidth(CW - 156)
+    p.msg = T:Text(p, 12, C.muted, "RIGHT")
+    p.msg:SetPoint("RIGHT", p.langBtn, "LEFT", -12, 0)
+    p.msg:SetWidth(CW - 420)
     p.msg:SetWordWrap(false)
 
-    local save = T:Button(p, L["Speichern"], 140, 34, "primary", function()
+    -- Speichern gilt nur für den Council (Regeln und Optionen werden sofort gespeichert)
+    local save = T:Button(p.councilCard, L["Speichern"], 130, 32, "primary", function()
         local cfg = LC.db.config
         local council = {}
         for i, field in ipairs(p.councilFields) do
@@ -390,7 +405,10 @@ local function CreateSettingsPage(p)
         p.needsLoad = true
         LC:RefreshUI()
     end)
-    save:SetPoint("BOTTOMLEFT", 0, 0)
+    save:SetPoint("TOPRIGHT", -16, -45)
+    Tip(save, L["Council speichern"], L["Speichert die Council-Namen (mit Recht auf die Gildeninfo: in die Gildeninfo). Regeln und Optionen werden sofort beim Ändern gespeichert."])
+    p.saveBtn = save
+    p:UpdateCouncilSource()
 end
 
 local function RefreshSettings()

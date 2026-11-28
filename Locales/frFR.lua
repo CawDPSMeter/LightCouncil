@@ -901,4 +901,8 @@ LC:RegisterLocale("frFR", {
     ["Gehandelt ✓"] = "Échangé ✓",
     ["Handel das Item an %s – das Addon erkennt den Handel und verbucht ihn. Klick nur, falls das nicht geklappt hat: verbucht es von Hand."] = "Échange l'objet à %s – l'addon détecte l'échange et l'enregistre. Clique seulement si cela n'a pas marché : enregistre à la main.",
     ["Das Item liegt in deinen Taschen. Gewürfelt wird, sobald der Reservierer zurück ist (oder „Trotzdem würfeln“)."] = "L'objet est dans tes sacs. Le tirage a lieu au retour du réservant (ou « Tirer quand même »).",
+    ["Optionen gelten nur für dich. Council und Regeln legt der Council fest."] = "Les options ne valent que pour toi. Le conseil et les règles sont fixés par le conseil.",
+    ["Council speichern"] = "Enregistrer le conseil",
+    ["Speichert die Council-Namen (mit Recht auf die Gildeninfo: in die Gildeninfo). Regeln und Optionen werden sofort beim Ändern gespeichert."] = "Enregistre les noms du conseil (avec le droit sur les infos de guilde : dans les infos de guilde). Règles et options sont enregistrées dès qu'on les modifie.",
+    ["Legt der Council fest – hier nur zur Ansicht."] = "Fixé par le conseil – affiché ici pour information.",
 })

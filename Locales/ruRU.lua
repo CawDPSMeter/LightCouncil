@@ -901,4 +901,8 @@ LC:RegisterLocale("ruRU", {
     ["Gehandelt ✓"] = "Передано ✓",
     ["Handel das Item an %s – das Addon erkennt den Handel und verbucht ihn. Klick nur, falls das nicht geklappt hat: verbucht es von Hand."] = "Передайте предмет игроку %s обменом – аддон распознает обмен и учтёт его. Нажимайте, только если это не сработало: учтёт вручную.",
     ["Das Item liegt in deinen Taschen. Gewürfelt wird, sobald der Reservierer zurück ist (oder „Trotzdem würfeln“)."] = "Предмет в ваших сумках. Розыгрыш начнётся, когда вернётся игрок с резервом (или «Всё равно разыграть»).",
+    ["Optionen gelten nur für dich. Council und Regeln legt der Council fest."] = "Параметры действуют только для вас. Совет и правила задаёт совет.",
+    ["Council speichern"] = "Сохранить совет",
+    ["Speichert die Council-Namen (mit Recht auf die Gildeninfo: in die Gildeninfo). Regeln und Optionen werden sofort beim Ändern gespeichert."] = "Сохраняет имена совета (при праве на информацию гильдии – в неё). Правила и параметры сохраняются сразу при изменении.",
+    ["Legt der Council fest – hier nur zur Ansicht."] = "Задаёт совет – здесь только для просмотра.",
 })
