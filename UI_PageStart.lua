@@ -27,9 +27,9 @@ local STEPS = {
 -- Zustand der Empfehlung „Alles automatisch starten“
 local function AutoStatus()
     if LC.db.config.autoRollAll then
-        return { ok = true, text = L["An: Beim Öffnen der Leiche wird alles sofort ausgewürfelt – Council-Items gehen an den Council."] }
+        return { ok = true, text = L["An: Beim Öffnen der Leiche wird alles sofort ausgewürfelt."] }
     end
-    return { ok = false, text = L["Aus: Normale Items startest du auf der Loot-Seite mit „Alle starten“. Einschalten, damit alles von selbst läuft."] }
+    return { ok = false, text = L["Aus: Normale Items startest du mit „Alle starten“ auf der Loot-Seite."] }
 end
 
 local function CreateStartPage(p)

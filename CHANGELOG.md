@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.28.2
+- Getting started: the “Start everything automatically” text is shorter and no longer cut off.
+
 ## 0.28.1
 - Settings: the Save button now sits in the council section (it was covered by the options with 5 council members) and only appears when you may change the council.
 - Settings: rules & score are shown read-only for raiders (they only take effect for the council and the master looter); options are personal and saved right away.
