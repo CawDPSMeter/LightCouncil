@@ -85,6 +85,12 @@ local function GetRow(i)
     r.btnOS.tooltipTitle = L["Off Spec"]
     r.btnOS.tooltip = L["Würfelt /roll 99. Off Spec zählt nur, wenn niemand für Main Spec würfelt."]
     r.btnOS:Hide()
+    -- Gewinner, dessen Item nicht übergeben werden konnte: wieder Platz melden
+    r.btnBag = T:Button(r, L["Platz frei"], 96, 28, "primary", function() LC:RaidBagReady(r.idx) end)
+    r.btnBag:SetPoint("TOPRIGHT", -8, -8)
+    r.btnBag.tooltipTitle = L["Platz frei"]
+    r.btnBag.tooltip = L["Meldet dem Plündermeister, dass du wieder Platz in den Taschen hast. Das Item wird dann erneut übergeben."]
+    r.btnBag:Hide()
     r.state = T:Text(r, 11, C.muted, "RIGHT")
     r.state:SetPoint("TOPRIGHT", -10, -9)
     r.state:SetWidth(STATE_W)
@@ -165,7 +171,10 @@ function LC:RefreshRaidFrame()
             r.rolls:SetWidth(W - 2 * PAD - ((canRoll and free) and 160 or 60))   -- nicht unter den Off-Spec-Knopf laufen
             r.btn.tooltipTitle = free and L["Main Spec"] or L["Würfeln"]
             r.btn.tooltip = free and L["Würfelt /roll 100 für deine Hauptspezialisierung. Main Spec geht vor Off Spec."] or nil
-            r.state:SetShown(not canRoll)
+            local bagBtn = not canRoll and it.state == "done" and it.giveFailed and not it.giveFailedHard
+                and it.winner and self:IsMe(it.winner) and not it.bagSent
+            r.btnBag:SetShown(bagBtn and true or false)
+            r.state:SetShown(not canRoll and not bagBtn)
             local st, sc = "", C.muted
             if it.state == "wait" then
                 st = L["wartet"]
@@ -182,7 +191,8 @@ function LC:RefreshRaidFrame()
             elseif it.state == "done" then
                 -- Der Name steht unten bei "Gewinner: …" – hier nur der Zustand, damit nichts abgeschnitten wird
                 if it.giveFailed and it.winner and self:IsMe(it.winner) then
-                    st, sc = L["Taschen prüfen!"], C.bad
+                    if it.bagSent then st, sc = L["wird erneut übergeben …"], C.warn
+                    else st, sc = L["Taschen prüfen!"], C.bad end
                 elseif it.winner and self:IsMe(it.winner) then
                     st, sc = L["Gewonnen!"], C.good
                 else

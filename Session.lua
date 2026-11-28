@@ -747,7 +747,7 @@ function LC:BeginAward(entry, slot, winner)
     local p = { winner = winner, slot = slot, link = entry.link, at = GetTime() }
     entry.pending = p
     self.pendingAwards[entry] = true
-    entry.giveFailed = nil
+    entry.giveFailed, entry.bagReady = nil, nil
     p.timer = C_Timer.NewTimer(CONFIRM_TIME, function()
         if entry.pending == p then LC:FailAward(entry, nil) end
     end)
@@ -768,14 +768,45 @@ function LC:FailAward(entry, reason, hard)
     local why = reason or L["Taschen voll, zu weit weg oder Lootfenster zu?"]
     self:Print(self.T.HEX.warn .. L("Vergabe von %s an %s hat nicht geklappt (%s). Bitte erneut vergeben.", entry.link, p.winner, why) .. "|r")
     -- Gewinner informieren: mit Addon per Nachricht (Hinweis auf dem Bildschirm), sonst per Flüstern
-    self:NetItem(entry, "RF", self:CleanText(p.winner, 40), self:CleanText(why, 80))
+    self:NetItem(entry, "RF", self:CleanText(p.winner, 40), self:CleanText(why, 80), hard and "1" or "")
     local key = self:NameKey(p.winner)
     if not entry.test and key and not (self.versions and self.versions[key]) and not self:IsMe(p.winner) then
         local m = self:FindByName(self:GetGroupMembers(), p.winner)
         local target = (type(m) == "table" and m.fullName) or p.winner
-        pcall(SendChatMessage, L("[Light Council] Du hast %s gewonnen, es konnte aber nicht übergeben werden (%s). Bitte Platz in den Taschen schaffen und dem Plündermeister Bescheid geben.", entry.link, why), "WHISPER", nil, target)
+        pcall(SendChatMessage, (hard and L("[Light Council] Du hast %s gewonnen, es konnte aber nicht übergeben werden (%s). Bitte mit dem Plündermeister klären.", entry.link, why)
+            or L("[Light Council] Du hast %s gewonnen, es konnte aber nicht übergeben werden (%s). Mach Platz in den Taschen und antworte mir mit „!lc ok“.", entry.link, why)), "WHISPER", nil, target)
     end
     self:RefreshUI()
+end
+
+-- Gewinner meldet „wieder Platz“: Knopf „Platz frei“ (lid, idx) oder Flüstern „!lc ok“ (ohne lid).
+-- Liegt das Item im offenen Lootfenster, wird gleich erneut übergeben, sonst beim nächsten Öffnen der Leiche.
+function LC:OnBagReady(lid, idx, sender)
+    local entry
+    for _, e in pairs(self.itemState) do
+        if e.giveFailed and e.winner and not e.awarded and not e.pending and self:NamesMatch(e.winner, sender)
+            and (not lid or (e.lid == lid and e.idx == idx)) then
+            entry = e
+            break
+        end
+    end
+    if not entry then return false end
+    if entry.giveFailedHard then
+        self:Print(self.T.HEX.warn .. L("%s meldet Platz, hat %s aber schon (einzigartig) – bitte klären.", entry.winner, entry.link) .. "|r")
+        return true
+    end
+    entry.autoRetried = nil   -- beim nächsten Öffnen der Leiche wieder automatisch versuchen
+    entry.bagReady = true
+    local inWindow = false
+    for s = 1, GetNumLootItems() do
+        if GetLootSlotLink(s) == entry.link then inWindow = true break end
+    end
+    local auto = self.db.config.autoAward
+    local hint = (inWindow and auto) and "" or (auto and L[" Öffne die Leiche, dann wird automatisch übergeben."] or L[" Jetzt auf „Erneut“ klicken."])
+    self:Print(self.T.HEX.good .. L("%s hat wieder Platz für %s.", entry.winner, entry.link) .. "|r" .. hint)
+    if inWindow and auto then self:AwardLoot(entry, true) end
+    self:RefreshUI()
+    return true
 end
 
 -- Fehlermeldungen des Spiels beim Vergeben (kommen beim Plündermeister an)

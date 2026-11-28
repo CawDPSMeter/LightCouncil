@@ -311,6 +311,7 @@ local function RefreshLoot()
             local st = e.status or "offen"
             if e.awarded then st = H.good .. "✓ " .. L("bei %s", e.winner or "?") .. "|r"
             elseif e.pending then st = H.warn .. L["wird übergeben …"] .. "|r"
+            elseif e.giveFailed and e.bagReady then st = H.warn .. L["Platz frei – erneut übergeben"] .. "|r"
             elseif e.giveFailed then st = H.bad .. "✗ " .. L["Übergabe fehlgeschlagen"] .. "|r"
             elseif e.otherCorpse then st = H.warn .. L["andere Leiche öffnen"] .. "|r"
             elseif e.belowThreshold and not e.winner then st = L["unter Plündergrenze"]

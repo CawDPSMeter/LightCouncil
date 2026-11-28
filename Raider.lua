@@ -14,7 +14,9 @@
 --   RN~lid~idx                            niemand hat gewürfelt
 --   RC~lid~idx                            abgebrochen
 --   RA~lid~idx~gewinner                   vergeben
---   RF~lid~idx~gewinner~grund             Übergabe gescheitert (z. B. Taschen voll)
+--   RF~lid~idx~gewinner~grund~hart        Übergabe gescheitert (z. B. Taschen voll; hart = 1: erneut versuchen hilft nicht)
+-- Whisper eines Gewinners an den Plündermeister:
+--   RB~lid~idx                            wieder Platz in den Taschen – bitte erneut übergeben
 -- Whisper der Leitung an einen ausgeschlossenen Spieler:
 --   X~itemID~art~begründung               art: SKIP, LIMIT, CD, SIT
 local _, LC = ...
@@ -23,7 +25,7 @@ local L = LC.L
 local SEP = "~"
 local RAID_CMDS = {
     LS = true, LI = true, LR = true, LP = true, LE = true, CS = true, RS = true, RL = true,
-    RG = true, RW = true, RN = true, RC = true, RA = true, RF = true, X = true,
+    RG = true, RW = true, RN = true, RC = true, RA = true, RF = true, RB = true, X = true,
 }
 
 ------------------------------------------------------------------------
@@ -153,6 +155,11 @@ function LC:OnRaidComm(cmd, p, sender)
         self:ShowExcludedNotice(tonumber(p[2]), p[3], self:SafeText(p[4], 150))
         return true
     end
+    -- Gewinner meldet „wieder Platz“ (kommt beim Plündermeister an)
+    if cmd == "RB" then
+        if self.OnBagReady then self:OnBagReady(p[2], tonumber(p[3]), sender) end
+        return true
+    end
 
     local lid, idx = p[2], tonumber(p[3])
     local R = self.raid
@@ -231,8 +238,13 @@ function LC:OnRaidComm(cmd, p, sender)
         local winner = self:CleanText(p[4] or "", 40)
         local why = self:CleanText(p[5] or "", 80)
         it.giveFailed = true
+        it.giveFailedHard = (p[6] == "1") or nil
+        it.bagSent = nil
         if self:IsMe(winner) then
-            local text = L("Light Council: %s konnte dir nicht übergeben werden (%s). Mach Platz in den Taschen und sag dem Plündermeister Bescheid.", it.link or self:ItemLink(it.itemID), why)
+            local text = it.giveFailedHard
+                and L("Light Council: %s konnte dir nicht übergeben werden (%s). Bitte mit dem Plündermeister klären.", it.link or self:ItemLink(it.itemID), why)
+                or L("Light Council: %s konnte dir nicht übergeben werden (%s). Mach Platz in den Taschen und klick im Loot-Fenster auf „Platz frei“.", it.link or self:ItemLink(it.itemID), why)
+            if self.db.config.raiderWindow then self:ShowRaidFrame() end
             self:Print(self.T.HEX.bad .. text .. "|r")
             if RaidNotice_AddMessage and RaidWarningFrame and ChatTypeInfo and ChatTypeInfo["RAID_WARNING"] then
                 pcall(RaidNotice_AddMessage, RaidWarningFrame, text, ChatTypeInfo["RAID_WARNING"])
@@ -240,7 +252,7 @@ function LC:OnRaidComm(cmd, p, sender)
             if SOUNDKIT and SOUNDKIT.RAID_WARNING then pcall(PlaySound, SOUNDKIT.RAID_WARNING, "Master") end
         end
     elseif cmd == "RA" then
-        it.giveFailed = nil
+        it.giveFailed, it.giveFailedHard, it.bagSent = nil, nil, nil
         -- Wurf/Off Spec nur übernehmen, wenn der Würfelgewinner das Item auch bekommen hat
         local winner = self:CleanText(p[4] or "", 40)
         local sameWinner = it.winner and self:NamesMatch(it.winner, winner)
@@ -262,6 +274,17 @@ function LC:OnRaidComm(cmd, p, sender)
     end
     self:RefreshRaidFrame()
     return true
+end
+
+-- Gewinner: „Platz frei“ – dem Plündermeister melden, dass er erneut übergeben kann
+function LC:RaidBagReady(idx)
+    local R = self.raid
+    local it = R and R.items[idx]
+    if not it or not it.giveFailed or it.bagSent or not R.owner then return end
+    it.bagSent = true
+    self:SendTo(R.owner, "RB", R.lid, tostring(idx))
+    self:Print(L["Plündermeister hat Bescheid bekommen – das Item wird erneut übergeben."])
+    self:RefreshRaidFrame()
 end
 
 -- Darf ich bei diesem Item würfeln?

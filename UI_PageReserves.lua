@@ -111,9 +111,9 @@ local function ShowRaidDaysFrame()
     f:Show()
 end
 
--- Erinnerung am Raidtag (für alle)
+-- Erinnerung am Raidtag (für alle). closesAt: Schließzeit; inRaid = Erinnerung der Raidleitung im Raid
 local reminder
-function LC:ShowRaidDayReminder(raidKey)
+function LC:ShowRaidDayReminder(raidKey, closesAt, inRaid)
     if not reminder then
         local f = T:Window("LightCouncilReminderFrame", 440, 190, L["Heute ist Raidtag!"], L["Light Council"])
         f:ClearAllPoints()
@@ -138,6 +138,7 @@ function LC:ShowRaidDayReminder(raidKey)
     end
     local f = reminder
     f.raidKey = raidKey
+    f.title:SetText(inRaid and L["Noch nicht reserviert!"] or L["Heute ist Raidtag!"])
     local raidName
     if raidKey and raidKey ~= "" then
         for _, r in ipairs(self:GetLootDB() or {}) do
@@ -147,8 +148,13 @@ function LC:ShowRaidDayReminder(raidKey)
     end
     f.text:SetText((raidName and (L["Du hast für "] .. H.accentLt .. raidName .. L["|r noch nichts reserviert."])
         or L["Du hast noch keine Items reserviert."])
-        .. "\n" .. H.muted .. L["Reservier am besten schon jetzt – im Raid wird dann nur noch eingesammelt.|r"])
+        .. "\n" .. (closesAt and (H.warn .. L("Die Reservierungen schließen um %s Uhr.", self:ClockText(closesAt)) .. "|r")
+            or inRaid and (H.warn .. L["Die Raidleitung bittet dich, jetzt zu reservieren."] .. "|r")
+            or (H.muted .. L["Reservier am besten schon jetzt – im Raid wird dann nur noch eingesammelt.|r"])))
     f:Show()
+    if inRaid and RaidNotice_AddMessage and RaidWarningFrame and ChatTypeInfo and ChatTypeInfo["RAID_WARNING"] then
+        pcall(RaidNotice_AddMessage, RaidWarningFrame, L("Light Council: Du hast für %s noch nichts reserviert!", raidName or "?"), ChatTypeInfo["RAID_WARNING"])
+    end
     if SOUNDKIT and SOUNDKIT.READY_CHECK then pcall(PlaySound, SOUNDKIT.READY_CHECK, "Master") end
 end
 
@@ -191,9 +197,39 @@ local function CreateReservesPage(p)
     p.chipBar = ChipBar(p)
     p.chipBar:SetPoint("TOPLEFT", 0, -y)
 
+    -- Reservierungen schließen (Council, Raidleiter, Plündermeister)
+    p.closeCard = Card(p, 44)
+    p.closeCard:SetPoint("TOPLEFT", p.chipBar, "BOTTOMLEFT", 0, -14)
+    p.closeCard:SetWidth(CW)
+    p.closeText = T:Text(p.closeCard, 12, C.text, "LEFT")
+    p.closeText:SetPoint("LEFT", 16, 0)
+    p.closeText:SetWidth(CW - 200)
+    p.closeText:SetWordWrap(false)
+    p.btnClose = T:Button(p.closeCard, L["Schließen …"], 160, 30, "primary", function(self)
+        local key = p.raid and p.raid.key
+        if not key then return end
+        local function Do(mode, min)
+            local ok, msg = LC:SetResClose(key, mode, min)
+            LC:Print((ok and H.good or H.bad) .. msg .. "|r")
+            p.msg:SetText((ok and H.good or H.bad) .. msg .. "|r")
+        end
+        local state = LC:ResCloseState(key)
+        local e = {}
+        for _, m in ipairs({ 5, 10, 15, 30 }) do
+            e[#e + 1] = { text = L("In %d Min. schließen", m), func = function() Do("timer", m) end }
+        end
+        e[#e + 1] = { text = L["Jetzt schließen"], disabled = (state == "closed"), func = function() Do("now") end }
+        e[#e + 1] = { text = L["Wieder öffnen"], disabled = (state == "open"), func = function() Do("open") end }
+        e[#e + 1] = { text = "-" }
+        e[#e + 1] = { text = L["Fehlende jetzt erinnern"], disabled = not IsInRaid(), func = function() Do("remind") end }
+        U.ShowMenu(self, e)
+    end)
+    p.btnClose:SetPoint("RIGHT", -8, 0)
+    Tip(p.btnClose, L["Reservierungen schließen"], L["Mit Zeit: alle im Raid ohne Reservierung werden sofort und eine Minute vorher erinnert. Beim Schließen wird die Anwesenheit erfasst. Danach nimmt der Council keine Reservierungen und Änderungsanträge mehr an (Eintragen durch den Council geht weiter)."])
+
     -- Offene Änderungsanträge
     p.pendCard = Card(p, 60)
-    p.pendCard:SetPoint("TOPLEFT", p.chipBar, "BOTTOMLEFT", 0, -14)
+    p.pendCard:SetPoint("TOPLEFT", p.closeCard, "BOTTOMLEFT", 0, -14)
     p.pendCard:SetWidth(CW)
     local pt = T:Text(p.pendCard, 14, C.text, "LEFT", nil, true)
     pt:SetPoint("TOPLEFT", 16, -14)
@@ -353,7 +389,7 @@ local function RefreshReserves()
     if #pend > 0 then
         p.tableHead:SetPoint("TOPLEFT", p.pendCard, "BOTTOMLEFT", 0, -14)
     else
-        p.tableHead:SetPoint("TOPLEFT", p.chipBar, "BOTTOMLEFT", 0, -14)
+        p.tableHead:SetPoint("TOPLEFT", p.closeCard, "BOTTOMLEFT", 0, -14)
     end
 
     -- Tabelle
@@ -380,6 +416,29 @@ local function RefreshReserves()
     p.list:SetHeight(math.max(1, #list * 34))
     p.empty:SetShown(#list == 0)
     p.empty:SetText(L["Noch keine Reservierungen für "] .. raid.name .. L[".\nRaider reservieren im Addon unter „Meine Reservierung“."])
+
+    -- Stand: offen / schließt um / geschlossen, dazu wer im Raid noch nicht reserviert hat
+    local cstate, cinfo = LC:ResCloseState(raid.key)
+    local st
+    if cstate == "closed" then
+        st = H.bad .. L["geschlossen"] .. "|r" .. ((cinfo and cinfo.by) and (H.muted .. "  " .. L("(%s, %s Uhr)", cinfo.by, LC:ClockText(cinfo.at)) .. "|r") or "")
+    elseif cstate == "timer" then
+        st = H.warn .. L("schließen um %s Uhr", LC:ClockText(cinfo.at)) .. "|r"
+    else
+        st = H.good .. L["offen"] .. "|r"
+    end
+    if IsInRaid() then
+        local miss = LC:MissingReservers(raid.key)
+        if #miss == 0 then
+            st = st .. H.muted .. "   ·   " .. L["alle im Raid haben reserviert"] .. "|r"
+        else
+            local names = {}
+            for i = 1, math.min(6, #miss) do names[i] = miss[i].name:match("^(%S+)") or miss[i].name end
+            st = st .. H.muted .. "   ·   " .. L("%d im Raid ohne Reservierung:", #miss) .. " " .. table.concat(names, ", ") .. ((#miss > 6) and " …" or "") .. "|r"
+        end
+    end
+    p.closeText:SetText(L["Reservierungen: "] .. st)
+    p.btnClose:SetEnabled(LC:CanCloseReserves())
 
     p.manCard:SetShown(isCouncil)
     p.btnRound:SetEnabled(isCouncil)

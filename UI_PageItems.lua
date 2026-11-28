@@ -12,6 +12,7 @@ local U = LC.UI
 local CW = U.CW
 local Card, Tip, AcceptLinks, ChipBar = U.Card, U.Tip, U.AcceptLinks, U.ChipBar
 local AttachItemSearch, ScrollToRow = U.AttachItemSearch, U.ScrollToRow
+local FilterItems, FavItems, FavStar = U.FilterItems, U.FavItems, U.FavStar
 local ITEM_ROW, BOSS_W = U.ITEM_ROW, U.BOSS_W
 
 local browseRows, markedRows, bossButtons = {}, {}, {}
@@ -42,6 +43,11 @@ local function CreateItemRow(parent, width, marked, setMsg)
     r.sub = T:Text(r, 11, C.muted)
     r.sub:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -4)
     r.sub:SetWordWrap(false)
+    -- Favorit: kleiner Stern auf dem Icon
+    r.star = FavStar(r)
+    r.star:SetSize(16, 16)
+    r.star:SetPoint("BOTTOMRIGHT", r.icon, "BOTTOMRIGHT", 5, -5)
+    r.star:SetFrameLevel(r.icon:GetFrameLevel() + 3)
 
     if marked then
         r.remove = T:Button(r, L["Entfernen"], 96, 28, "ghost", function()
@@ -121,8 +127,10 @@ local function CreateItemRow(parent, width, marked, setMsg)
     return r
 end
 
-local function FillItemRow(r, itemID, chance)
+-- bossName: nur in der Favoriten-Liste (dort stehen Items mehrerer Bosse)
+local function FillItemRow(r, itemID, chance, bossName)
     r.itemID = itemID
+    r.star:Update(itemID)
     r.icon.tex:SetTexture(LC:ItemIcon(itemID))
     local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
     local _, _, quality = getInfo(itemID)
@@ -134,6 +142,7 @@ local function FillItemRow(r, itemID, chance)
     local nRes = #LC:GetReservers(itemID)
     local parts = {}
     local slots = LC:GearSlotsFor(itemID)
+    if bossName then parts[#parts + 1] = H.muted .. bossName .. "|r" end
     if slots then parts[#parts + 1] = (LC:ItemSlot(itemID)) end
     if chance then parts[#parts + 1] = H.good .. chance .. L[" %|r Drop"] end
     if LC:IsCouncilItem(itemID) and not r.remove then parts[#parts + 1] = H.accent .. L["Council-Item|r"] end
@@ -172,7 +181,7 @@ local function GetBossButton(v, i)
     if b then return b end
     b = CreateFrame("Button", nil, v.bossList)
     b:SetSize(BOSS_W - 14, 32)
-    b:SetPoint("TOPLEFT", 0, -(i - 1) * 32)
+    b:SetPoint("TOPLEFT", 0, -i * 32)   -- Platz 0 = „Favoriten“
     b.bg = b:CreateTexture(nil, "BACKGROUND")
     b.bg:SetTexture(T.WHITE)
     b.bg:SetAllPoints()
@@ -221,8 +230,10 @@ function U.CreateItemsView(v, setMsg)
     v.search = T:Input(bossCol, BOSS_W - 24, 28)
     v.search:SetPoint("TOPLEFT", 12, -10)
     v.search:SetPlaceholder(L["Item suchen (Name oder ID)"])
+    v.classBtn = U.ClassFilterButton(bossCol, BOSS_W - 24)
+    v.classBtn:SetPoint("TOPLEFT", 12, -44)
     local bsf, bcontent = T:Scroll(bossCol)
-    bsf:SetPoint("TOPLEFT", 0, -48)
+    bsf:SetPoint("TOPLEFT", 0, -78)
     bsf:SetPoint("BOTTOMRIGHT", -12, 8)
     v.bossCol, v.bossList = bossCol, bcontent
 
@@ -239,14 +250,16 @@ function U.CreateItemsView(v, setMsg)
     local ie = T:Text(v.itemsEmpty, 14, C.text, "LEFT", nil, true)
     ie:SetPoint("TOPLEFT", 18, -18)
     ie:SetText(L["Loot folgt"])
+    v.emptyTitle = ie
     local ies = T:Text(v.itemsEmpty, 12, C.muted)
     ies:SetPoint("TOPLEFT", ie, "BOTTOMLEFT", 0, -8)
     ies:SetWidth(v.itemsW - 36)
     ies:SetSpacing(3)
+    v.emptyText = ies
     ies:SetText(L["Die Loot-Quelle hat für diesen Boss noch keine Items eingetragen. Sobald sie aktualisiert wird, erscheinen sie hier automatisch. Bis dahin: Items per Suche, Item-ID oder Shift-Klick hinzufügen."])
 
-    -- Suche: springt zu Raid und Boss und hebt das Item hervor
-    AttachItemSearch(v.search, function(res)
+    -- Suche: „Zeigen“ springt zu Raid und Boss und hebt das Item hervor; „Set“/„Upgrade“ übernehmen direkt
+    local function Show(res)
         if res.raidIdx then
             v.raidIdx, v.bossIdx = res.raidIdx, res.bossIdx
             v.highlight, v.scrollTo = res.id, true
@@ -255,7 +268,20 @@ function U.CreateItemsView(v, setMsg)
             if msg then setMsg((ok and H.good or H.warn) .. msg .. "|r") end
         end
         LC:RefreshUI()
-    end, 420)
+    end
+    local function Add(res, asUpgrade)
+        local ok, msg = LC:AddToGearSet({ res.id }, asUpgrade)
+        if msg then setMsg((ok and H.good or H.warn) .. msg .. "|r") end
+        if res.raidIdx then
+            v.raidIdx, v.bossIdx, v.highlight, v.scrollTo = res.raidIdx, res.bossIdx, res.id, true
+        end
+        LC:RefreshUI()
+    end
+    AttachItemSearch(v.search, nil, 420, {
+        { label = "Zeigen", tip = "Springt zum Boss und hebt das Item hervor.", func = Show },
+        { label = "Set", tip = "Als bestes Item für den Slot ins Set (ein neues ersetzt das alte).", func = function(res) Add(res, false) end },
+        { label = "Upgrade", tip = "Nur als Upgrade markieren: zweite Wahl, besser als dein jetziges Item.", func = function(res) Add(res, true) end },
+    })
 end
 
 function U.RefreshItemsView(v)
@@ -294,7 +320,19 @@ function U.RefreshItemsView(v)
 
     local manage = LC:CanManageLoot()
     local raid = raids[v.raidIdx]
+    -- bossIdx 0 = Favoriten dieses Raids
     v.bossIdx = math.min(v.bossIdx or 1, #raid.bosses)
+    local favList, favFrom = FavItems(raid)
+    local fb = GetBossButton(v, 0)
+    fb.index = 0
+    fb.selected = (v.bossIdx == 0)
+    fb.text:SetText(LC.STAR .. " " .. L["Favoriten"])
+    fb.count:SetText((#favList > 0) and tostring(#favList) or "")
+    fb.bar:SetShown(fb.selected)
+    fb.bg:SetVertexColor(C.accent[1], C.accent[2], C.accent[3], fb.selected and 0.16 or 0)
+    local fc = fb.selected and C.text or C.muted
+    fb.text:SetTextColor(fc[1], fc[2], fc[3])
+    fb:Show()
     for i = 1, math.max(#raid.bosses, #bossButtons) do
         local boss = raid.bosses[i]
         if boss then
@@ -320,10 +358,12 @@ function U.RefreshItemsView(v)
             bossButtons[i]:Hide()
         end
     end
-    v.bossList:SetHeight(math.max(1, #raid.bosses * 32))
+    v.bossList:SetHeight((#raid.bosses + 1) * 32)
 
+    local fav = (v.bossIdx == 0)
     local boss = raid.bosses[v.bossIdx]
-    local items = boss and boss.items or {}
+    local items, hidden = FilterItems(fav and favList or (boss and boss.items) or {})
+    v.classBtn:Update(hidden)
     for i = 1, math.max(#items, #browseRows) do
         local id = items[i]
         local r = browseRows[i]
@@ -333,7 +373,8 @@ function U.RefreshItemsView(v)
                 r:SetPoint("TOPLEFT", 0, -(i - 1) * ITEM_ROW)
                 browseRows[i] = r
             end
-            FillItemRow(r, id, LC:GetDropChance(boss, id))
+            local from = fav and favFrom[id] or boss
+            FillItemRow(r, id, LC:GetDropChance(from, id), fav and from and from.name or nil)
             T:SetBorder(r, (id == v.highlight) and C.accent or C.border)
             if id == v.highlight and v.scrollTo then
                 v.scrollTo = nil
@@ -346,6 +387,18 @@ function U.RefreshItemsView(v)
     end
     v.itemList:SetHeight(math.max(1, #items * ITEM_ROW))
     v.itemsEmpty:SetShown(#items == 0)
+    if #items == 0 then
+        if fav and #favList == 0 then
+            v.emptyTitle:SetText(L["Noch keine Favoriten"])
+            v.emptyText:SetText(L["Klick auf den Stern am Item-Icon, um ein Item vorzumerken. Hier stehen dann alle Favoriten dieses Raids."])
+        elseif hidden > 0 then
+            v.emptyTitle:SetText(L["Nichts für diese Klasse"])
+            v.emptyText:SetText(L("%d Items ausgeblendet. Oben links unter „Klasse“ den Filter ändern.", hidden))
+        else
+            v.emptyTitle:SetText(L["Loot folgt"])
+            v.emptyText:SetText(L["Die Loot-Quelle hat für diesen Boss noch keine Items eingetragen. Sobald sie aktualisiert wird, erscheinen sie hier automatisch. Bis dahin: Items per Suche, Item-ID oder Shift-Klick hinzufügen."])
+        end
+    end
 end
 
 ------------------------------------------------------------------------

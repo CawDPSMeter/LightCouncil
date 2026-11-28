@@ -274,8 +274,12 @@ end
 local SEARCH_ROWS, SEARCH_ROW_H = 8, 34
 local openSearch          -- gerade offene Suchliste (für nachgeladene Itemnamen)
 
-local function AttachItemSearch(edit, onPick, width)
-    width = math.max(width or 0, edit:GetWidth(), 380)
+-- actions (optional): Knöpfe rechts in jeder Trefferzeile, z. B. { { label = "Set", tip = "…", func = function(res) end }, … }.
+--   Klick auf die Zeile und Enter lösen den ersten Knopf aus.
+local ACTION_W = 74
+local function AttachItemSearch(edit, onPick, width, actions)
+    width = math.max(width or 0, edit:GetWidth(), actions and (380 + #actions * (ACTION_W + 4)) or 380)
+    local textW = width - 52 - (actions and (#actions * (ACTION_W + 4) + 4) or 0)
     local dd = CreateFrame("Frame", nil, edit, "BackdropTemplate")
     T:Skin(dd, C.bgDark, C.accentDim)
     dd:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -295,13 +299,13 @@ local function AttachItemSearch(edit, onPick, width)
         end
     end
 
-    local function Pick(i)
+    local function Pick(i, action)
         local res = dd.results[i]
         if not res then return end
         dd:Hide()
         edit:SetText("")
         edit:ClearFocus()
-        onPick(res)
+        if actions then actions[action or 1].func(res) else onPick(res) end
     end
 
     local function Row(i)
@@ -318,12 +322,22 @@ local function AttachItemSearch(edit, onPick, width)
         r.icon:SetPoint("LEFT", 8, 0)
         r.name = T:Text(r, 12, C.text)
         r.name:SetPoint("TOPLEFT", 40, -3)
-        r.name:SetWidth(width - 52)
+        r.name:SetWidth(textW)
         r.name:SetWordWrap(false)
         r.sub = T:Text(r, 10, C.muted)
         r.sub:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -2)
-        r.sub:SetWidth(width - 52)
+        r.sub:SetWidth(textW)
         r.sub:SetWordWrap(false)
+        if actions then
+            r.acts = {}
+            for k = #actions, 1, -1 do
+                local a = actions[k]
+                local b = T:Button(r, L[a.label], ACTION_W, 22, (k == 1) and "primary" or "default", function() Pick(r.index, k) end)
+                if k == #actions then b:SetPoint("RIGHT", -6, 0) else b:SetPoint("RIGHT", r.acts[k + 1], "LEFT", -4, 0) end
+                if a.tip then b.tooltipTitle, b.tooltip = L[a.label], L[a.tip] end
+                r.acts[k] = b
+            end
+        end
         r:SetScript("OnEnter", function(self)
             dd.sel = self.index
             Paint()
@@ -378,6 +392,15 @@ local function AttachItemSearch(edit, onPick, width)
         self.foot:SetText(foot or "")
         local h = #results * SEARCH_ROW_H + 2 + (foot and 24 or 0)
         self:SetHeight(math.max(h, 26))
+        -- Ragt die Liste rechts aus dem Fenster (Suchfeld rechts oben), rechtsbündig unter das Feld legen
+        self:ClearAllPoints()
+        local win = _G.LightCouncilMainFrame
+        local left, winRight = edit:GetLeft(), win and win:IsShown() and win:GetRight()
+        if left and winRight and left + width > winRight then
+            self:SetPoint("TOPRIGHT", edit, "BOTTOMRIGHT", 0, -2)
+        else
+            self:SetPoint("TOPLEFT", edit, "BOTTOMLEFT", 0, -2)
+        end
         Paint()
         self:Show()
         openSearch = self
@@ -553,3 +576,202 @@ U.ShowMenu = ShowMenu
 U.SetupStatus, U.Segmented, U.ChipBar, U.SourceButton = SetupStatus, Segmented, ChipBar, SourceButton
 U.ReserveRaids, U.IdsFromText, U.ItemIcons = ReserveRaids, IdsFromText, ItemIcons
 U.AttachItemSearch, U.ScrollToRow = AttachItemSearch, ScrollToRow
+
+------------------------------------------------------------------------
+-- Favoriten und Klassenfilter in den Loot-Listen (Items, Meine Reservierung)
+--   Gelten pro Charakter: db.favorites[char] = { [itemID] = true }, db.classFilter[char] = "MAGE"
+------------------------------------------------------------------------
+local function CharKey() return LC:NameKey(LC:PlayerName()) or "?" end
+
+function LC:MyFavorites()
+    self.db.favorites = self.db.favorites or {}
+    local k = CharKey()
+    self.db.favorites[k] = self.db.favorites[k] or {}
+    return self.db.favorites[k]
+end
+
+function LC:IsFavorite(id) return id ~= nil and self:MyFavorites()[id] == true end
+
+function LC:ToggleFavorite(id)
+    if not id then return end
+    local f = self:MyFavorites()
+    if f[id] then f[id] = nil else f[id] = true end
+    self:RefreshUI()
+end
+
+-- Gewählter Klassenfilter (Klassen-Token wie "MAGE") oder nil = alle Klassen
+function LC:GetClassFilter()
+    local v = self.db.classFilter and self.db.classFilter[CharKey()]
+    return (v and v ~= "") and v or nil
+end
+
+function LC:SetClassFilter(class)
+    self.db.classFilter = self.db.classFilter or {}
+    self.db.classFilter[CharKey()] = class or ""
+    self:RefreshUI()
+end
+
+-- Was eine Klasse tragen bzw. führen kann (Rüstungs- und Waffen-Unterklassen wie im Spiel)
+local ARMOR, WEAPON = 4, 2
+local PROF = {
+    WARRIOR = { armor = { 1, 2, 3, 4, 6 },    weapon = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 13, 15, 16, 18 } },
+    PALADIN = { armor = { 1, 2, 3, 4, 6, 7 }, weapon = { 0, 1, 4, 5, 6, 7, 8 } },
+    HUNTER  = { armor = { 1, 2, 3 },          weapon = { 0, 1, 2, 3, 6, 7, 8, 10, 13, 15, 16, 18 } },
+    ROGUE   = { armor = { 1, 2 },             weapon = { 2, 3, 4, 7, 13, 15, 16, 18 } },
+    PRIEST  = { armor = { 1 },                weapon = { 4, 10, 15, 19 } },
+    SHAMAN  = { armor = { 1, 2, 3, 6, 9 },    weapon = { 0, 1, 4, 5, 10, 13, 15 } },
+    MAGE    = { armor = { 1 },                weapon = { 7, 10, 15, 19 } },
+    WARLOCK = { armor = { 1 },                weapon = { 7, 10, 15, 19 } },
+    DRUID   = { armor = { 1, 2, 8 },          weapon = { 4, 5, 10, 13, 15 } },
+}
+for _, p in pairs(PROF) do
+    local a, w = {}, {}
+    for _, v in ipairs(p.armor) do a[v] = true end
+    for _, v in ipairs(p.weapon) do w[v] = true end
+    p.armor, p.weapon = a, w
+end
+LC.CLASS_ORDER = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID" }
+
+-- Klassenbeschränkung aus dem Tooltip („Klassen: Magier, Priester“), z. B. Set-Teile und Marken
+local scanTip, classPattern, classLineCache = nil, nil, {}
+local function AllowedClassesLine(id)
+    local cached = classLineCache[id]
+    if cached ~= nil then return cached or nil end
+    local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    if not getInfo(id) then return nil end   -- Itemdaten noch nicht geladen: später erneut prüfen
+    if not ITEM_CLASSES_ALLOWED then classLineCache[id] = false return nil end
+    if not classPattern then
+        local p = ITEM_CLASSES_ALLOWED:gsub("%%%d%$s", "%%s")
+        p = p:gsub("([%(%)%.%+%-%*%?%[%]%^%$])", "%%%1")
+        classPattern = "^" .. p:gsub("%%s", "(.+)") .. "$"
+    end
+    if not scanTip then
+        scanTip = CreateFrame("GameTooltip", "LightCouncilScanTip", UIParent, "GameTooltipTemplate")
+    end
+    scanTip:SetOwner(UIParent, "ANCHOR_NONE")
+    scanTip:ClearLines()
+    local ok = pcall(scanTip.SetItemByID, scanTip, id)
+    local found = false
+    local lines = ok and scanTip:NumLines() or 0
+    for i = 2, lines do
+        local fs = _G["LightCouncilScanTipTextLeft" .. i]
+        local list = fs and fs:GetText() and fs:GetText():match(classPattern)
+        if list then found = list break end
+    end
+    scanTip:Hide()
+    -- Nur merken, wenn der Tooltip auch Inhalt hatte (sonst beim nächsten Mal erneut prüfen)
+    if lines > 1 then classLineCache[id] = found end
+    return found or nil
+end
+
+-- Kann die Klasse das Item nutzen? (unbekannte Klassen und Nicht-Ausrüstung: ja)
+function LC:ItemFitsClass(id, class)
+    if not class or not id then return true end
+    local list = AllowedClassesLine(id)
+    if list then
+        local male = LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[class]
+        local female = LOCALIZED_CLASS_NAMES_FEMALE and LOCALIZED_CLASS_NAMES_FEMALE[class]
+        for name in list:gmatch("[^,]+") do
+            name = strtrim(name)
+            if name == male or name == female then return true end
+        end
+        return false
+    end
+    local p = PROF[class]
+    if not p then return true end
+    local getInstant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    if not getInstant then return true end
+    local _, _, _, equipLoc, _, classID, subID = getInstant(id)
+    if equipLoc == "INVTYPE_CLOAK" then return true end
+    if classID == ARMOR then return subID == 0 or p.armor[subID] == true end
+    if classID == WEAPON then return p.weapon[subID] == true end
+    return true
+end
+
+-- Lokalisierter Klassenname
+function LC:ClassName(class)
+    return (LOCALIZED_CLASS_NAMES_MALE and LOCALIZED_CLASS_NAMES_MALE[class]) or class
+end
+
+-- Knopf „Klasse: …“ mit Aufklappmenü
+local function ClassFilterButton(parent, width)
+    local b = T:Button(parent, "", width, 26, "default")
+    b:SetScript("OnClick", function(self)
+        local cur = LC:GetClassFilter()
+        local _, mine = UnitClass("player")
+        local entries = {
+            { text = L["Alle Klassen"], checked = cur == nil, func = function() LC:SetClassFilter(nil) end },
+        }
+        if mine then
+            entries[#entries + 1] = { text = L("Meine Klasse (%s)", LC:ClassName(mine)), checked = cur == mine, func = function() LC:SetClassFilter(mine) end }
+        end
+        entries[#entries + 1] = { text = "-" }
+        for _, c in ipairs(LC.CLASS_ORDER) do
+            if c ~= mine then
+                entries[#entries + 1] = { text = LC:ClassName(c), checked = cur == c, func = function() LC:SetClassFilter(c) end }
+            end
+        end
+        ShowMenu(self, entries)
+    end)
+    Tip(b, L["Klassenfilter"], L["Zeigt nur Items, die die Klasse tragen bzw. benutzen kann (Rüstungsart, Waffen, Klassen-Items). Gilt für alle Loot-Listen."])
+    -- hidden: Zahl der gerade ausgeblendeten Items (wird hinten angezeigt)
+    function b:Update(hidden)
+        local c = LC:GetClassFilter()
+        local text = c and L("Klasse: %s", LC:ClassName(c)) or L["Klasse: alle"]
+        if hidden and hidden > 0 then text = text .. H.muted .. "  (-" .. hidden .. ")|r" end
+        self:SetText(text)
+    end
+    return b
+end
+
+-- Items einer Liste nach Klasse filtern. Rückgabe: gefilterte Liste, Zahl der ausgeblendeten
+local function FilterItems(items)
+    local class = LC:GetClassFilter()
+    if not class then return items or {}, 0 end
+    local out, hidden = {}, 0
+    for _, id in ipairs(items or {}) do
+        if LC:ItemFitsClass(id, class) then out[#out + 1] = id else hidden = hidden + 1 end
+    end
+    return out, hidden
+end
+
+-- Favoriten eines Raids (in Boss-Reihenfolge). Rückgabe: Itemliste, [itemID] = Boss
+local function FavItems(raid)
+    local fav = LC:MyFavorites()
+    local out, from = {}, {}
+    for _, boss in ipairs((raid and raid.bosses) or {}) do
+        for _, id in ipairs(boss.items or {}) do
+            if fav[id] and not from[id] then
+                out[#out + 1] = id
+                from[id] = boss
+            end
+        end
+    end
+    return out, from
+end
+
+-- Stern-Knopf zum Favorisieren (in einer Item-Zeile mit row.itemID)
+local STAR_TEX = "Interface\\TargetingFrame\\UI-RaidTargetingIcon_1"
+local function FavStar(row)
+    local b = CreateFrame("Button", nil, row)
+    b:SetSize(20, 20)
+    b.tex = b:CreateTexture(nil, "ARTWORK")
+    b.tex:SetAllPoints()
+    b.tex:SetTexture(STAR_TEX)
+    b:SetScript("OnClick", function() LC:ToggleFavorite(row.itemID) end)
+    b:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(L["Favorit"], 1, 1, 1)
+        GameTooltip:AddLine(L["Merkt das Item für dich vor. Alle Favoriten eines Raids stehen oben in der Bossliste unter „Favoriten“."], nil, nil, nil, true)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", GameTooltip_Hide)
+    function b:Update(id)
+        local on = LC:IsFavorite(id)
+        self.tex:SetDesaturated(not on)
+        self.tex:SetAlpha(on and 1 or 0.35)
+    end
+    return b
+end
+
+U.ClassFilterButton, U.FilterItems, U.FavItems, U.FavStar = ClassFilterButton, FilterItems, FavItems, FavStar

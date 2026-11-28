@@ -173,6 +173,10 @@ local function Change(sender, name, ids, remove)
         raid = r
     end
 
+    if LC:IsResClosed(raid) then
+        Reply(sender, L("Die Reservierungen für %s sind geschlossen.", RaidName(raid)))
+        return
+    end
     local R = LC:ResRaid(raid)
     local rec = LC:FindExact(R.players, name)
     local locked = rec and (rec.rev or 0) > 0
@@ -258,6 +262,15 @@ end
 
 LC:On("CHAT_MSG_WHISPER", function(self, msg, sender)
     if not IsCommand(msg) or not sender or self:IsMe(sender) then return end
+    -- Gewinner ohne Addon: „!lc ok“ = wieder Platz in den Taschen (verarbeitet der Plündermeister)
+    local word = strtrim((msg:gsub("^%s*![lL][cC]", "", 1))):lower()
+    if (word == "ok" or word == "platz") and self:IsMasterLooter() and self.OnBagReady then
+        local key = self:NameKey(sender)
+        if key and not Throttled("ok:" .. key) and self:OnBagReady(nil, nil, sender) then
+            Reply(sender, L["Danke – das Item wird erneut übergeben."])
+            return
+        end
+    end
     local role = Role()
     if not role then return end
     local name = Resolve(sender)

@@ -213,7 +213,9 @@ local function BuildReserves(db)
             players[#players + 1] = entry
         end
         table.sort(players, function(a, b) return tostring(a.name) < tostring(b.name) end)
-        list[#list + 1] = { raid = raid, round = r.epoch, players = players }
+        local state, c = LC:ResCloseState(raid)
+        list[#list + 1] = { raid = raid, round = r.epoch, players = players,
+            state = state, closesAt = c and c.at or nil, closedBy = c and c.by or nil }
     end
     table.sort(list, function(a, b) return tostring(a.raid) < tostring(b.raid) end)
     return list

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.25.0
+Closing reservations, favorites and class filter, “Space free” after full bags.
+
+- **Close reservations** (Reservations page, council / raid leader / master looter): close now or in 5–30 minutes, reopen, or just remind. Everyone in the raid without a reservation is reminded right away and one minute before closing (raid chat, a pop-up with the addon, a whisper without). Closing records attendance; afterwards the council accepts no new reservations or change requests (entering for players still works). “New round” reopens.
+- **Favorites:** a star on every item icon in the loot lists; “★ Favorites” at the top of the boss list shows all bookmarked items of the raid.
+- **Class filter** in the loot lists: show only items a class can wear or use (armor type, weapons, class-restricted items).
+- **Search:** results have “Set” and “Upgrade” buttons (and “Show” in the item overview), so an item can be marked as upgrade right from the search.
+- **“Space free”:** a winner whose bags were full clicks “Space free” in the loot window (or whispers “!lc ok” without the addon); the master looter gives the item again right away or when the corpse is next opened.
+
 ## 0.24.3
 - **“My reservation” is back in the menu** for everyone. Since 0.23.0 it was only reachable from “My gear”, and not at all without a gear set – reserving any item works again without a set.
 - “My gear” with an empty set now also links to “My reservation”.

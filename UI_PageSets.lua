@@ -172,11 +172,16 @@ local function CreateSetsPage(p)
         SetMsg(msg and ((ok and H.good or H.warn) .. msg .. "|r") or nil)
         LC:RefreshUI()
     end)
-    AttachItemSearch(mine.input, function(res)
-        local ok, msg = LC:AddToGearSet({ res.id })
+    -- Treffer als bestes Item ins Set oder nur als Upgrade (zweite Wahl) markieren
+    local function AddFromSearch(res, asUpgrade)
+        local ok, msg = LC:AddToGearSet({ res.id }, asUpgrade)
         SetMsg(msg and ((ok and H.good or H.warn) .. msg .. "|r") or nil)
         LC:RefreshUI()
-    end)
+    end
+    AttachItemSearch(mine.input, nil, nil, {
+        { label = "Set", tip = "Als bestes Item für den Slot ins Set (ein neues ersetzt das alte).", func = function(res) AddFromSearch(res, false) end },
+        { label = "Upgrade", tip = "Nur als Upgrade markieren: zweite Wahl, besser als dein jetziges Item.", func = function(res) AddFromSearch(res, true) end },
+    })
 
     -- „Nächster Schritt“: ein Satz, was jetzt zu tun ist, und höchstens ein Hauptknopf
     local nb = Card(mine, 48)
@@ -876,7 +881,12 @@ local function RefreshMine(p)
             for _, r in ipairs(LC:GetLootDB() or {}) do if r.key == key then name = r.name end end
         end
         name = name or key
-        if pending then
+        local closed = LC:IsResClosed(key)
+        if closed and changed then
+            text = H.bad .. L["Reservierungen geschlossen"] .. "|r  " .. L("Für %s nimmt der Council keine Reservierungen und Änderungen mehr an.", name)
+            accent = C.bad
+            altText, onAlt = L["Ansehen"], Open
+        elseif pending then
             text = H.warn .. L["Änderung beantragt"] .. "|r  " .. L("Der Council entscheidet über deine Reservierung für %s.", name)
             accent = C.warn
             altText, onAlt = L["Ansehen"], Open

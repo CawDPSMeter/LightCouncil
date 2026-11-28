@@ -21,11 +21,13 @@
 --   YX~raid~epoch                    Council: neue Runde (alles löschen)
 --   YQ                               alle: bitte Abgleich schicken
 --   YL~name;name;…                   Council: wer gehört zum Council
+--   YZ~raid~epoch~open|timer|closed~zeit~von   Council/Raidleitung: Reservierungen schließen (Zeit = Serverzeit)
+--   YW~raid~epoch~zeit               Council/Raidleitung -> Raider (Whisper): du hast noch nicht reserviert
 local _, LC = ...
 local L = LC.L
 
 local SEP = "~"
-local CMDS = { YR = true, YC = true, YA = true, YP = true, YD = true, YX = true, YQ = true, YL = true }
+local CMDS = { YR = true, YC = true, YA = true, YP = true, YD = true, YX = true, YQ = true, YL = true, YZ = true, YW = true }
 
 ------------------------------------------------------------------------
 -- Daten
@@ -194,6 +196,7 @@ end
 -- Raider: reservieren und Änderung beantragen
 ------------------------------------------------------------------------
 function LC:SubmitReservation(raid, items)
+    if self:IsResClosed(raid) then return false, L("Die Reservierungen für %s sind geschlossen.", self:RaidDisplayName(raid)) end
     local max = self:MaxReserves()
     if #items == 0 then return false, L["Bitte mindestens ein Item auswählen."] end
     if #items > max then return false, L["Höchstens "] .. max .. L[" Items pro Raid."] end
@@ -215,6 +218,7 @@ function LC:SubmitReservation(raid, items)
 end
 
 function LC:RequestReservationChange(raid, items, reason)
+    if self:IsResClosed(raid) then return false, L("Die Reservierungen für %s sind geschlossen.", self:RaidDisplayName(raid)) end
     local max = self:MaxReserves()
     if #items == 0 then return false, L["Bitte mindestens ein Item auswählen."] end
     if #items > max then return false, L["Höchstens "] .. max .. L[" Items pro Raid."] end
@@ -301,6 +305,8 @@ function LC:NewReserveRound(raid)
     local R = self:ResRaid(raid)
     R.epoch = (R.epoch or 0) + 1
     wipe(R.players)
+    R.close = nil   -- neue Runde: wieder offen
+    self:ScheduleResClose(raid)
     self:ResSend("YX", raid, tostring(R.epoch))
     Changed()
     return true, L["Neue Runde gestartet – alle Reservierungen dieses Raids wurden gelöscht."]
@@ -334,6 +340,9 @@ function LC:SendResSync(target)
     Out("YL", table.concat(names, ";"), tostring(self:MaxReserves()), table.concat(days, ","), self.db.config.reminderRaid or "",
         self.db.config.setReserve and "1" or "0")
     for raid, R in pairs(self.db.reserves or {}) do
+        if R.close then
+            Out("YZ", raid, tostring(R.epoch), R.close.state, tostring(R.close.at or 0), self:CleanText(R.close.by or "", 40))
+        end
         for _, p in pairs(R.players) do
             if (p.rev or 0) > 0 then
                 Out("YA", raid, tostring(R.epoch), p.name, tostring(p.rev), ItemsString(p.items))
@@ -355,6 +364,7 @@ local function CheckEpoch(R, epoch)
     if epoch > (R.epoch or 0) then
         R.epoch = epoch
         wipe(R.players)
+        R.close = nil
     end
     return true
 end
@@ -432,6 +442,16 @@ function LC:ResHandle(cmd, p, sender)
             end
             return
         end
+        -- Reservierungen geschlossen: nichts mehr annehmen, dem Raider den Stand schicken
+        if self:IsResClosed(raid) then
+            local c = R.close or {}
+            self:SendTo(sender, "YZ", raid, tostring(R.epoch), "closed", tostring(c.at or 0), self:CleanText(c.by or "", 40))
+            local old = self:FindExact(R.players, sender)
+            if old and (old.rev or 0) > 0 then
+                self:SendTo(sender, "YA", raid, tostring(R.epoch), old.name, tostring(old.rev), ItemsString(old.items))
+            end
+            return
+        end
         local items = ParseItems(cmd == "YR" and p[5] or p[4])
         while #items > self:MaxReserves() do table.remove(items) end
         local rec, key = self:FindExact(R.players, sender)
@@ -463,6 +483,9 @@ function LC:ResHandle(cmd, p, sender)
         return
     end
 
+    -- Schließen/Erinnern: Council oder Raidleitung (eigene Vertrauensprüfung)
+    if cmd == "YZ" or cmd == "YW" then return self:ResCloseHandle(cmd, p, sender, R, raid) end
+
     -- Ab hier nur Nachrichten des Councils
     if not self:IsTrustedCouncil(sender) then return end
 
@@ -470,6 +493,8 @@ function LC:ResHandle(cmd, p, sender)
         if (tonumber(p[3]) or 0) > (R.epoch or 0) then
             R.epoch = tonumber(p[3])
             wipe(R.players)
+            R.close = nil
+            self:ScheduleResClose(raid)
             Changed()
         end
         return
@@ -641,5 +666,206 @@ LC:On("PLAYER_LOGIN", function(self)
         LC:RebuildReservers()
         LC:RequestResSync(true)
         LC:BroadcastCouncilInfo()
+    end)
+end)
+
+------------------------------------------------------------------------
+-- Reservierungen schließen (Council, Raidleiter oder Plündermeister)
+--   R.close = { state = "timer" | "closed", at = Serverzeit (Schließzeitpunkt), by = Name }
+--   Wer den Zeitplan gestellt hat, erinnert eine Minute vorher alle ohne Reservierung und schließt dann:
+--   Ansage im Raid, Anwesenheit erfassen. Alle anderen werten nur die Uhrzeit aus.
+------------------------------------------------------------------------
+function LC:RaidDisplayName(raid)
+    for _, r in ipairs(self:GetLootDB() or {}) do
+        if r.key == raid then return r.name end
+    end
+    return (raid == "custom") and L["Raid (ohne Loot-Quelle)"] or raid
+end
+
+-- "open", "timer" (schließt um c.at) oder "closed"
+function LC:ResCloseState(raid)
+    local R = self.db.reserves and self.db.reserves[raid]
+    local c = R and R.close
+    if not c then return "open" end
+    if c.state == "closed" or (c.state == "timer" and c.at and GetServerTime() >= c.at) then return "closed", c end
+    if c.state == "timer" then return "timer", c end
+    return "open"
+end
+
+function LC:IsResClosed(raid) return (self:ResCloseState(raid)) == "closed" end
+
+-- Uhrzeit für Texte ("20:15")
+function LC:ClockText(t) return date("%H:%M", t or GetServerTime()) end
+
+-- Darf ich schließen? Council, Raidleiter, Plündermeister (genau die, denen die Empfänger glauben)
+function LC:CanCloseReserves()
+    if self:AmICouncil() then return true end
+    if not IsInGroup() then return false end
+    return (UnitIsGroupLeader("player") or self:IsMasterLooter()) and true or false
+end
+
+-- Wem das Schließen geglaubt wird: Council oder Raidleitung/Plündermeister aus der eigenen Gilde
+local function TrustedCloser(sender)
+    return LC:IsTrustedCouncil(sender) or (LC:IsTrustedLeader(sender) and LC:IsGuildMember(sender))
+end
+LC.TrustedCloser = TrustedCloser
+
+-- Raidmitglieder (online) ohne Reservierung für diesen Raid
+function LC:MissingReservers(raid)
+    local R = self.db.reserves and self.db.reserves[raid]
+    local out = {}
+    if not IsInRaid() then return out end
+    for _, m in pairs(self:GetGroupMembers()) do
+        if m.online then
+            local rec = R and self:FindByName(R.players, m.fullName or m.name)
+            if not (rec and #(rec.items or {}) > 0) then out[#out + 1] = m end
+        end
+    end
+    table.sort(out, function(a, b) return a.name:lower() < b.name:lower() end)
+    return out
+end
+
+-- Alle im Raid ohne Reservierung erinnern: Ansage im Raid, Hinweisfenster (Addon) und Flüstern (ohne Addon)
+function LC:WarnMissingReserves(raid)
+    local missing = self:MissingReservers(raid)
+    if #missing == 0 then return 0 end
+    local state, c = self:ResCloseState(raid)
+    local name = self:RaidDisplayName(raid)
+    local when = (state == "timer" and c and c.at) and self:ClockText(c.at) or nil
+    local head = when and L("Reservierungen für %s schließen um %s Uhr – noch nicht reserviert:", name, when)
+        or L("Bitte für %s reservieren – noch nicht reserviert:", name)
+    local names = {}
+    for _, m in ipairs(missing) do names[#names + 1] = m.name end
+    self:AnnounceList(head, names)
+    local R = self:ResRaid(raid)
+    for _, m in ipairs(missing) do
+        if not self:IsMe(m.name) then
+            local target = m.fullName or m.name
+            -- Mit Addon: Hinweisfenster. Die Nachricht geht an alle (ohne Addon wird sie einfach nicht gelesen).
+            self:SendTo(target, "YW", raid, tostring(R.epoch), tostring((c and c.at) or 0))
+            local key = self:NameKey(m.name)
+            if not (self.versions and self.versions[key]) then
+                local text = when and L("[Light Council] Du hast für %s noch nichts reserviert – die Reservierungen schließen um %s Uhr. Reservieren: einem Council-Mitglied „!lc [Item]“ flüstern (Shift-Klick auf das Item).", name, when)
+                    or L("[Light Council] Du hast für %s noch nichts reserviert. Reservieren: einem Council-Mitglied „!lc [Item]“ flüstern (Shift-Klick auf das Item).", name)
+                pcall(SendChatMessage, text, "WHISPER", nil, target)
+            end
+        end
+    end
+    return #missing
+end
+
+local closeTimers = {}   -- [raid] = { warn = Timer, close = Timer, refresh = Timer }
+local function CancelCloseTimers(raid)
+    for _, t in pairs(closeTimers[raid] or {}) do t:Cancel() end
+    closeTimers[raid] = nil
+end
+
+-- Zeitplan einrichten (nach Änderungen und beim Einloggen)
+function LC:ScheduleResClose(raid)
+    CancelCloseTimers(raid)
+    local state, c = self:ResCloseState(raid)
+    if state ~= "timer" then return end
+    local left = c.at - GetServerTime()
+    local t = {}
+    if c.by and self:IsMe(c.by) then
+        if left > 75 then
+            t.warn = C_Timer.NewTimer(left - 60, function()
+                if LC:ResCloseState(raid) == "timer" and IsInRaid() then LC:WarnMissingReserves(raid) end
+            end)
+        end
+        t.close = C_Timer.NewTimer(left, function()
+            if LC:ResCloseState(raid) ~= "open" then LC:CloseReservesNow(raid) end
+        end)
+    else
+        t.refresh = C_Timer.NewTimer(left + 1, function() LC:RefreshUI() end)
+    end
+    closeTimers[raid] = t
+end
+
+-- Jetzt schließen: an alle senden, im Raid ansagen und die Anwesenheit erfassen
+function LC:CloseReservesNow(raid)
+    local R = self:ResRaid(raid)
+    R.close = { state = "closed", at = GetServerTime(), by = self:PlayerName() }
+    CancelCloseTimers(raid)
+    self:ResSend("YZ", raid, tostring(R.epoch), "closed", tostring(R.close.at), self:CleanText(self:PlayerName(), 40))
+    local name = self:RaidDisplayName(raid)
+    local n = 0
+    for _, p in pairs(R.players) do if #(p.items or {}) > 0 then n = n + 1 end end
+    if IsInRaid() then
+        self:Announce(L("Reservierungen für %s sind geschlossen (%d Spieler haben reserviert). Viel Erfolg!", name, n), false, true)
+        local added = self:RecordAttendance(true)
+        self:Print(L("Anwesenheit erfasst: %d Spieler neu für diese Woche.", added))
+    end
+    self:AddLog({ kind = "reserve", link = L["Reservierungen "] .. name,
+        result = L("Geschlossen von %s (%d Spieler mit Reservierung).", self:PlayerName(), n) })
+    Changed()
+end
+
+-- mode: "timer" (in minutes Minuten), "now", "open" (wieder öffnen), "remind" (nur erinnern)
+function LC:SetResClose(raid, mode, minutes)
+    if not raid then return false, L["Kein Raid gewählt."] end
+    if not self:CanCloseReserves() then
+        return false, L["Nur Council, Raidleiter und Plündermeister können die Reservierungen schließen."]
+    end
+    local name = self:RaidDisplayName(raid)
+    if mode == "remind" then
+        if not IsInRaid() then return false, L["Erinnern geht nur im Raid."] end
+        local n = self:WarnMissingReserves(raid)
+        return true, (n > 0) and L("%d Spieler ohne Reservierung erinnert.", n) or L["Alle im Raid haben reserviert."]
+    end
+    if mode == "now" then
+        self:CloseReservesNow(raid)
+        return true, L("Reservierungen für %s geschlossen.", name)
+    end
+    local R = self:ResRaid(raid)
+    if mode == "open" then
+        R.close = nil
+        CancelCloseTimers(raid)
+        self:ResSend("YZ", raid, tostring(R.epoch), "open", "0", "")
+        if IsInRaid() then self:Announce(L("Reservierungen für %s sind wieder offen.", name)) end
+        self:AddLog({ kind = "reserve", link = L["Reservierungen "] .. name, result = L("Wieder geöffnet von %s.", self:PlayerName()) })
+        Changed()
+        return true, L("Reservierungen für %s wieder geöffnet.", name)
+    end
+    minutes = math.max(1, math.min(120, math.floor(tonumber(minutes) or 10)))
+    R.close = { state = "timer", at = GetServerTime() + minutes * 60, by = self:PlayerName() }
+    self:ResSend("YZ", raid, tostring(R.epoch), "timer", tostring(R.close.at), self:CleanText(self:PlayerName(), 40))
+    self:ScheduleResClose(raid)
+    if IsInRaid() then
+        self:Announce(L("Reservierungen für %s schließen in %d Min. (um %s Uhr).", name, minutes, self:ClockText(R.close.at)), false, true)
+        self:WarnMissingReserves(raid)
+    end
+    Changed()
+    return true, L("Reservierungen für %s schließen um %s Uhr.", name, self:ClockText(R.close.at))
+end
+
+-- Empfang: YZ (Zustand) und YW (Erinnerung an mich)
+function LC:ResCloseHandle(cmd, p, sender, R, raid)
+    if not TrustedCloser(sender) then return end
+    -- Nur zur bekannten Runde (eine Raidleitung ohne Council-Sitz darf die Runde nie verändern)
+    if (tonumber(p[3]) or -1) ~= (R.epoch or 0) then return end
+    if cmd == "YW" then
+        if not self:HasReservedFor(raid) and self.ShowRaidDayReminder then
+            local at = tonumber(p[4]) or 0
+            self:ShowRaidDayReminder(raid, (at > GetServerTime()) and at or nil, true)
+        end
+        return
+    end
+    local state, at = p[4], tonumber(p[5]) or 0
+    if state == "open" then
+        R.close = nil
+    elseif state == "timer" or state == "closed" then
+        local by = self:CleanText(p[6] or "", 40)
+        R.close = { state = state, at = at, by = (by ~= "") and by or self:ShortName(sender) }
+    else
+        return
+    end
+    self:ScheduleResClose(raid)
+    Changed()
+end
+
+LC:On("PLAYER_LOGIN", function(self)
+    C_Timer.After(5, function()
+        for raid in pairs(LC.db.reserves or {}) do LC:ScheduleResClose(raid) end
     end)
 end)

@@ -11,6 +11,7 @@ local SetupStatus, Segmented, ChipBar, SourceButton = U.SetupStatus, U.Segmented
 local ReserveRaids, IdsFromText, ItemIcons = U.ReserveRaids, U.IdsFromText, U.ItemIcons
 local AttachItemSearch, ScrollToRow = U.AttachItemSearch, U.ScrollToRow
 local ITEM_ROW, BOSS_W = U.ITEM_ROW, U.BOSS_W
+local FilterItems, FavItems, FavStar = U.FilterItems, U.FavItems, U.FavStar
 local function SelectTab(key) return U.SelectTab(key) end
 
 ------------------------------------------------------------------------
@@ -140,8 +141,10 @@ local function CreateMyResPage(p)
     p.search = T:Input(bossCol, BOSS_W - 24, 28)
     p.search:SetPoint("TOPLEFT", 12, -10)
     p.search:SetPlaceholder(L["Item suchen (Name oder ID)"])
+    p.classBtn = U.ClassFilterButton(bossCol, BOSS_W - 24)
+    p.classBtn:SetPoint("TOPLEFT", 12, -44)
     local bsf, bcontent = T:Scroll(bossCol)
-    bsf:SetPoint("TOPLEFT", 0, -48)
+    bsf:SetPoint("TOPLEFT", 0, -78)
     bsf:SetPoint("BOTTOMRIGHT", -12, 8)
     p.bossCol, p.bossList = bossCol, bcontent
 
@@ -150,6 +153,10 @@ local function CreateMyResPage(p)
     isf:SetPoint("BOTTOMRIGHT", -10, 58)
     p.itemScroll, p.itemList = isf, icontent
     p.itemsW = CW - BOSS_W - 14 - 12
+    -- Hinweis bei leerer Liste (keine Favoriten / alles weggefiltert)
+    p.listEmpty = T:Text(p, 12, C.muted, "CENTER")
+    p.listEmpty:SetPoint("TOP", isf, "TOP", 0, -30)
+    p.listEmpty:SetWidth(p.itemsW - 40)
 
     -- Ohne AtlasLoot / ohne Loot: manuell per Shift-Klick oder ID
     p.manual = Card(p, 150)
@@ -257,7 +264,7 @@ local function GetMyBossButton(p, i)
     if b then return b end
     b = CreateFrame("Button", nil, p.bossList)
     b:SetSize(BOSS_W - 14, 32)
-    b:SetPoint("TOPLEFT", 0, -(i - 1) * 32)
+    b:SetPoint("TOPLEFT", 0, -i * 32)   -- Platz 0 = „Favoriten“
     b.bg = b:CreateTexture(nil, "BACKGROUND")
     b.bg:SetTexture(T.WHITE)
     b.bg:SetAllPoints()
@@ -289,6 +296,10 @@ local function GetMyItemRow(p, i)
     T:Skin(r, C.panel)
     r.icon = T:Icon(r, 34)
     r.icon:SetPoint("LEFT", 6, 0)
+    r.star = FavStar(r)
+    r.star:SetSize(16, 16)
+    r.star:SetPoint("BOTTOMRIGHT", r.icon, "BOTTOMRIGHT", 5, -5)
+    r.star:SetFrameLevel(r.icon:GetFrameLevel() + 3)
     r.name = T:Text(r, 13, C.text, "LEFT", nil, true)
     r.name:SetPoint("TOPLEFT", 50, -6)
     r.name:SetWidth(p.itemsW - 290)
@@ -418,6 +429,18 @@ local function RefreshMyRes()
     else
         p.stPending:SetText(L["Items unten anhaken und „Reservierung speichern“ klicken."])
     end
+    -- Reservierungen geschlossen bzw. schließen bald (Council/Raidleitung)
+    local cstate, cinfo = LC:ResCloseState(raid.key)
+    if cstate == "closed" then
+        p.stPending:SetText(H.bad .. L["Die Reservierungen für diesen Raid sind geschlossen – keine Änderungen mehr."] .. "|r")
+        if not locked then
+            p.stState:SetText((rec and #(rec.items or {}) > 0) and L["NICHT BESTÄTIGT"] or L["GESCHLOSSEN"])
+            p.stState:SetTextColor(unpack(C.bad))
+            p.stStripe:SetVertexColor(unpack(C.bad))
+        end
+    elseif cstate == "timer" then
+        p.stPending:SetText(H.warn .. L("Schließt um %s Uhr.", LC:ClockText(cinfo.at)) .. "|r  " .. (p.stPending:GetText() or ""))
+    end
 
     -- Bosse
     local bosses = raid.bosses or {}
@@ -425,7 +448,25 @@ local function RefreshMyRes()
     p.bossCol:SetShown(showList)
     p.itemScroll:SetShown(showList)
     if not showList and p.itemScroll.bar then p.itemScroll.bar:Hide() end
+    -- bossIdx 0 = Favoriten dieses Raids
     p.bossIdx = math.min(p.bossIdx or 1, math.max(1, #bosses))
+    local favList, favFrom = FavItems(raid)
+    if showList then
+        local fb = GetMyBossButton(p, 0)
+        fb.index = 0
+        fb.selected = (p.bossIdx == 0)
+        fb.text:SetText(LC.STAR .. " " .. L["Favoriten"])
+        local nSel = 0
+        for _, id in ipairs(favList) do if selSet[id] then nSel = nSel + 1 end end
+        fb.count:SetText(nSel > 0 and "|TInterface\\RaidFrame\\ReadyCheck-Ready:14:14|t" or ((#favList > 0) and tostring(#favList) or ""))
+        fb.bar:SetShown(fb.selected)
+        fb.bg:SetVertexColor(C.accent[1], C.accent[2], C.accent[3], fb.selected and 0.16 or 0)
+        local fc = fb.selected and C.text or C.muted
+        fb.text:SetTextColor(fc[1], fc[2], fc[3])
+        fb:Show()
+    elseif myBossButtons[0] then
+        myBossButtons[0]:Hide()
+    end
     for i = 1, math.max(#bosses, #myBossButtons) do
         local boss = bosses[i]
         if boss and showList then
@@ -445,16 +486,20 @@ local function RefreshMyRes()
             myBossButtons[i]:Hide()
         end
     end
-    p.bossList:SetHeight(math.max(1, #bosses * 32))
+    p.bossList:SetHeight((#bosses + 1) * 32)
 
+    local fav = (p.bossIdx == 0)
     local boss = bosses[p.bossIdx]
-    local items = (showList and boss and boss.items) or {}
+    local items, hidden = FilterItems((showList and (fav and favList or (boss and boss.items))) or {})
+    p.classBtn:Update(hidden)
     local full = #sel >= max
     for i = 1, math.max(#items, #myItemRows) do
         local id = items[i]
         if id then
             local r = GetMyItemRow(p, i)
             r.itemID = id
+            r.star:Update(id)
+            local from = fav and favFrom[id] or boss
             r.icon.tex:SetTexture(LC:ItemIcon(id))
             local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
             local _, _, quality = getInfo(id)
@@ -463,8 +508,9 @@ local function RefreshMyRes()
             r.name:SetText(LC:ItemLink(id))
             local n = #LC:GetReservers(id)
             local sub = (n > 0) and (n .. (n == 1 and L[" Reservierung"] or L[" Reservierungen"])) or L["Noch nicht reserviert"]
-            local chance = LC:GetDropChance(boss, id)
+            local chance = LC:GetDropChance(from, id)
             if chance then sub = H.good .. chance .. L[" %|r Drop   ·   "] .. sub end
+            if fav and from then sub = H.muted .. from.name .. "|r   ·   " .. sub end
             if LC:IsCouncilItem(id) then sub = sub .. "   ·   " .. H.accent .. L["Council-Item|r"] end
             local inSet = LC:IsInMySet(id)
             local isUp = not inSet and LC:IsUpgradeInMySet(id)
@@ -505,6 +551,16 @@ local function RefreshMyRes()
         end
     end
     p.itemList:SetHeight(math.max(1, #items * ITEM_ROW))
+    local emptyText
+    if showList and #items == 0 then
+        if fav and #favList == 0 then
+            emptyText = L["Klick auf den Stern am Item-Icon, um ein Item vorzumerken. Hier stehen dann alle Favoriten dieses Raids."]
+        elseif hidden > 0 then
+            emptyText = L("%d Items ausgeblendet. Oben links unter „Klasse“ den Filter ändern.", hidden)
+        end
+    end
+    p.listEmpty:SetText(emptyText or "")
+    p.listEmpty:SetShown(emptyText ~= nil)
 
     -- Manuelle Auswahl, wenn es keine Liste gibt
     p.manual:SetShown(not showList)
@@ -519,13 +575,14 @@ local function RefreshMyRes()
     -- Fußleiste
     local changed = not (rec and LC.SameItems(rec.items or {}, sel))
     p.counter:SetText(L["Ausgewählt: "] .. (full and H.accentLt or "") .. #sel .. L[" von "] .. max .. (full and "|r" or ""))
-    p.reason:SetShown(locked and changed and not (rec and rec.pending))
+    local closed = (cstate == "closed")
+    p.reason:SetShown(locked and changed and not (rec and rec.pending) and not closed)
     if locked then
         p.action:SetText(L["Änderung beantragen"])
-        p.action:SetEnabled(changed and #sel > 0 and not rec.pending)
+        p.action:SetEnabled(changed and #sel > 0 and not rec.pending and not closed)
     else
         p.action:SetText(L["Reservierung speichern"])
-        p.action:SetEnabled(#sel > 0 and changed)
+        p.action:SetEnabled(#sel > 0 and changed and not closed)
     end
     p.msg:SetText(p.msgText or "")
 end
