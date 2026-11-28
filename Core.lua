@@ -631,14 +631,37 @@ local function ParseGuildCouncil(text)
 end
 
 -- Gildeninfo neu einlesen (beim Einloggen und bei jeder Änderung der Gildenliste)
+-- Zuletzt gelesene Council-Zeile merken (pro Gilde): gilt nach dem Einloggen schon, bevor die Gildeninfo geladen ist
+local function RememberGuildCouncil(list)
+    local guild = GetGuildInfo and GetGuildInfo("player")
+    if guild then LC.db.guildCouncilCache = { guild = guild, list = list } end
+end
+
 function LC:UpdateGuildCouncil()
-    local text = IsInGuild() and GetGuildInfoText and GetGuildInfoText() or nil
-    -- Leerer Text direkt nach dem Einloggen: Gildendaten sind evtl. noch nicht geladen – alten Stand behalten
-    if IsInGuild() and (text == nil or text == "") and not guildCouncilLoaded then return end
+    if not IsInGuild() then
+        if guildCouncil then guildCouncil = nil if self.RefreshUI then self:RefreshUI() end end
+        guildCouncilLoaded = true
+        return
+    end
+    local text = GetGuildInfoText and GetGuildInfoText() or nil
+    -- Leerer Text heißt „noch nicht (wieder) geladen“: Das Spiel liefert die Gildeninfo bei manchen
+    -- Aktualisierungen der Gildenliste kurz leer. Dann den letzten Stand behalten statt den Council zu verlieren.
+    if text == nil or strtrim(text) == "" then
+        if not guildCouncil then
+            local c = self.db.guildCouncilCache
+            local guild = GetGuildInfo and GetGuildInfo("player")
+            if c and guild and c.guild == guild and type(c.list) == "table" and #c.list > 0 then
+                guildCouncil = c.list
+                if self.RefreshUI then self:RefreshUI() end
+            end
+        end
+        return
+    end
     local list = ParseGuildCouncil(text)
     local old = guildCouncil and table.concat(guildCouncil, ", ") or ""
     local new = list and table.concat(list, ", ") or ""
     guildCouncil = list
+    RememberGuildCouncil(list)
     if new ~= old then
         -- Einstellungen beim nächsten Öffnen mit der neuen Liste füllen
         if self.UI and self.UI.pages and self.UI.pages.settings then self.UI.pages.settings.needsLoad = true end
@@ -679,6 +702,7 @@ function LC:WriteGuildCouncil(list)
     SetGuildInfoText(text)
     guildCouncil = (#list > 0) and list or nil
     guildCouncilLoaded = true
+    if GetGuildInfo and GetGuildInfo("player") then self.db.guildCouncilCache = { guild = GetGuildInfo("player"), list = (#list > 0) and list or nil } end
     return true
 end
 

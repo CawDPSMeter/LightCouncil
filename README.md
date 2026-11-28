@@ -102,7 +102,8 @@ In short: **you start the evening, close the reservations once, open the corpses
 | Reached the fairness limit (items in this raid ID)? The council decides on normal items too | Raiders roll themselves with a button |
 | Excluded players are told why | |
 | Tie → roll again until there is a winner | |
-| Reserver in the raid but offline → the item waits and starts by itself when they are back (up to 30 min) | Master looter chooses “Wait” or “Roll anyway” |
+| Reserver in the raid but offline → the item waits and starts by itself when they are back (up to 30 min) | Master looter chooses “Wait” or “Roll anyway” – or “Take it myself” to keep it and trade it later |
+| Item in keeping → roll when the reserver is back, trade to the winner is detected and recorded | Master looter trades the item to the winner |
 | The winner receives the item automatically | |
 
 ### When something goes wrong
@@ -324,6 +325,8 @@ No. Who may roll is decided by reservations and, for council items, by the vote.
 
 **What if a reserver is offline when their item drops?**
 The item waits. When the player is back online it starts by itself (for up to 30 minutes); the master looter can also click “Roll anyway”. Players who reserved but are not in the raid at all don't hold anything up.
+
+To avoid waiting at the corpse, the master looter can click **“Take it myself”**: the item goes into their bags *in keeping* – it does not count as theirs. The roll happens once the reserver is back; the master looter then trades the item to the winner, and the addon detects the trade and records it (“Traded ✓” as a manual fallback). Raid items can usually be traded for 2 hours after looting – try it once with an unimportant item before relying on it.
 
 **What if the winner's bags are full?**
 Both the master looter and the winner get a notice. The winner makes room and clicks “Space free” in the loot window (or whispers `!lc ok`), and the item is handed over again.

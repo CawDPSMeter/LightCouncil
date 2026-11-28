@@ -205,7 +205,15 @@ local function GetLootRow(parent, i)
     r.state:SetWordWrap(false)
 
     r.btnAward = T:Button(r, L["Vergeben"], 100, 26, "default", function()
-        if r.entry then LC:AwardLoot(r.entry) end
+        local e = r.entry
+        if not e then return end
+        if e.held and not e.inBags and not e.winner then
+            LC:TakeIntoBags(e)                 -- Reservierer offline: selbst nehmen, später verteilen
+        elseif e.inBags and e.winner and not e.awarded then
+            LC:MarkAwarded(e, e.winner)        -- Handel nicht erkannt: von Hand verbuchen
+        else
+            LC:AwardLoot(e)
+        end
     end)
     r.btnAward:SetPoint("RIGHT", -8, 0)
     r.btnAction = T:Button(r, L["Council starten"], 112, 26, "primary", function()
@@ -326,6 +334,8 @@ local function RefreshLoot()
             elseif e.giveFailed and e.bagReady then st = H.warn .. L["Platz frei – erneut übergeben"] .. "|r"
             elseif e.giveFailed then st = H.bad .. "✗ " .. L["Übergabe fehlgeschlagen"] .. "|r"
             elseif e.otherCorpse then st = H.warn .. L["andere Leiche öffnen"] .. "|r"
+            elseif e.inBags and e.winner then st = H.warn .. L("handeln an %s", (e.winner or "?"):match("^(%S+)")) .. "|r"
+            elseif e.inBags then st = H.accentLt .. L["in Verwahrung"] .. "|r"
             elseif e.held then st = H.warn .. L("wartet auf %s", (e.held[1] or "?"):match("^(%S+)") .. ((#e.held > 1) and " …" or "")) .. "|r"
             elseif e.belowThreshold and not e.winner then st = L["unter Plündergrenze"]
             elseif e.looted then st = L["nicht mehr im Loot"]
@@ -365,7 +375,25 @@ local function RefreshLoot()
             if e.belowThreshold then
                 r.btnAward.tooltip = L["Liegt unter der Plündergrenze: Das Spiel lässt es nicht per Plündermeister zuteilen. Der Gewinner plündert es selbst, oder du senkst die Grenze."]
             end
-            r.btnAward:SetEnabled(e.winner ~= nil and not e.awarded and not e.looted and not e.pending and not e.otherCorpse and not e.belowThreshold)
+            local awardOK = e.winner ~= nil and not e.awarded and not e.looted and not e.pending and not e.otherCorpse and not e.belowThreshold
+            -- Verwahrung: wartendes Item selbst nehmen bzw. Handel von Hand verbuchen
+            if e.held and not e.inBags and not e.winner then
+                r.btnAward:SetText(L["Selbst nehmen"])
+                r.btnAward.tooltipTitle = L["Selbst nehmen"]
+                r.btnAward.tooltip = L["Nimmt das Item in deine Taschen, damit du nicht an der Leiche warten musst. Es zählt nicht als deins: Gewürfelt wird, sobald der Reservierer zurück ist – dann handelst du es dem Gewinner (innerhalb von 2 Stunden)."]
+                awardOK = LC:IsMasterLooter() and not e.looted and not e.otherCorpse and not e.belowThreshold and not e.taking
+            elseif e.inBags and e.winner and not e.awarded then
+                r.btnAward:SetText(L["Gehandelt ✓"])
+                r.btnAward.tooltipTitle = L["Gehandelt ✓"]
+                r.btnAward.tooltip = L("Handel das Item an %s – das Addon erkennt den Handel und verbucht ihn. Klick nur, falls das nicht geklappt hat: verbucht es von Hand.", e.winner)
+                awardOK = true
+            elseif e.inBags then
+                r.btnAward:SetText(L["in Verwahrung"])
+                r.btnAward.tooltip = L["Das Item liegt in deinen Taschen. Gewürfelt wird, sobald der Reservierer zurück ist (oder „Trotzdem würfeln“)."]
+                awardOK = false
+            end
+            r.btnAward:SetWidth(math.max(100, math.min(130, math.ceil(r.btnAward:GetFontString():GetStringWidth()) + 24)))
+            r.btnAward:SetEnabled(awardOK)
             r:Show()
         elseif lootRows[i] then
             lootRows[i].entry = nil

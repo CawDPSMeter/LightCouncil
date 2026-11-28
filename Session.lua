@@ -34,7 +34,7 @@ local function PickEntry(self, base, used)
         local key = base .. ":" .. n
         local e = self.itemState[key]
         if not e then return nil, key end
-        if not used[e] and not e.awarded then return e, key end
+        if not used[e] and not e.awarded and not e.inBags then return e, key end
         n = n + 1
     end
 end
@@ -68,9 +68,15 @@ function LC:ScanLoot()
     -- Gewinner aus anderen Leichen, die ihr Item noch nicht haben, sichtbar lassen (höchstens 30 Min. alt)
     local now = GetTime()
     for _, e in pairs(self.itemState) do
-        if not used[e] and not e.test and e.winner and not e.awarded and e.wonAt and now - e.wonAt < 1800 then
-            e.otherCorpse = true
-            table.insert(self.lootItems, e)
+        if not used[e] and not e.test and not e.awarded then
+            if e.inBags then
+                -- in Verwahrung (Taschen des Plündermeisters): immer sichtbar, bis es verteilt ist
+                e.otherCorpse = nil
+                table.insert(self.lootItems, e)
+            elseif e.winner and e.wonAt and now - e.wonAt < 1800 then
+                e.otherCorpse = true
+                table.insert(self.lootItems, e)
+            end
         end
     end
 end
@@ -78,7 +84,7 @@ end
 -- Einträge der gerade geöffneten Leiche (ohne die aus anderen Leichen)
 function LC:CurrentCorpseItems()
     local out = {}
-    for _, e in ipairs(self.lootItems) do if not e.otherCorpse then out[#out + 1] = e end end
+    for _, e in ipairs(self.lootItems) do if not e.otherCorpse and not e.inBags then out[#out + 1] = e end end
     return out
 end
 
@@ -122,8 +128,12 @@ LC:On("LOOT_SLOT_CLEARED", function(self, slot)
     -- Wartet ein Item auf die Bestätigung der Übergabe? Dann ist sie hiermit erfolgt.
     local pending = self:PendingForSlot(slot)
     if pending then self:ConfirmAward(pending) end
+    -- In Verwahrung genommen?
     for _, entry in ipairs(self.lootItems) do
-        if entry.slot == slot and not entry.test and not entry.awarded and not entry.otherCorpse then entry.looted = true end
+        if entry.taking and entry.taking.slot == slot then self:ConfirmTake(entry) end
+    end
+    for _, entry in ipairs(self.lootItems) do
+        if entry.slot == slot and not entry.test and not entry.awarded and not entry.otherCorpse and not entry.inBags then entry.looted = true end
     end
     self:RefreshUI()
 end)
@@ -250,7 +260,7 @@ local function CheckHeld()
     heldPending = nil
     if not LC:IsMasterLooter() then return end
     for _, e in pairs(LC.itemState) do
-        if e.held and not e.awarded and not e.winner and not e.looted and GetTime() - (e.heldAt or 0) > HELD_MAX then
+        if e.held and not e.inBags and not e.awarded and not e.winner and not e.looted and GetTime() - (e.heldAt or 0) > HELD_MAX then
             -- zu alt: die Leiche ist vermutlich weg – nicht mehr von selbst starten
             e.held, e.heldAt = nil, nil
             LC:Print(LC.T.HEX.warn .. L("%s wartet nicht mehr (älter als 30 Min.) – bei Bedarf von Hand starten.", e.link) .. "|r")
@@ -771,7 +781,9 @@ function LC:FinishRollWith(entry, winner, roll, logEntry, note, offspec, fullNam
     -- Loot-Cooldown erst, wenn das Item wirklich übergeben ist (MarkAwarded)
     self:RefreshUI()
     -- Automatisch vergeben (Einstellung auf der Loot-Seite); klappt nur bei geöffnetem Lootfenster
-    if self.db.config.autoAward and (entry.test or self:IsMasterLooter()) then
+    if entry.inBags and not entry.test then
+        C_Timer.After(1, function() if entry.winner and not entry.awarded then LC:EscrowWinner(entry) end end)
+    elseif self.db.config.autoAward and (entry.test or self:IsMasterLooter()) then
         C_Timer.After(1, function()
             if entry.winner and not entry.awarded and not entry.looted and not entry.pending then LC:AwardLoot(entry, true) end
         end)
@@ -836,6 +848,10 @@ function LC:MarkAwarded(entry, winner)
     entry.winner = entry.winner or winner
     entry.status = L["vergeben an "] .. winner
     entry.awarded = true
+    if entry.inBags then
+        entry.inBags, entry.awaitTrade = nil, nil
+        self:RemoveEscrow(entry)
+    end
     -- Wurf und Off Spec gehören nur dazu, wenn der Würfelgewinner das Item auch bekommt
     local same = self:NamesMatch(winner, entry.winner)
     local isOS = (same and entry.winOS) and true or nil
@@ -997,6 +1013,7 @@ function LC:AwardLoot(entry, auto)
         self:MarkAwarded(entry, entry.winner)
         return
     end
+    if entry.inBags then return self:EscrowWinner(entry) end
     if entry.otherCorpse then
         self:Print(L("%s liegt in einer anderen Leiche – öffne sie, dann wird an %s vergeben.", entry.link, entry.winner))
         return
@@ -1046,7 +1063,7 @@ if GiveMasterLoot then
         if not cand or not link then return end
         local match
         for _, entry in ipairs(LC.lootItems) do
-            if not entry.test and not entry.awarded and not entry.pending and not entry.otherCorpse and entry.link == link then
+            if not entry.test and not entry.awarded and not entry.pending and not entry.otherCorpse and not entry.inBags and entry.link == link then
                 if entry.slot == slot then match = entry break end
                 match = match or entry
             end
@@ -1242,3 +1259,147 @@ function LC:VoteSessionEnd(sender, sid, text)
         if LC.voteSession == s then LC:HideVoteFrame() end
     end)
 end
+
+------------------------------------------------------------------------
+-- Verwahrung: Item eines offline Reservierers selbst nehmen und später per Handel verteilen
+--   entry.inBags = true   Item liegt in den Taschen des Plündermeisters (zählt NICHT als seins)
+--   entry.bagsTime        Zeitpunkt (time()), ab dem die 2 Stunden für den Handel laufen
+--   entry.awaitTrade      Gewinner steht fest, Handel steht aus
+-- Damit ein /reload nichts vergisst, liegt die Verwahrung zusätzlich in db.escrow.
+------------------------------------------------------------------------
+local TRADE_WINDOW = 7200   -- seelengebundene Raid-Items lassen sich 2 Stunden lang handeln
+
+function LC:SaveEscrow(e)
+    if not e or e.test then return end
+    self.db.escrow = self.db.escrow or {}
+    self.db.escrow[e.key] = {
+        itemID = e.itemID, link = e.link, held = e.held, time = e.bagsTime, winner = e.winner,
+        winnerFull = e.winnerFull, isCouncil = e.isCouncil, lid = e.lid, idx = e.idx, warned = e.tradeWarned,
+    }
+end
+
+function LC:RemoveEscrow(e)
+    if e and self.db.escrow then self.db.escrow[e.key] = nil end
+end
+
+-- Wartendes Item aus der Leiche in die eigenen Taschen nehmen
+function LC:TakeIntoBags(entry)
+    if not entry or not entry.held or entry.inBags or entry.awarded or entry.taking then return end
+    local slot
+    for s = 1, GetNumLootItems() do
+        if GetLootSlotLink(s) == entry.link then slot = s break end
+    end
+    if not slot then
+        self:Print(L["Das Item liegt nicht im geöffneten Lootfenster. Bitte die Leiche erneut öffnen."])
+        return
+    end
+    local index
+    for i = 1, 40 do
+        local cand = GetMasterLootCandidate(slot, i)
+        if cand and self:IsMe(cand) then index = i break end
+    end
+    if not index then
+        self:Print(L["Du kannst dieses Item nicht selbst erhalten."])
+        return
+    end
+    local t = { slot = slot }
+    entry.taking = t
+    t.timer = C_Timer.NewTimer(4, function()
+        if entry.taking == t then
+            entry.taking = nil
+            LC:Print(LC.T.HEX.warn .. L("%s konnte nicht genommen werden (Taschen voll?).", entry.link) .. "|r")
+            LC:RefreshUI()
+        end
+    end)
+    self.awarding = true
+    GiveMasterLoot(slot, index)
+    self.awarding = nil
+    self:RefreshUI()
+end
+
+-- Der Loot-Platz ist leer: das Item ist in meinen Taschen
+function LC:ConfirmTake(entry)
+    local t = entry.taking
+    if t and t.timer then t.timer:Cancel() end
+    entry.taking = nil
+    entry.inBags = true
+    entry.bagsTime = time()
+    self:SaveEscrow(entry)
+    local names = table.concat(entry.held or {}, ", ")
+    self:Announce(L("%s nimmt der Plündermeister in Verwahrung, bis %s wieder da ist.", entry.link, names))
+    self:Print(L("%s ist in deiner Verwahrung. Gewinnt jemand anderes, handel es ihm innerhalb von 2 Stunden.", entry.link))
+    self:RefreshUI()
+end
+
+-- Gewinner eines Items in Verwahrung: handeln (oder gleich verbuchen, wenn ich selbst gewinne)
+function LC:EscrowWinner(entry)
+    if self:IsMe(entry.winner) then
+        self:MarkAwarded(entry, entry.winner)
+        return
+    end
+    entry.awaitTrade = true
+    self:SaveEscrow(entry)
+    self:Print(LC.T.HEX.warn .. L("%s ist in deiner Verwahrung: handel es an %s.", entry.link, entry.winner) .. "|r")
+    local m = self:FindByName(self:GetGroupMembers(), entry.winner)
+    local target = (type(m) == "table" and m.fullName) or entry.winnerFull or entry.winner
+    pcall(SendChatMessage, L("[Light Council] Du hast %s gewonnen – der Plündermeister handelt es dir.", entry.link), "WHISPER", nil, target)
+    self:RefreshUI()
+end
+
+-- Handel erkennen: was habe ich angeboten, an wen, und ist der Handel abgeschlossen?
+local trade = {}
+local function TradeItems()
+    local ids = {}
+    for i = 1, 6 do
+        local link = GetTradePlayerItemLink and GetTradePlayerItemLink(i)
+        local id = link and LC:ItemIDFromLink(link)
+        if id then ids[#ids + 1] = id end
+    end
+    return ids
+end
+LC:On("TRADE_SHOW", function(self)
+    trade = { partner = self:UnitFullName("NPC") or UnitName("NPC"), items = {} }
+end)
+LC:On("TRADE_PLAYER_ITEM_CHANGED", function() if trade.partner then trade.items = TradeItems() end end)
+LC:On("TRADE_ACCEPT_UPDATE", function() if trade.partner then trade.items = TradeItems() end end)
+LC:On("UI_INFO_MESSAGE", function(self, a, b)
+    local msg = (type(b) == "string" and b) or (type(a) == "string" and a) or nil
+    if not msg or not ERR_TRADE_COMPLETE or msg ~= ERR_TRADE_COMPLETE or not trade.partner then return end
+    for _, id in ipairs(trade.items or {}) do
+        for _, e in pairs(self.itemState) do
+            if e.inBags and e.winner and not e.awarded and e.itemID == id and self:NamesMatch(e.winner, trade.partner) then
+                self:MarkAwarded(e, e.winner)
+                self:Print(LC.T.HEX.good .. L("%s an %s gehandelt – verbucht.", e.link, e.winner) .. "|r")
+                break
+            end
+        end
+    end
+    trade = {}
+end)
+
+-- Nach /reload: Verwahrung wiederherstellen; kurz vor Ablauf der 2 Stunden erinnern
+LC:On("PLAYER_LOGIN", function(self)
+    local now = time()
+    for key, s in pairs(self.db.escrow or {}) do
+        if type(s) ~= "table" or not s.itemID or now - (s.time or 0) > TRADE_WINDOW + 3600 then
+            self.db.escrow[key] = nil
+        elseif not self.itemState[key] then
+            self.itemState[key] = {
+                key = key, itemID = s.itemID, link = s.link or self:ItemLink(s.itemID), status = "offen",
+                isCouncil = s.isCouncil, inBags = true, bagsTime = s.time, held = s.held,
+                winner = s.winner, winnerFull = s.winnerFull, awaitTrade = s.winner and true or nil,
+                lid = s.lid, idx = s.idx, tradeWarned = s.warned, autoStarted = true,
+            }
+            table.insert(self.lootItems, self.itemState[key])   -- gleich auf der Loot-Seite sichtbar
+        end
+    end
+    C_Timer.NewTicker(60, function()
+        for _, e in pairs(LC.itemState) do
+            if e.inBags and not e.awarded and e.bagsTime and not e.tradeWarned and time() - e.bagsTime > TRADE_WINDOW - 900 then
+                e.tradeWarned = true
+                LC:SaveEscrow(e)
+                LC:Print(LC.T.HEX.warn .. L("%s ist seit fast 2 Stunden in deiner Verwahrung – bald lässt es sich nicht mehr handeln.", e.link) .. "|r")
+            end
+        end
+    end)
+end)

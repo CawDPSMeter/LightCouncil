@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.28.0
+Keep items for offline reservers.
+
+- **“Take it myself”:** if an item waits for an offline reserver, the master looter can take it into their bags *in keeping* instead of waiting at the corpse. It does not count as theirs; the roll happens once the reserver is back (or “Roll anyway”), and the winner gets a whisper.
+- **Trade detection:** when the master looter trades the item to the winner, the addon records it automatically (loot history, counter, raider window). “Traded ✓” records it by hand if needed. Items in keeping survive a /reload, and a reminder comes shortly before the 2-hour trade window ends.
+- Fix: the council from the guild info is no longer lost when the game briefly returns an empty guild info; the last council line is remembered per guild.
+
 ## 0.27.0
 Council from the guild info.
 
