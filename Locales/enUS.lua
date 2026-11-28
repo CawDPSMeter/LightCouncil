@@ -875,4 +875,5 @@ LC:RegisterLocale("enUS", {
     ["Ausschalten"] = "Turn off",
     ["Einschalten"] = "Turn on",
     ["Alles automatisch starten (empfohlen)"] = "Start everything automatically (recommended)",
+    ["Die Raidtage legt ein Council-Mitglied fest und schickt sie an alle."] = "The raid days are set by a council member and sent to everyone.",
 })

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.26.1
+- Loot page: the “Award automatically” / “Start everything automatically” checkboxes stay inside the window in every language.
+- Raid days can be set while setting up (before a council is known); afterwards only council members set them, as before.
+- Raid days no longer get overwritten by a council member who never set any: the most recently saved setting wins and the other council members take it over (same for “Offer reserving from gear sets”).
+
 ## 0.26.0
 Offline reservers, fairness, Upper Blackrock Spire trash loot.
 

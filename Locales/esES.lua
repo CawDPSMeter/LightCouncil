@@ -875,4 +875,5 @@ LC:RegisterLocale("esES", {
     ["Ausschalten"] = "Desactivar",
     ["Einschalten"] = "Activar",
     ["Alles automatisch starten (empfohlen)"] = "Iniciar todo automáticamente (recomendado)",
+    ["Die Raidtage legt ein Council-Mitglied fest und schickt sie an alle."] = "Los días de banda los fija un miembro del consejo y se envían a todos.",
 })

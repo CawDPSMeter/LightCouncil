@@ -875,4 +875,5 @@ LC:RegisterLocale("frFR", {
     ["Ausschalten"] = "Désactiver",
     ["Einschalten"] = "Activer",
     ["Alles automatisch starten (empfohlen)"] = "Tout lancer automatiquement (recommandé)",
+    ["Die Raidtage legt ein Council-Mitglied fest und schickt sie an alle."] = "Les jours de raid sont fixés par un membre du conseil et envoyés à tous.",
 })

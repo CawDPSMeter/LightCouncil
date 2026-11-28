@@ -875,4 +875,5 @@ LC:RegisterLocale("ruRU", {
     ["Ausschalten"] = "Выключить",
     ["Einschalten"] = "Включить",
     ["Alles automatisch starten (empfohlen)"] = "Запускать всё автоматически (рекомендуется)",
+    ["Die Raidtage legt ein Council-Mitglied fest und schickt sie an alle."] = "Дни рейдов задаёт член совета и рассылает всем.",
 })

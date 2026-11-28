@@ -20,7 +20,7 @@
 --   YD~raid~epoch~spieler~1|0~rev~items  Council: Antrag freigegeben / abgelehnt
 --   YX~raid~epoch                    Council: neue Runde (alles löschen)
 --   YQ                               alle: bitte Abgleich schicken
---   YL~name;name;…                   Council: wer gehört zum Council
+--   YL~name;name;…~max~tage~raid~set~zeit   Council: wer gehört zum Council, Höchstzahl, Raidtage (zeit = wann eingestellt)
 --   YZ~raid~epoch~open|timer|closed~zeit~von   Council/Raidleitung: Reservierungen schließen (Zeit = Serverzeit)
 --   YW~raid~epoch~zeit               Council/Raidleitung -> Raider (Whisper): du hast noch nicht reserviert
 local _, LC = ...
@@ -338,7 +338,7 @@ function LC:SendResSync(target)
     local days = {}
     for _, d in ipairs(self.db.config.raidDays or {}) do days[#days + 1] = tostring(d) end
     Out("YL", table.concat(names, ";"), tostring(self:MaxReserves()), table.concat(days, ","), self.db.config.reminderRaid or "",
-        self.db.config.setReserve and "1" or "0")
+        self.db.config.setReserve and "1" or "0", tostring(self.db.config.raidDaysTime or 0))
     for raid, R in pairs(self.db.reserves or {}) do
         if R.close then
             Out("YZ", raid, tostring(R.epoch), R.close.state, tostring(R.close.at or 0), self:CleanText(R.close.by or "", 40))
@@ -402,15 +402,33 @@ function LC:ResHandle(cmd, p, sender)
             self.db.knownCouncil = list
             self.db.knownMax = tonumber(p[3]) or self.db.knownMax
             -- Raidtage und Raid für die Erinnerung (ältere Versionen schicken das nicht mit)
+            -- Raidtage, Erinnerungs-Raid und „aus dem Gear-Set“: die zuletzt eingestellte Fassung gewinnt.
+            -- Sonst überschreibt ein Council-Mitglied, das nie Raidtage eingestellt hat, die der anderen.
             if p[4] then
-                local days = {}
-                for d in p[4]:gmatch("%d") do days[#days + 1] = tonumber(d) end
-                self.db.knownRaidDays = days
-                self.db.knownReminderRaid = p[5] or ""
-                C_Timer.After(3, function() LC:CheckRaidDayReminder() end)
+                local t = tonumber(p[7])
+                local newer
+                if t then
+                    local mine = self:CanSetRaidDays() and (self.db.config.raidDaysTime or 0) or (self.db.knownRaidDaysTime or -1)
+                    newer = t > mine
+                else
+                    newer = (self.db.knownRaidDaysTime == nil) and not self:CanSetRaidDays()   -- ältere Version ohne Zeit
+                end
+                if newer then
+                    local days = {}
+                    for d in p[4]:gmatch("%d") do days[#days + 1] = tonumber(d) end
+                    self.db.knownRaidDays = days
+                    self.db.knownReminderRaid = p[5] or ""
+                    self.db.knownRaidDaysTime = t
+                    if p[6] then self.db.knownSetReserve = (p[6] == "1") end
+                    if self:AmICouncil() and t then
+                        self.db.config.raidDays = days
+                        self.db.config.reminderRaid = p[5] or ""
+                        if p[6] then self.db.config.setReserve = (p[6] == "1") end
+                        self.db.config.raidDaysTime = t
+                    end
+                    C_Timer.After(3, function() LC:CheckRaidDayReminder() end)
+                end
             end
-            -- Reservieren aus dem Gear-Set (ab 0.16.0)
-            if p[6] then self.db.knownSetReserve = (p[6] == "1") end
             self:RefreshUI()
         end
         return
@@ -571,7 +589,8 @@ function LC:BroadcastCouncilInfo()
     local days = {}
     for _, d in ipairs(self.db.config.raidDays or {}) do days[#days + 1] = tostring(d) end
     self:ResSend("YL", table.concat(names, ";"), tostring(self:MaxReserves()),
-        table.concat(days, ","), self.db.config.reminderRaid or "", self.db.config.setReserve and "1" or "0")
+        table.concat(days, ","), self.db.config.reminderRaid or "", self.db.config.setReserve and "1" or "0",
+        tostring(self.db.config.raidDaysTime or 0))
 end
 
 ------------------------------------------------------------------------
@@ -587,9 +606,14 @@ LC.WEEKDAYS = {   -- Reihenfolge Mo–So, Wert = Wochentag wie in date("*t").wda
     { wday = 1, short = "So", long = "Sonntag" },
 }
 
--- Raidtage und Erinnerungs-Raid: Council nimmt die eigene Einstellung, Raider die vom Council übermittelte
+-- Raidtage einstellen: Council – und solange noch gar kein Council bekannt ist (Einrichten durch die Leitung)
+function LC:CanSetRaidDays()
+    return self:AmICouncil() or #self:GetTrustedCouncil() == 0
+end
+
+-- Raidtage und Erinnerungs-Raid: wer sie einstellen darf, nimmt die eigene Einstellung, Raider die vom Council übermittelte
 function LC:GetRaidDays()
-    if self:AmICouncil() then
+    if self:CanSetRaidDays() then
         return self.db.config.raidDays or {}, self.db.config.reminderRaid or ""
     end
     return self.db.knownRaidDays or {}, self.db.knownReminderRaid or ""
@@ -625,6 +649,7 @@ function LC:SetRaidDays(days, raidKey, setReserve)
     self.db.config.raidDays = days
     self.db.config.reminderRaid = raidKey or ""
     if setReserve ~= nil then self.db.config.setReserve = setReserve and true or false end
+    self.db.config.raidDaysTime = GetServerTime()   -- die neueste Einstellung gewinnt beim Abgleich
     self:BroadcastCouncilInfo()
     self:RefreshUI()
 end

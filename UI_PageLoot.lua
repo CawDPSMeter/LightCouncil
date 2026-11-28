@@ -24,7 +24,6 @@ local function CreateLootPage(p)
 
     -- Automatisch vergeben: oben rechts neben der Überschrift
     p.autoAward = T:Check(p, L["Automatisch vergeben"])
-    p.autoAward:SetPoint("TOPRIGHT", -170, -6)
     p.autoAward:SetScript("OnClick", function(self)
         LC.db.config.autoAward = self:GetChecked() and true or false
     end)
@@ -50,6 +49,13 @@ local function CreateLootPage(p)
         GameTooltip:Show()
     end)
     p.autoRollAll:HookScript("OnLeave", GameTooltip_Hide)
+    -- Rechtsbündig nach der längeren Beschriftung (in jeder Sprache anders lang)
+    function p:PlaceChecks()
+        local w = math.max(self.autoAward.label:GetStringWidth(), self.autoRollAll.label:GetStringWidth())
+        self.autoAward:ClearAllPoints()
+        self.autoAward:SetPoint("TOPRIGHT", -(math.ceil(w) + 8 + 4), -6)
+    end
+    p:PlaceChecks()
 
     -- Statuskarte
     local status = Card(p, 54)
@@ -280,6 +286,7 @@ end
 local function RefreshLoot()
     local p = pages.loot
     p.autoAward:SetChecked(LC.db.config.autoAward)
+    p:PlaceChecks()
     p.autoRollAll:SetChecked(LC.db.config.autoRollAll)
     local items = LC.lootItems
     p.empty:SetShown(#items == 0)

@@ -442,7 +442,11 @@ local function RefreshReserves()
 
     p.manCard:SetShown(isCouncil)
     p.btnRound:SetEnabled(isCouncil)
-    p.btnDays:SetEnabled(isCouncil)
+    local canDays = LC:CanSetRaidDays()
+    p.btnDays:SetEnabled(canDays)
+    p.btnDays.tooltip = canDays
+        and L["Lege eure Raidtage fest. An diesen Tagen erinnert das Addon alle beim Einloggen, schon vorab zu reservieren."]
+        or L["Die Raidtage legt ein Council-Mitglied fest und schickt sie an alle."]
     local nDays = #(LC:GetRaidDays())
     p.btnDays:SetText((nDays > 3) and (L["Raidtage: "] .. nDays .. L[" Tage"]) or (L["Raidtage: "] .. LC:RaidDaysText()))
 end
